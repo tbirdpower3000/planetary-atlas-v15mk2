@@ -25,6 +25,10 @@
   * {
     box-sizing: border-box;
   }
+  /* anything hidden stays hidden, whatever display its styles give it */
+  [hidden] {
+    display: none !important;
+  }
   html,
   body {
     margin: 0;
