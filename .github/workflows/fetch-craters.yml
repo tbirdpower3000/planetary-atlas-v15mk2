@@ -1,0 +1,31 @@
+name: Fetch crater catalogs
+
+# Reads the lunar crater tables that are only published inside large archives (Povilaitis et al. 2018 in the LROC
+# shapefile ZIPs, Head et al. 2010 from Brown University), packs them into craters/*.json and commits them,
+# so the atlas can stream them from GitHub Pages. Press "Run workflow" on the Actions tab to refresh them.
+on:
+  workflow_dispatch:
+  push:
+    branches: [craters-data]
+    paths: [scripts/fetch_craters.py, .github/workflows/fetch-craters.yml]
+
+permissions:
+  contents: write
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Fetch and pack
+        run: python scripts/fetch_craters.py
+      - name: Commit the packed catalogs
+        run: |
+          git config user.name "crater-fetch bot"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add craters
+          git diff --cached --quiet && echo "nothing new" || (git commit -m "Fetched crater catalogs ($(date -u +%F))" && git push)

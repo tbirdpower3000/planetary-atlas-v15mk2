@@ -313,6 +313,41 @@
     background: var(--bg);
     color: var(--ink);
   }
+  #crT select,
+  .crctl select {
+    font: inherit;
+    font-size: 0.82rem;
+    padding: 3px 6px;
+    margin-left: 6px;
+    border: 1px solid var(--rule);
+    border-radius: 5px;
+    background: var(--bg);
+    color: var(--ink);
+    max-width: 100%;
+  }
+  .crctl {
+    display: grid;
+    gap: 6px;
+    font-size: 0.86rem;
+  }
+  .crctl label {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+  }
+  .crctl select {
+    min-width: 0;
+    flex: 0 1 auto;
+  }
+  #crPlot {
+    width: 100%;
+    display: block;
+  }
+  #crNote {
+    margin: 0;
+  }
   #liveMsg {
     margin: 0;
     max-width: 44ch;
@@ -1486,7 +1521,7 @@
     <div class="hrow">
       <h1>
         Planetary Modeling Atlas
-        <span class="ver" title="Version v15mk2.7, 3 Nov 2026: the asteroid belt and Jupiter's Trojans">v15mk2.7</span>
+        <span class="ver" title="Version v15mk2.8, 3 Nov 2026: crater catalogs on the Moon and Mars, with counts and model ages">v15mk2.8</span>
       </h1>
       <p id="howTo">
         Pick a world on the map or below. Drag to turn, scroll or pinch to zoom, click a site to fly to it. ✋ Hand control (on a
@@ -1541,7 +1576,7 @@
             id="mapBelt"
             aria-pressed="true"
             title="The main asteroid belt and Jupiter's Trojan asteroids: a sample of 6,000 drawn from their real orbit distributions"
-          >Asteroids</button
+          >Asteroids: on</button
           ><button
             type="button"
             id="mapHand"
@@ -1610,6 +1645,20 @@
           <i style="--c: #ffc94d"></i>Geostationary <i style="--c: #d58cff"></i>Elliptical <i class="st"></i>Station</span
         ><span id="liveMsg" class="note" aria-live="polite"></span
       ></span>
+      <span id="crT" class="toolbar" style="gap: 10px 18px" hidden
+        ><label class="tgroup" title="Impact craters from published catalogs, drawn to scale. Click or tap the globe to count them there."
+          ><input id="crOn" type="checkbox" /> ◯ Craters</label
+        ><label class="tgroup"
+          >at least<select id="crMin" aria-label="Smallest crater drawn and counted in the density layer">
+            <option value="1">1 km</option>
+            <option value="2">2 km</option>
+            <option value="5" selected>5 km</option>
+            <option value="10">10 km</option>
+            <option value="20">20 km</option>
+            <option value="50">50 km</option>
+          </select></label
+        ><span id="crNote" class="note" aria-live="polite"></span
+      ></span>
       <button
         id="handBtn"
         type="button"
@@ -1661,6 +1710,35 @@
         <canvas id="legend" width="512" height="16"></canvas>
         <div class="ticks" id="ticks"></div>
         <p class="note" id="legN"></p>
+      </div>
+      <div class="box" id="crBox" hidden>
+        <p class="lbl">Crater count</p>
+        <p class="note">Click or tap a spot on the globe to count the craters around it and estimate the surface's age.</p>
+        <div class="crctl">
+          <label>Catalog <select id="crCat"></select></label>
+          <label>Circle radius
+            <select id="crR">
+              <option value="10">10 km</option>
+              <option value="25">25 km</option>
+              <option value="50">50 km</option>
+              <option value="100">100 km</option>
+              <option value="200">200 km</option>
+              <option value="400">400 km</option>
+            </select></label
+          >
+          <label>Fit craters from <select id="crFit"></select></label>
+          <label>Chronology <select id="crSys"></select></label>
+        </div>
+        <p class="note" id="crRes" aria-live="polite"></p>
+        <canvas id="crPlot" aria-label="Cumulative crater size-frequency plot with isochrons"></canvas>
+        <div class="row"><button type="button" id="crCopy">Copy counts (CSV)</button></div>
+        <p class="note" id="crHow">
+          The model age fits the production function's shape to the craters in the chosen size range (a Poisson fit of its
+          height) and reads the age off the chronology function. It assumes one surface of a single age, with no secondary
+          craters, resurfacing or saturation; the plot shows how well that holds. Dashed lines are isochrons for 0.1, 1, 3,
+          3.5 and 4 billion years.
+        </p>
+        <p class="note" id="crSrc"></p>
       </div>
       <div class="box">
         <p class="lbl">Under the pointer</p>
@@ -2745,6 +2823,7 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
       const { site, ll } = pick(ev);
       if (ll) readout(ll[0], ll[1]);
       if (site) select(site, true);
+      else if (ll && window.CR_TAP) window.CR_TAP(ll[0], ll[1]);
     });
     // ---------- camera flights ----------
     let fly = null;
@@ -3058,6 +3137,7 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
       $('exagO').textContent = exag;
       $('exag').disabled = !ELEV;
       buildSites();
+      if (window.CR_WORLD) window.CR_WORLD();
       buildPoints();
       displace();
       buildRings();
@@ -3323,6 +3403,7 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
     // ---------- controls ----------
     $('exag').oninput = (e) => {
       exag = +e.target.value;
+      if (window.CR_DIRTY) window.CR_DIRTY();
       $('exagO').textContent = exag;
       displace();
     };
@@ -3556,6 +3637,7 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
     $('saveBtn').onclick = () => {
       const p = Object.assign({}, P);
       delete p.custom;
+      p.grids = (p.grids || []).filter((g) => !g.transient);
       const b = new Blob([JSON.stringify(p)], { type: 'application/json' }),
         a = document.createElement('a');
       a.href = URL.createObjectURL(b);
@@ -3699,6 +3781,598 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
     $('spinT').onchange = (e) => {
       SPIN = e.target.checked;
     };
+    // ---------- craters (Moon and Mars): published crater catalogs drawn as rings, a density layer, and counts with model ages ----------
+    // Catalogs are packed as int16 lat*360, int16 lon*180, uint16 diameter*20 (base64), largest first, and stream in only when asked for.
+    // Production and chronology functions as tabulated in craterstats (Michael, BSD-3 licence; github.com/ggmichael/craterstats).
+    const CR_CATS = {
+      moon: [
+        { id: 'robbins2018', label: 'Robbins (2018) · 1.3 million craters ≥1 km', file: 'craters/craters-moon-robbins2018.json', fit: 2, cite: 'Robbins, S. J. (2019). A new global database of lunar impact craters >1–2 km: 1. JGR Planets 124, 871–892. doi:10.1029/2018JE005592', url: 'https://astrogeology.usgs.gov/search/map/moon_crater_database_v1_robbins' },
+        { id: 'povilaitis2018', label: 'Povilaitis et al. (2018) · 22,746 craters 5–20 km', file: 'craters/craters-moon-povilaitis2018.json', fit: 5, dmax: 20, cite: 'Povilaitis, R. Z., et al. (2018). Crater density differences. Planetary and Space Science 162, 41–51. doi:10.1016/j.pss.2017.05.006', url: 'https://data.lroc.im-ldi.com/lroc/view_rdr/SHAPEFILE_LROC_5TO20KM_CRATERS_0TO90E' },
+      ],
+      mars: [
+        { id: 'robbins2012', label: 'Robbins & Hynek (2012) · 384,343 craters ≥1 km', file: 'craters/craters-mars-robbins2012.json', fit: 1, cite: 'Robbins, S. J., & Hynek, B. M. (2012). A new global database of Mars impact craters ≥1 km: 1. JGR 117, E05004. doi:10.1029/2011JE003966', url: 'https://astrogeology.usgs.gov/pygeoapi/collections/mars/robbinsv1' },
+      ],
+    };
+    const PF_N01 = [0, -3.557528, 0.781027, 1.021521, -0.156012, -0.444058, 0.019977, 0.08685, -0.005874, -0.006809, 8.25e-4, 5.54e-5],
+      PF_N83 = [0, -3.6269, 0.43662, 0.79347, 0.086468, -0.26485, -0.066382, 0.037923, 0.010596, -0.0022496, -0.00051797, 0.0000397],
+      PF_I01 = [0, -3.197453, 1.256814, 0.7915374, -0.4860814, -0.3630098, 0.1015683, 0.06755923, -0.01180639, -0.004753462, 6.232845e-4, 5.805492e-5];
+    const CR_SYS = {
+      moon: [
+        { name: 'Moon, Neukum et al. (2001)', pf: PF_N01, cf: [5.44e-14, 6.93, 0, 8.38e-4], range: [0.01, 300] },
+        { name: 'Moon, Neukum (1983)', pf: PF_N83, cf: [5.44e-14, 6.93, 0, 8.38e-4], range: [0.01, 300] },
+      ],
+      mars: [
+        { name: 'Mars, Neukum–Ivanov (2001)', pf: PF_I01, cf: [3.22e-14, 6.93, 0, 4.875e-4], range: [0.015, 362] },
+        { name: 'Mars, Ivanov (2001)', pf: PF_I01, cf: [2.68e-14, 6.93, 0, 4.13e-4], range: [0.015, 362] },
+      ],
+    };
+    // cumulative production function with a0 = 0 (N per km² above D, for N(1) = 1), and the chronology N(1) at age T (Ga)
+    const crC1 = (pf, D) => {
+      const x = Math.log10(D);
+      let s = 0;
+      for (let i = pf.length - 1; i >= 1; i--) s = (s + pf[i]) * x;
+      return Math.pow(10, s);
+    };
+    const crN1 = (cf, T) => cf[0] * (Math.exp(cf[1] * T) - 1) + cf[3] * T;
+    function crAge(cf, n1) {
+      if (!(n1 > 0)) return 0;
+      let lo = 0,
+        hi = 4.6;
+      if (crN1(cf, hi) < n1) return Infinity;
+      for (let k = 0; k < 60; k++) {
+        const m = (lo + hi) / 2;
+        if (crN1(cf, m) < n1) lo = m;
+        else hi = m;
+      }
+      return (lo + hi) / 2;
+    }
+    const CR = {
+      on: false,
+      world: null,
+      cat: null,
+      data: {},
+      grp: new THREE.Group(),
+      circle: null,
+      center: null,
+      last: null,
+      dirty: true,
+      built: { c: null, psi: 0, t: 0 },
+    };
+    world.add(CR.grp);
+    const crMat = (col, op) =>
+      new THREE.ShaderMaterial({
+        uniforms: { uC: { value: new THREE.Color(col) }, uA: { value: op } },
+        vertexShader:
+          'varying float vF;void main(){vec4 w=modelMatrix*vec4(position,1.);vF=dot(normalize(w.xyz),normalize(cameraPosition-w.xyz));gl_Position=projectionMatrix*viewMatrix*w;}',
+        fragmentShader: 'uniform vec3 uC;uniform float uA;varying float vF;void main(){if(vF<.01)discard;gl_FragColor=vec4(uC,uA*smoothstep(.01,.12,vF));}',
+        transparent: true,
+        depthTest: false,
+        depthWrite: false,
+      });
+    const CR_RING = crMat(0xffd98a, 0.85),
+      CR_CIRC = crMat(0x5fd4ff, 1);
+    async function crLoad(c) {
+      if (CR.data[c.file]) return CR.data[c.file];
+      const el = embedded('crater-' + c.id);
+      let j;
+      if (el) j = JSON.parse(el.textContent);
+      else {
+        const r = await fetch(packUrl(c.file));
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        j = await r.json();
+      }
+      const dec = (b, T) => {
+        const s = atob(b),
+          u = new Uint8Array(s.length);
+        for (let i = 0; i < s.length; i++) u[i] = s.charCodeAt(i);
+        return new T(u.buffer);
+      };
+      const la = dec(j.lat, Int16Array),
+        lo = dec(j.lon, Int16Array),
+        dd = dec(j.d, Uint16Array),
+        n = j.n,
+        lat = new Float32Array(n),
+        lon = new Float32Array(n),
+        d = new Float32Array(n),
+        xyz = new Float32Array(n * 3);
+      for (let i = 0; i < n; i++) {
+        lat[i] = la[i] / j.scale.lat;
+        lon[i] = lo[i] / j.scale.lon;
+        d[i] = dd[i] / j.scale.d;
+        const a = (lat[i] * Math.PI) / 180,
+          b = (lon[i] * Math.PI) / 180;
+        xyz[3 * i] = Math.cos(a) * Math.cos(b);
+        xyz[3 * i + 1] = Math.sin(a);
+        xyz[3 * i + 2] = -Math.cos(a) * Math.sin(b);
+      }
+      return (CR.data[c.file] = { n, lat, lon, d, xyz, source: j.source, q: j.questionable || null });
+    }
+    const crSys = () => CR_SYS[CR.world][+$('crSys').value || 0];
+    // where the view is looking, in the body's own frame, and how wide (radians)
+    function crView() {
+      const inv = world.quaternion.clone().invert();
+      if (FOCUS) {
+        const c = FOCUS.loc.clone().normalize();
+        return { c, psi: Math.min(1.4, Math.max(0.004, camera.position.distanceTo(controls.target) * 1.3)) };
+      }
+      const L = camera.position.length();
+      return { c: camera.position.clone().applyQuaternion(inv).normalize(), psi: Math.acos(Math.min(1, 1 / L)) };
+    }
+    // a small circle of angular radius a about the unit vector c, draped on the relief and lifted a little
+    function crCirclePts(c, a, segs, out, o, lift) {
+      const u = new THREE.Vector3(0, 1, 0).cross(c);
+      if (u.lengthSq() < 1e-8) u.set(1, 0, 0);
+      u.normalize();
+      const v = c.clone().cross(u),
+        ca = Math.cos(a),
+        sa = Math.sin(a);
+      let px = 0,
+        py = 0,
+        pz = 0;
+      for (let k = 0; k <= segs; k++) {
+        const t = (k / segs) * Math.PI * 2,
+          ct = Math.cos(t) * sa,
+          st = Math.sin(t) * sa,
+          x = c.x * ca + u.x * ct + v.x * st,
+          y = c.y * ca + u.y * ct + v.y * st,
+          z = c.z * ca + u.z * ct + v.z * st,
+          la = (Math.asin(Math.max(-1, Math.min(1, y))) * 180) / Math.PI,
+          lo = (Math.atan2(-z, x) * 180) / Math.PI,
+          p = toVec(la, lo, radius(la, lo) + lift);
+        if (k > 0) {
+          out.set([px, py, pz, p.x, p.y, p.z], o);
+          o += 6;
+        }
+        px = p.x;
+        py = p.y;
+        pz = p.z;
+      }
+      return o;
+    }
+    async function crRings() {
+      CR.dirty = false;
+      while (CR.grp.children.length) {
+        const o = CR.grp.children.pop();
+        if (o.geometry) o.geometry.dispose();
+      }
+      if (!CR.on || !CR.cat || !P) return;
+      const D = await crLoad(CR.cat).catch(() => null);
+      if (!D || !CR.on) return;
+      const { c, psi } = crView(),
+        R = P.radiusKm,
+        W = stage.clientWidth || 600,
+        cap = TOUCH ? 5000 : 15000,
+        dMin = Math.max(+$('crMin').value || 1, (3.5 * psi * 2 * R) / W), // nothing smaller than a few pixels across
+        cosLim = Math.cos(Math.min(Math.PI, psi * 1.15 + 0.02)),
+        pick = [];
+      for (let i = 0; i < D.n && pick.length < cap; i++) {
+        if (D.d[i] < dMin) break; // largest first, so the rest are smaller still
+        const dot = D.xyz[3 * i] * c.x + D.xyz[3 * i + 1] * c.y + D.xyz[3 * i + 2] * c.z;
+        if (dot > cosLim - D.d[i] / R) pick.push(i);
+      }
+      let segsTot = 0;
+      const segOf = (i) => Math.max(12, Math.min(48, Math.round((D.d[i] / (2 * R) / psi) * 160)));
+      pick.forEach((i) => (segsTot += segOf(i)));
+      const pos = new Float32Array(segsTot * 6),
+        lift = 0.0006 + (exag * 0.0002 * 1000) / R,
+        cv = new THREE.Vector3();
+      let o = 0;
+      pick.forEach((i) => {
+        cv.set(D.xyz[3 * i], D.xyz[3 * i + 1], D.xyz[3 * i + 2]);
+        o = crCirclePts(cv, D.d[i] / 2 / R, segOf(i), pos, o, lift);
+      });
+      const g = new THREE.BufferGeometry();
+      g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+      const ls = new THREE.LineSegments(g, CR_RING);
+      ls.frustumCulled = false;
+      ls.renderOrder = 5;
+      CR.grp.add(ls);
+      if (CR.center) {
+        const g2 = new THREE.BufferGeometry(),
+          p2 = new Float32Array(96 * 6);
+        crCirclePts(toVec(CR.center[0], CR.center[1], 1).normalize(), (+$('crR').value || 50) / R, 96, p2, 0, lift * 1.5);
+        g2.setAttribute('position', new THREE.BufferAttribute(p2, 3));
+        const l2 = new THREE.LineSegments(g2, CR_CIRC);
+        l2.frustumCulled = false;
+        l2.renderOrder = 6;
+        CR.grp.add(l2);
+      }
+      CR.built = { c, psi, t: performance.now() };
+      $('crNote').textContent = pick.length
+        ? `${pick.length.toLocaleString('en-US')} craters ≥ ${dMin < 10 ? dMin.toFixed(1) : Math.round(dMin)} km in view`
+        : 'No craters that size in view';
+      gPoke();
+    }
+    // redraw the rings once the view has settled somewhere new
+    let crMoved = 0;
+    window.CR_TICK = (t) => {
+      if (!CR.on || !P) return;
+      const { c, psi } = crView(),
+        b = CR.built;
+      const moved = !b.c || c.angleTo(b.c) > Math.max(0.15 * psi, 0.002) || Math.abs(Math.log(psi / (b.psi || psi))) > 0.3;
+      if (moved || CR.dirty) {
+        if (!crMoved) crMoved = t;
+        if (t - crMoved > (CR.dirty ? 0 : 350) && !ftw) {
+          crMoved = 0;
+          crRings();
+        }
+      } else crMoved = 0;
+    };
+    // crater density: craters per million km² above a size, in 1° cells summed over a cap about each point
+    const crMarkLayer = () =>
+      document.querySelectorAll('#layerSeg button').forEach((b) => b.setAttribute('aria-pressed', b.dataset.id === layer));
+    async function crDensity() {
+      if (!CR.on || !CR.cat || !P) return;
+      const pid = P.id,
+        D = await crLoad(CR.cat).catch(() => null);
+      if (!D) return;
+      const dmin = Math.max(CR.cat.fit, +$('crMin').value || 1),
+        R = P.radiusKm,
+        rho = Math.min(0.5, (CR.world === 'moon' ? 100 : 150) / R),
+        bins = new Float32Array(180 * 360);
+      for (let i = 0; i < D.n && D.d[i] >= dmin; i++) {
+        if (CR.cat.dmax && D.d[i] > CR.cat.dmax) continue;
+        const r = Math.min(179, Math.floor(90 - D.lat[i])),
+          c = Math.floor((((D.lon[i] % 360) + 360) % 360)) % 360;
+        bins[r * 360 + c]++;
+      }
+      const cellA = new Float32Array(180);
+      for (let r = 0; r < 180; r++)
+        cellA[r] = R * R * ((Math.PI / 180) * (Math.sin(((90 - r) * Math.PI) / 180) - Math.sin(((89 - r) * Math.PI) / 180)));
+      const rows = 181,
+        cols = 360,
+        out = new Float32Array(rows * cols),
+        rdeg = (rho * 180) / Math.PI,
+        cr = Math.cos(rho);
+      for (let i = 0; i < rows; i++) {
+        const lat = 90 - i,
+          a = (lat * Math.PI) / 180,
+          sa = Math.sin(a),
+          ca = Math.cos(a),
+          r0 = Math.max(0, Math.floor(90 - lat - rdeg) - 1),
+          r1 = Math.min(179, Math.ceil(90 - lat + rdeg) + 1);
+        for (let j = 0; j < cols; j++) {
+          let n = 0,
+            A = 0;
+          for (let r = r0; r <= r1; r++) {
+            const la = ((89.5 - r) * Math.PI) / 180,
+              sl = Math.sin(la),
+              cl = Math.cos(la),
+              // cells whose centre is within rho, row by row: cos(dlon) >= (cos rho - sin a sin la) / (cos a cos la)
+              q = ca * cl > 1e-9 ? (cr - sa * sl) / (ca * cl) : sa * sl >= cr ? -2 : 2;
+            if (q > 1) continue;
+            const w = q <= -1 ? 180 : (Math.acos(q) * 180) / Math.PI,
+              full = w >= 179.5,
+              c0 = full ? 0 : Math.ceil(j - 0.5 - w),
+              c1 = full ? 359 : Math.floor(j - 0.5 + w);
+            for (let c = c0; c <= c1; c++) {
+              n += bins[r * 360 + (((c % 360) + 360) % 360)];
+              A += cellA[r];
+            }
+          }
+          out[i * cols + j] = A > 0 ? (n / A) * 1e6 : 0;
+        }
+      }
+      const sorted = Array.from(out).sort((x, y) => x - y),
+        hi = sorted[Math.floor(sorted.length * 0.99)] || 1,
+        step = Math.pow(10, Math.floor(Math.log10(hi))),
+        max = Math.ceil(hi / step) * step;
+      const def = {
+        id: 'crdens',
+        label: 'Crater density',
+        unit: `craters ≥${dmin} km per 10⁶ km²`,
+        rows,
+        cols,
+        data: out,
+        ramp: 'seq',
+        min: 0,
+        max,
+        ticks: [0, max / 2, max],
+        transient: true,
+        note: `Craters at least ${dmin} km across per million km², counted within ${Math.round(rho * R)} km of each point, from ${CR.cat.label.split(' · ')[0]}. Brighter is more cratered, which usually means older.`,
+      };
+      if (!P || P.id !== pid || !CR.on) return;
+      P.grids = P.grids.filter((g) => g.id !== 'crdens');
+      P.grids.push(def);
+      G.crdens = mkGrid(def);
+      [...PCACHE.keys()].forEach((k) => k.startsWith(P.id + '|crdens') && PCACHE.delete(k));
+      buildLayerSeg();
+      crMarkLayer();
+      if (layer === 'crdens') setLayer('crdens');
+    }
+    function crDropDensity() {
+      if (!P || !P.grids) return;
+      if (P.grids.some((g) => g.id === 'crdens')) {
+        P.grids = P.grids.filter((g) => g.id !== 'crdens');
+        delete G.crdens;
+        buildLayerSeg();
+        if (layer === 'crdens') setLayer((P.grids[0] || P.images[0]).id);
+        else crMarkLayer();
+      }
+    }
+    // counting: every crater whose centre falls inside a circle, a Poisson fit of the production function over the
+    // chosen size range (Michael et al. 2016 style, with the shape fixed), and the age that chronology gives for N(1)
+    async function crCount() {
+      if (!CR.center || !CR.cat) return;
+      const pid = P.id,
+        D = await crLoad(CR.cat).catch(() => null);
+      if (!D || !P || P.id !== pid) return;
+      const [lat0, lon0] = CR.center,
+        R = P.radiusKm,
+        rk = +$('crR').value || 50,
+        rho = rk / R,
+        cr = Math.cos(rho),
+        c = toVec(lat0, lon0, 1).normalize(),
+        area = 2 * Math.PI * R * R * (1 - cr),
+        sel = [];
+      for (let i = 0; i < D.n; i++) {
+        if (D.xyz[3 * i] * c.x + D.xyz[3 * i + 1] * c.y + D.xyz[3 * i + 2] * c.z >= cr) sel.push(i);
+      }
+      const sys = crSys(),
+        dlo = Math.max(+$('crFit').value || CR.cat.fit, sys.range[0]),
+        dhi = Math.min(CR.cat.dmax || 1e9, sys.range[1]),
+        inFit = sel.filter((i) => D.d[i] >= dlo && D.d[i] <= dhi),
+        n = inFit.length,
+        span = crC1(sys.pf, dlo) - crC1(sys.pf, dhi),
+        n1 = n / (area * span),
+        // Gehrels (1986) one-sigma Poisson limits on the count
+        nHi = n + Math.sqrt(n + 0.75) + 1,
+        nLo = n > 0 ? n * Math.pow(1 - 1 / (9 * n) - 1 / (3 * Math.sqrt(n)), 3) : 0,
+        T = crAge(sys.cf, n1),
+        Thi = crAge(sys.cf, nHi / (area * span)),
+        Tlo = crAge(sys.cf, nLo / (area * span));
+      CR.last = { sel, area, dlo, dhi, n, n1, T, Thi, Tlo, sys, lat0, lon0, rk, D };
+      const fmtT = (t) => (t === Infinity ? '> 4.6' : t < 0.1 ? t.toFixed(3) : t < 1 ? t.toFixed(2) : t.toFixed(2));
+      const sci = (v) => {
+        if (!(v > 0)) return '0';
+        const e = Math.floor(Math.log10(v));
+        return `${(v / Math.pow(10, e)).toFixed(2)}×10${String(e).replace(/-/g, '⁻').replace(/\d/g, (x) => '⁰¹²³⁴⁵⁶⁷⁸⁹'[x])}`;
+      };
+      $('crRes').innerHTML =
+        `<b>${sel.length.toLocaleString('en-US')}</b> craters in ${Math.round(area).toLocaleString('en-US')} km² around ${fmtLat(lat0)} ${fmtLon(lon0)}; ` +
+        `<b>${n.toLocaleString('en-US')}</b> between ${dlo} and ${dhi > 1e5 ? '∞' : dhi} km are fitted.<br>` +
+        (n >= 3
+          ? `N(1) = ${sci(n1)} km⁻² · model age <b>${fmtT(T)} Ga</b>` +
+            (T !== Infinity ? ` (+${(Thi - T).toFixed(T < 1 ? 3 : 2)} / −${(T - Tlo).toFixed(T < 1 ? 3 : 2)})` : '') +
+            ` · ${esc(sys.name)}`
+          : `${n ? 'Only ' + n : 'No'} crater${n === 1 ? '' : 's'} in the fitted range, too few for an age: make the circle bigger or fit smaller craters. This catalog is complete down to about ${CR.cat.fit} km, so young surfaces need a finer catalog.`) +
+        (n >= 3 && n < 10 ? '<br><i>Fewer than 10 craters: the age is very uncertain.</i>' : '') +
+        (T > 3.9 && T !== Infinity ? '<br><i>Surfaces this heavily cratered approach saturation, so the age is a lower limit.</i>' : '');
+      crPlot();
+      gPoke();
+    }
+    function crPlot() {
+      const L = CR.last,
+        cv = $('crPlot');
+      if (!L) return;
+      const dpr = Math.min(2, window.devicePixelRatio || 1),
+        Wc = cv.clientWidth || 320,
+        Hc = Math.round(Wc * 0.68);
+      cv.width = Wc * dpr;
+      cv.height = Hc * dpr;
+      cv.style.height = Hc + 'px';
+      const x = cv.getContext('2d'),
+        cs = getComputedStyle(document.documentElement),
+        ink = cs.getPropertyValue('--ink').trim() || '#222',
+        mut = cs.getPropertyValue('--muted').trim() || '#777',
+        rule = cs.getPropertyValue('--rule').trim() || '#ccc',
+        acc = cs.getPropertyValue('--accent').trim() || '#2a7';
+      x.setTransform(dpr, 0, 0, dpr, 0, 0);
+      x.clearRect(0, 0, Wc, Hc);
+      const ds = L.sel.map((i) => L.D.d[i]).sort((a, b) => b - a),
+        bins = [];
+      for (let k = 0; ; k++) {
+        const Dk = Math.pow(2, k / 2);
+        if (Dk > (ds[0] || 1) * 1.01 || Dk > L.sys.range[1]) break;
+        let m = 0;
+        while (m < ds.length && ds[m] >= Dk) m++;
+        if (m) bins.push([Dk, m / L.area, Math.sqrt(m) / L.area]);
+      }
+      const xmin = 0,
+        xmax = Math.min(Math.log10(L.sys.range[1]), Math.max(1, Math.ceil(Math.log10(Math.max(ds[0] || 10, 10))))),
+        ys = bins.map((b) => Math.log10(b[1])),
+        ymax = Math.ceil(Math.max(-1, ...ys)),
+        ymin = Math.floor(Math.min(ymax - 3, ...bins.map((b) => Math.log10(Math.max(b[1] - b[2], b[1] * 0.1))))),
+        ml = 46,
+        mr = 10,
+        mt = 10,
+        mb = 32,
+        X = (lx) => ml + ((lx - xmin) / (xmax - xmin)) * (Wc - ml - mr),
+        Y = (ly) => mt + ((ymax - ly) / (ymax - ymin)) * (Hc - mt - mb);
+      x.font = '11px ' + (cs.getPropertyValue('--mono').trim() || 'monospace');
+      x.strokeStyle = rule;
+      x.fillStyle = mut;
+      x.lineWidth = 1;
+      for (let e = xmin; e <= Math.floor(xmax); e++) {
+        x.beginPath();
+        x.moveTo(X(e), mt);
+        x.lineTo(X(e), Hc - mb);
+        x.stroke();
+        x.textAlign = 'center';
+        x.fillText(String(Math.pow(10, e)), X(e), Hc - mb + 14);
+      }
+      for (let e = ymin; e <= ymax; e++) {
+        x.beginPath();
+        x.moveTo(ml, Y(e));
+        x.lineTo(Wc - mr, Y(e));
+        x.stroke();
+        x.textAlign = 'right';
+        x.fillText('10' + String(e).replace(/-/g, '⁻').replace(/\d/g, (q) => '⁰¹²³⁴⁵⁶⁷⁸⁹'[q]), ml - 5, Y(e) + 4);
+      }
+      x.textAlign = 'center';
+      x.fillText('crater diameter, km', (ml + Wc - mr) / 2, Hc - 4);
+      x.save();
+      x.translate(11, (mt + Hc - mb) / 2);
+      x.rotate(-Math.PI / 2);
+      x.fillText('N(≥D) per km²', 0, 0);
+      x.restore();
+      x.save();
+      x.beginPath();
+      x.rect(ml, mt, Wc - ml - mr, Hc - mt - mb);
+      x.clip();
+      const iso = (T, a, dash, col, w) => {
+        const n1 = crN1(L.sys.cf, T);
+        x.strokeStyle = col;
+        x.globalAlpha = a;
+        x.lineWidth = w;
+        x.setLineDash(dash);
+        x.beginPath();
+        for (let k = 0; k <= 80; k++) {
+          const lx = xmin + ((xmax - xmin) * k) / 80,
+            D0 = Math.pow(10, lx);
+          if (D0 < L.sys.range[0] || D0 > L.sys.range[1]) continue;
+          const yy = Y(Math.log10(n1 * crC1(L.sys.pf, D0)));
+          k ? x.lineTo(X(lx), yy) : x.moveTo(X(lx), yy);
+        }
+        x.stroke();
+        x.setLineDash([]);
+        x.globalAlpha = 1;
+      };
+      [0.1, 1, 3, 3.5, 4].forEach((T) => iso(T, 0.35, [3, 3], mut, 1));
+      let lastY = -99;
+      [0.1, 1, 3, 3.5, 4].forEach((T) => {
+        const n1 = crN1(L.sys.cf, T),
+          lx = xmin + 0.04,
+          yy = Y(Math.log10(n1 * crC1(L.sys.pf, Math.pow(10, lx))));
+        x.fillStyle = mut;
+        x.textAlign = 'left';
+        if (yy > mt + 8 && yy < Hc - mb - 2 && Math.abs(yy - lastY) > 11) {
+          x.fillText(T + ' Ga', X(lx) + 2, yy - 3);
+          lastY = yy;
+        }
+      });
+      if (L.n >= 3 && L.T !== Infinity) {
+        iso(L.T, 1, [], acc, 2);
+        x.fillStyle = acc;
+        x.globalAlpha = 0.12;
+        x.fillRect(X(Math.log10(L.dlo)), mt, X(Math.log10(Math.min(L.dhi, Math.pow(10, xmax)))) - X(Math.log10(L.dlo)), Hc - mt - mb);
+        x.globalAlpha = 1;
+      }
+      x.fillStyle = ink;
+      x.strokeStyle = ink;
+      x.lineWidth = 1;
+      bins.forEach(([Dk, v, e]) => {
+        const px = X(Math.log10(Dk));
+        x.beginPath();
+        x.moveTo(px, Y(Math.log10(v + e)));
+        x.lineTo(px, Y(Math.log10(Math.max(v - e, v * 0.05))));
+        x.stroke();
+        x.beginPath();
+        x.arc(px, Y(Math.log10(v)), 2.6, 0, 7);
+        x.fill();
+      });
+      x.restore();
+    }
+    // the controls
+    function crFill() {
+      const cats = CR_CATS[CR.world] || [];
+      $('crCat').innerHTML = cats.map((c, i) => `<option value="${i}">${esc(c.label)}</option>`).join('');
+      $('crSys').innerHTML = (CR_SYS[CR.world] || []).map((s, i) => `<option value="${i}">${esc(s.name)}</option>`).join('');
+      CR.cat = cats[0] || null;
+      crFitOpts();
+      $('crR').value = CR.world === 'mars' ? '100' : '50';
+    }
+    function crFitOpts() {
+      const f = CR.cat ? CR.cat.fit : 1,
+        opts = [1, 2, 3, 5, 10, 20, 50].filter((v) => v >= f && (!CR.cat.dmax || v < CR.cat.dmax));
+      $('crFit').innerHTML = opts.map((v) => `<option value="${v}">${v} km</option>`).join('');
+      $('crMin').value = String(Math.max(+$('crMin').value || 5, f));
+      if (![...$('crMin').options].some((o) => o.value === $('crMin').value)) $('crMin').value = '5';
+    }
+    window.CR_WORLD = () => {
+      const w = P && CR_CATS[P.id] ? P.id : null;
+      $('crT').hidden = !w;
+      CR.center = null;
+      CR.last = null;
+      $('crRes').textContent = '';
+      $('crPlot').getContext('2d').clearRect(0, 0, 9999, 9999);
+      if (w !== CR.world) {
+        CR.world = w;
+        if (w) crFill();
+      }
+      if (!w) {
+        CR.on = false;
+        $('crOn').checked = false;
+      }
+      $('crBox').hidden = !CR.on;
+      CR.dirty = true;
+      if (CR.on) {
+        crSources();
+        crDensity();
+      } else crRings();
+    };
+    function crSources() {
+      const c = CR.cat;
+      $('crSrc').innerHTML = c
+        ? `Craters: ${esc(c.cite)}. <a href="${esc(c.url)}" target="_blank" rel="noopener">source</a>. Production and chronology functions as tabulated in <a href="https://github.com/ggmichael/craterstats" target="_blank" rel="noopener">craterstats</a> (Michael).`
+        : '';
+    }
+    async function crSwitch() {
+      $('crBox').hidden = !CR.on;
+      CR.dirty = true;
+      if (!CR.on) {
+        CR.center = null;
+        crRings();
+        crDropDensity();
+        return;
+      }
+      $('crNote').textContent = 'Loading craters…';
+      try {
+        await crLoad(CR.cat);
+      } catch (e) {
+        $('crNote').textContent = `This catalog could not be loaded (${e.message}).`;
+        return;
+      }
+      crSources();
+      crDensity();
+      if (CR.center) crCount();
+    }
+    $('crOn').onchange = (e) => {
+      CR.on = e.target.checked;
+      crSwitch();
+    };
+    $('crCat').onchange = (e) => {
+      CR.cat = CR_CATS[CR.world][+e.target.value];
+      crFitOpts();
+      crSwitch();
+    };
+    $('crMin').onchange = () => {
+      CR.dirty = true;
+      crDensity();
+    };
+    $('crR').onchange = () => {
+      CR.dirty = true;
+      crCount();
+    };
+    $('crFit').onchange = crCount;
+    $('crSys').onchange = crCount;
+    $('crCopy').onclick = async () => {
+      const L = CR.last;
+      if (!L) return;
+      const t =
+        `# ${P.name} crater count, ${CR.cat.label.split(' · ')[0]}\n# centre ${L.lat0.toFixed(4)}, ${L.lon0.toFixed(4)} (lat, lon east); radius ${L.rk} km; area ${L.area.toFixed(1)} km2\n` +
+        `# fit ${L.dlo}-${L.dhi > 1e5 ? 'max' : L.dhi} km, n=${L.n}, N(1)=${L.n1.toExponential(4)} /km2, model age ${L.T === Infinity ? '>4.6' : L.T.toFixed(3)} Ga (${L.sys.name})\n` +
+        'diameter_km,lat,lon\n' +
+        L.sel.map((i) => `${L.D.d[i].toFixed(2)},${L.D.lat[i].toFixed(4)},${L.D.lon[i].toFixed(4)}`).join('\n');
+      try {
+        await navigator.clipboard.writeText(t);
+        $('crCopy').textContent = 'Copied';
+      } catch (e) {
+        $('crCopy').textContent = 'Copy failed';
+      }
+      setTimeout(() => ($('crCopy').textContent = 'Copy counts (CSV)'), 1500);
+    };
+    // a click or tap on the globe counts the craters there
+    window.CR_TAP = (lat, lon) => {
+      if (!CR.on || !CR.cat) return false;
+      CR.center = [lat, lon];
+      CR.dirty = true;
+      crCount();
+      return true;
+    };
+    new ResizeObserver(() => CR.last && crPlot()).observe($('crPlot'));
+    window.atlasCraters = () => ({ on: CR.on, world: CR.world, cat: CR.cat && CR.cat.id, last: CR.last && { n: CR.last.n, total: CR.last.sel.length, area: CR.last.area, n1: CR.last.n1, T: CR.last.T, lo: CR.last.Tlo, hi: CR.last.Thi }, rings: CR.grp.children.length ? CR.grp.children[0].geometry.attributes.position.count / 2 : 0 });
+    window.CR_DIRTY = () => (CR.dirty = true);
     // ---------- frame loop ----------
     const v3 = new THREE.Vector3();
     function project(p, el, cond) {
@@ -3777,6 +4451,7 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
         return;
       sunAndSpin(t);
       if (window.LIVE_TICK) window.LIVE_TICK(t);
+      if (window.CR_TICK) window.CR_TICK(t);
       renderer.render(scene, camera);
       if (!P) return;
       const cdir = camera.position.clone().normalize(),
@@ -4499,6 +5174,7 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
         $('mapBelt').onclick = (ev) => {
           pts.visible = !pts.visible;
           ev.currentTarget.setAttribute('aria-pressed', pts.visible);
+          ev.currentTarget.textContent = 'Asteroids: ' + (pts.visible ? 'on' : 'off');
           lastJd = NaN;
           mPoke();
         };
