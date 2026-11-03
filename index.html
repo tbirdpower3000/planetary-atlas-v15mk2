@@ -59,6 +59,14 @@ h3{font-size:.95rem;font-weight:600;margin:0}
 .grid.dived{grid-template-columns:minmax(0,1fr)}
 #liveSatG{font:inherit;font-size:.82rem;padding:3px 6px;border:1px solid var(--rule);border-radius:5px;background:var(--bg);color:var(--ink)}
 #liveMsg{margin:0;max-width:44ch}
+#satKey{display:inline-flex;flex-wrap:wrap;gap:4px 10px;align-items:center;font-size:.76rem;color:var(--muted)}
+#satKey i{display:inline-block;width:9px;height:9px;border-radius:50%;background:var(--c);margin-right:3px;vertical-align:-1px;box-shadow:0 0 0 1px rgba(0,0,0,.35)}
+#satKey i.st{width:11px;height:11px;background:#fff;border-radius:2px;transform:rotate(45deg)}
+#satCard{position:absolute;left:10px;top:34px;z-index:4;max-width:min(20rem,calc(100% - 20px));background:rgba(7,11,20,.9);color:#e9ecef;border:1px solid rgba(255,255,255,.22);border-radius:6px;padding:10px 12px;display:grid;gap:4px;font-size:.8rem}
+#satCard b{font-size:.95rem;color:#fff;padding-right:22px}#satCard .k{color:#9aa6b8}
+#satCard dl{display:grid;grid-template-columns:auto auto;gap:1px 12px;margin:0;font-family:var(--mono);font-size:.74rem;font-variant-numeric:tabular-nums}#satCard dt{color:#9aa6b8}#satCard dd{margin:0;text-align:right}
+#satCard button{position:absolute;right:6px;top:6px;background:none;border:0;color:#c9ced3;font-size:1rem;padding:2px 6px;cursor:pointer}
+#labels span.sat{border-color:rgba(255,255,255,.55);font-size:.66rem;pointer-events:none}
 .mapbar{position:absolute;left:10px;right:10px;bottom:10px;display:flex;flex-wrap:wrap;gap:8px;align-items:center;pointer-events:none}
 .mapbar>*{pointer-events:auto}
 .mapbar .seg{background:rgba(7,11,20,.8);border-color:var(--spaceline)}
@@ -211,7 +219,7 @@ pre.schema{margin:0;font-family:var(--mono);font-size:.74rem;line-height:1.45;ba
 
 <div class="wrap">
 <header>
-  <div class="hrow"><h1>Planetary Modeling Atlas <span class="ver" title="Version v15mk2, 2 Nov 2026: v15 with Earth imagery, night look, real time and live data">v15mk2</span></h1><p>Pick a world on the map or below. Drag to turn, scroll or pinch to zoom, click a site to fly to it. ✋ Hand control opens a full-screen view.</p></div>
+  <div class="hrow"><h1>Planetary Modeling Atlas <span class="ver" title="Version v15mk2, 2 Nov 2026: v15 with Earth imagery, night look, real time and live data">v15mk2</span></h1><p>Pick a world on the map or below. Drag to turn, scroll or pinch to zoom, click a site to fly to it. ✋ Hand control (on a planet's globe) opens a full-screen view.</p></div>
   <p class="ainote" role="note"><b>Generated with AI.</b> Built with Claude from the published data listed under each world's sources. Not independently reviewed, so check any number you rely on against the original source.</p>
   <section class="mapbox" aria-labelledby="mapH">
     <div class="maphead"><h2 id="mapH">Solar System</h2><p class="note">Click a planet or moon to fly to it, then keep zooming in (or double-click it) to land on its globe right here. Drag to turn, scroll or pinch to zoom.</p></div>
@@ -220,7 +228,7 @@ pre.schema{margin:0;font-family:var(--mono);font-size:.74rem;line-height:1.45;ba
         <span id="mapDate">–</span><span id="mapAim" hidden></span><span id="mapAcc" title="Which JPL orbital elements are in use, and their stated error">–</span>
         <div class="seg" role="group" aria-label="Time warp" id="warp"><button type="button" data-w="-36525" aria-pressed="false" title="Backward, 100 years per second">◀◀ 100 yr/s</button><button type="button" data-w="-365.25" aria-pressed="false" title="Backward, 1 year per second">◀ 1 yr/s</button><button type="button" data-w="0" aria-pressed="false" title="Pause">⏸</button><button type="button" data-w="1.1574074074074073e-05" aria-pressed="true" title="Real time: the clock runs at its true speed, so Earth turns once a day and the planets barely move">▶ Real time</button><button type="button" data-w="1" aria-pressed="false">1 day/s</button><button type="button" data-w="30" aria-pressed="false">1 month/s</button><button type="button" data-w="365.25" aria-pressed="false">1 yr/s</button><button type="button" data-w="36525" aria-pressed="false" title="Forward, 100 years per second">100 yr/s ▶▶</button></div>
         <label class="yearpick" for="mapYear">Year<input id="mapYear" type="range" min="-2999" max="2999" step="1" value="2026"></label>
-        <button type="button" id="mapNow">Today</button><button type="button" id="mapInner" class="mapOnly">Inner planets</button><button type="button" id="mapAll" class="mapOnly">Whole system</button><button type="button" id="mapHand" aria-pressed="false" title="Steer the view with your hand, using your computer's camera">✋ Hand control</button>
+        <button type="button" id="mapNow">Today</button><button type="button" id="mapInner" class="mapOnly">Inner planets</button><button type="button" id="mapAll" class="mapOnly">Whole system</button><button type="button" id="mapHand" hidden aria-pressed="false" title="Steer the view with your hand, using your computer's camera">✋ Hand control</button>
       </div>
     </div>
     <p class="note orbitnote">Planet orbits and positions come from JPL's approximate orbital elements (Standish): Table 1 for 1800–2050, and Table 2, with its extra terms for the giant planets, from 3000 BC to AD 3000. JPL gives the Table 2 errors in longitude as about 20″ for Mercury up to 40′ for Uranus. The planets can't be placed this way before 3000 BC: the Solar System is chaotic, so it takes a full numerical integration, and exact positions are lost entirely after tens of millions of years. Dates use the proleptic Gregorian calendar, and 1 BC is followed by AD 1. Pluto, Ceres and Vesta use single-epoch elements, so their positions are approximate, more so far from today. Moon orbits are drawn as circles at their true sizes, tilted by each planet's axial tilt as an approximation of the real planes; their positions along the orbit are illustrative. Body sizes are not to scale.</p>
@@ -236,14 +244,14 @@ pre.schema{margin:0;font-family:var(--mono);font-size:.74rem;line-height:1.45;ba
     <label class="tgroup" title="Light the globe from the Sun's true direction at the date shown"><input id="sunT" type="checkbox" checked> Sunlight</label>
     <label class="tgroup" title="Turn the globe at its real rotation rate on the viewer's clock"><input id="spinT" type="checkbox" checked> Spin</label>
     <span id="ptToggles" class="toolbar" style="gap:10px 18px"></span>
-    <span id="liveT" class="toolbar" style="gap:10px 18px" hidden><label class="tgroup" title="Aircraft in flight right now, from the OpenSky Network, refreshed about every 90 seconds and moved along their heading in between"><input id="liveFl" type="checkbox"> ✈ Live flights</label><label class="tgroup" title="Satellites placed from CelesTrak orbital elements with the SGP4 model, at the date shown on the map"><input id="liveSat" type="checkbox"> 🛰 Satellites</label><select id="liveSatG" aria-label="Which satellites"><option value="stations">Space stations</option><option value="visual">Brightest</option><option value="gps-ops">GPS</option><option value="starlink">Starlink</option></select><span id="liveMsg" class="note" aria-live="polite"></span></span>
+    <span id="liveT" class="toolbar" style="gap:10px 18px" hidden><label class="tgroup" title="Aircraft in flight right now, from the OpenSky Network, refreshed about every 90 seconds and moved along their heading in between"><input id="liveFl" type="checkbox"> ✈ Live flights</label><label class="tgroup" title="Satellites placed from CelesTrak orbital elements with the SGP4 model, at the date shown on the map"><input id="liveSat" type="checkbox"> 🛰 Satellites</label><select id="liveSatG" aria-label="Which satellites"><option value="stations">Space stations</option><option value="visual">Brightest</option><option value="weather">Weather</option><option value="gps-ops">GPS</option><option value="geo">Geostationary</option><option value="starlink">Starlink</option></select><span id="satKey" hidden><i style="--c:#5fd4ff"></i>Low orbit <i style="--c:#7dff9a"></i>Medium (navigation) <i style="--c:#ffc94d"></i>Geostationary <i style="--c:#d58cff"></i>Elliptical <i class="st"></i>Station</span><span id="liveMsg" class="note" aria-live="polite"></span></span>
     <button id="handBtn" type="button" aria-pressed="false" title="Turn and zoom the globe with your hand, using your computer's camera">✋ Hand control</button><button id="handSnd" type="button" aria-pressed="true" hidden title="Turn hand-control sounds on or off">🔊 Sound</button>
     <span id="viewBtns" class="row"></span>
   </div>
 </header>
 
 <div class="grid">
-  <div class="stage" id="stage"><div id="globe"></div><div id="labels"></div><button type="button" id="toMap" title="Back up to the Solar System map">↑ Solar System</button><div class="cap" id="cap"></div><div id="busy" hidden>Loading…</div><div id="handMsg" role="status" hidden></div></div>
+  <div class="stage" id="stage"><div id="globe"></div><div id="labels"></div><button type="button" id="toMap" title="Back up to the Solar System map">↑ Solar System</button><div class="cap" id="cap"></div><div id="satCard" hidden></div><div id="busy" hidden>Loading…</div><div id="handMsg" role="status" hidden></div></div>
   <div id="handCur" hidden><i></i><span></span></div>
   <div id="fsBar" hidden role="toolbar" aria-label="Hand control"><button type="button" id="fsMap">↑ Solar System</button><button type="button" id="fsLand" hidden>Land</button><span class="fsTime"><button type="button" id="fsZin" title="Zoom in: pinch and hold">＋</button><button type="button" id="fsZout" title="Zoom out: pinch and hold">−</button></span><span class="fsTime"><button type="button" data-fw="-36525" title="Backward fast">◀◀</button><button type="button" data-fw="-365.25" title="Backward">◀</button><button type="button" data-fw="0" title="Pause">⏸</button><button type="button" data-fw="1" title="Forward, 1 day a second">▶</button><button type="button" data-fw="36525" title="Forward fast">▶▶</button></span><span id="fsDate"></span><button type="button" id="fsExit">✕ Exit hand control</button></div>
   <div id="handBox" hidden><video id="handVid" playsinline muted></video><canvas id="handCv"></canvas></div>
@@ -405,10 +413,10 @@ function fmt(v,u){const a=Math.abs(v),d=a<10?1:0;return `${v>=0?'+':'−'}${a.to
 const host=$('globe'),stage=$('stage'),labels=$('labels');
 if(!window.THREE){host.innerHTML='<p style="color:#ccc;padding:16px">The 3D viewer could not load three.js from its CDN. Check your connection and reload.</p>';$('busy').hidden=true;return;}
 const renderer=new THREE.WebGLRenderer({antialias:true});renderer.setPixelRatio(Math.min(2,window.devicePixelRatio||1));host.appendChild(renderer.domElement);
-const scene=new THREE.Scene(),camera=new THREE.PerspectiveCamera(35,1,.01,200);
+const scene=new THREE.Scene(),camera=new THREE.PerspectiveCamera(35,1,.002,200);
 const world=new THREE.Group();scene.add(world);   // everything fixed to the surface lives here, so spinning the body is one rotation
 camera.position.set(3.9,.25,0);
-const controls=new THREE.OrbitControls(camera,renderer.domElement);controls.enablePan=false;controls.minDistance=1.2;controls.maxDistance=8;controls.enableDamping=true;controls.rotateSpeed=.6;
+const controls=new THREE.OrbitControls(camera,renderer.domElement);controls.enablePan=false;controls.minDistance=1.1;controls.maxDistance=8;controls.enableDamping=true;controls.rotateSpeed=.6;
 const tex=document.createElement('canvas');tex.width=TW;tex.height=TH;const tctx=tex.getContext('2d');
 const texture=new THREE.CanvasTexture(tex);texture.anisotropy=4;
 const geom=new THREE.SphereGeometry(1,720,360),base=geom.attributes.position.array.slice(),uv=geom.attributes.uv.array;
@@ -810,12 +818,13 @@ async function enterGlobe(id,from){if(!INDEX.some(x=>x.id===id)&&!custom.some(x=
   if(DIVING)return;DIVING=true;
   try{await Promise.all([ready?null:open(id,true),wait(RM()?0:(from==='zoom'?250:900))]);}finally{DIVING=false;}if(current!==id)return;
   arrive();diveIn($('mapStage'));}
-function exitToMap(){if(FS){if(MODE==='map')return;setMode('map');}else if(DIVE)diveOut();else $('mapStage').scrollIntoView({behavior:RM()?'auto':'smooth',block:'center'});if(window.MAPFOCUS&&current)window.MAPFOCUS(current);}
+function exitToMap(){if(FS&&window.HAND_STOP)window.HAND_STOP();   // hand control is for the globe only: going back to the Solar System ends it
+  if(DIVE)diveOut();else $('mapStage').scrollIntoView({behavior:RM()?'auto':'smooth',block:'center'});if(window.MAPFOCUS&&current)window.MAPFOCUS(current);}
 function go(id){if(FS&&MODE==='map')enterGlobe(id);else open(id);}
 // zoom through: scrolling in on a focused body lands on its globe; scrolling out past the globe rises back to the map
 renderer.domElement.addEventListener('wheel',e=>{if((FS&&MODE==='globe'||DIVE&&stage.classList.contains('dvin'))&&e.deltaY>0&&camera.position.length()>=controls.maxDistance*.97)exitToMap();},{passive:true});
 // ---------- views hand control can steer (the globe, and the map below registers itself) ----------
-const VIEWS={globe:{name:'the globe',cam:camera,ctl:controls,stage,el:renderer.domElement,stop:()=>{fly=null;},floor:1.4,
+const VIEWS={globe:{name:'the globe',cam:camera,ctl:controls,stage,el:renderer.domElement,stop:()=>{fly=null;},floor:1.12,
   hover(x,y){if(!P)return null;const {site}=pick({clientX:x,clientY:y});hoverSite=site;return site?site.name:null;},
   tap(x,y){if(!P)return null;const {site}=pick({clientX:x,clientY:y});if(site){select(site,true);return site.name;}return null;},
   near(x,y){if(!P)return null;const r=renderer.domElement.getBoundingClientRect(),cd=camera.position.clone().normalize();let best=null,bd=48;
@@ -999,7 +1008,15 @@ window.atlasSun=()=>SUNB?{lat:Math.asin(SUNB.y/SUNB.length())*180/Math.PI,lon:Ma
  const dot=(()=>{const c=document.createElement('canvas');c.width=c.height=32;const x=c.getContext('2d');x.fillStyle='#fff';x.beginPath();x.arc(16,16,13,0,7);x.fill();return new THREE.CanvasTexture(c);})();
  function cloud(color,size){const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.BufferAttribute(new Float32Array(48),3));g.setDrawRange(0,0);
    const q=new THREE.Points(g,new THREE.PointsMaterial({color,size,sizeAttenuation:false,map:dot,alphaTest:.5}));q.frustumCulled=false;q.visible=false;lg.add(q);return q;}
- const FL=cloud(0xffc857,3),SA=cloud(0x7fe3ff,4);
+ const FL=cloud(0xffc857,3),SA=cloud(0xffffff,4),ST=cloud(0xffffff,9);SA.material.vertexColors=true;SA.material.needsUpdate=true;
+ const SAT_COL={leo:[.37,.83,1],meo:[.49,1,.6],geo:[1,.79,.3],heo:[.84,.55,1]},SAT_NAME={leo:'low orbit',meo:'medium orbit (navigation)',geo:'geostationary',heo:'elliptical orbit',station:'space station'};
+ function cbuf(q,n){let a=q.geometry.attributes.color;if(!a||a.array.length<n*3){a=new THREE.BufferAttribute(new Float32Array(Math.ceil(n*1.3)*3+3),3);q.geometry.setAttribute('color',a);}return a;}
+ // orbit type and the numbers on the card, from the elements themselves
+ function about(name,rec,l1){const ER=6378.135,a=rec.a,e=rec.ecco,per=2*Math.PI/rec.no,peri=(a*(1-e)-1)*ER,apo=(a*(1+e)-1)*ER;
+   const st=/\bISS\b|ZARYA|TIANGONG|TIANHE|WENTIAN|MENGTIAN|\bCSS\b/i.test(name);
+   const cls=st?'station':e>.25?'heo':Math.abs(per-1436)<40&&e<.05?'geo':apo<2000?'leo':'meo';
+   const des=(l1||'').substring(9,17).trim(),yy=parseInt(des.slice(0,2),10),year=isNaN(yy)?null:(yy<57?2000+yy:1900+yy);
+   return {cls,st,per,peri,apo,inc:rec.inclo*D,ecc:e,norad:rec.satnum,des,year};}
  function buf(q,n){let a=q.geometry.attributes.position;if(a.array.length<n*3){a=new THREE.BufferAttribute(new Float32Array(Math.ceil(n*1.3)*3+3),3);q.geometry.setAttribute('position',a);}return a;}
  function put(a,i,lat,lon,r){const p=lat/D,l=lon/D,c=Math.cos(p);a.array[3*i]=r*c*Math.cos(l);a.array[3*i+1]=r*Math.sin(p)*(1-FLAT);a.array[3*i+2]=-r*c*Math.sin(l);}
  let flMsg='',saMsg='',saNote='';
@@ -1037,8 +1054,8 @@ window.atlasSun=()=>SUNB?{lat:Math.asin(SUNB.y/SUNB.length())*180/Math.PI,lon:Ma
        catch(e){if(!txt)throw e;}}
      if(!txt)throw new Error('no data');
      const L=txt.split(/\r?\n/).map(x=>x.trimEnd()).filter(Boolean),out=[];
-     for(let i=0;i+2<L.length;){if(L[i+1].startsWith('1 ')&&L[i+2].startsWith('2 ')){try{const rec=L_.twoline2satrec(L[i+1],L[i+2]);if(!rec.error)out.push({name:L[i].trim(),rec,p:null});}catch(e){}i+=3;}else i++;}
-     if(g!==saGroup)return;sats=out;saIdx=0;
+     for(let i=0;i+2<L.length;){if(L[i+1].startsWith('1 ')&&L[i+2].startsWith('2 ')){try{const rec=L_.twoline2satrec(L[i+1],L[i+2]);if(!rec.error){const nm=L[i].trim();out.push({name:nm,rec,p:null,v:0,info:about(nm,rec,L[i+1])});}}catch(e){}i+=3;}else i++;}
+     if(g!==saGroup)return;sats=out;saIdx=0;selSat=null;saLabels();
      saMsg=`${sats.length.toLocaleString('en-US')} satellite${sats.length===1?'':'s'} · ${saName()}${age>2*3600e3?` (saved copy, ${Math.round(age/3600e3)} h old)`:''}`;}
    catch(e){if(g===saGroup){sats=[];saMsg=offMsg(saName());}}
    upd();}
@@ -1051,21 +1068,45 @@ window.atlasSun=()=>SUNB?{lat:Math.asin(SUNB.y/SUNB.length())*180/Math.PI,lon:Ma
    // spread the work: up to 1500 orbits a frame, the rest keep their last spot
    const n=Math.min(sats.length,1500);
    for(let k=0;k<n;k++){const s=sats[saIdx];saIdx=(saIdx+1)%sats.length;let pv=null;try{pv=L_.propagate(s.rec,date);}catch(e){}
-     if(pv&&pv.position&&typeof pv.position==='object'){const g=L_.eciToGeodetic(pv.position,gm);s.p=[g.latitude*D,g.longitude*D,g.height];}else s.p=null;}
-   let m=0;for(const s of sats){if(!s.p)continue;put(a,m,s.p[0],s.p[1],1+s.p[2]/RE);s.i=m;m++;}
-   a.needsUpdate=true;SA.geometry.setDrawRange(0,m);}
+     if(pv&&pv.position&&typeof pv.position==='object'){const g=L_.eciToGeodetic(pv.position,gm),vv=pv.velocity;s.p=[g.latitude*D,g.longitude*D,g.height];s.v=Math.hypot(vv.x,vv.y,vv.z);}else s.p=null;}
+   const ca=cbuf(SA,sats.length),sa=buf(ST,32);let m=0,ns=0;
+   for(const s of sats){if(!s.p)continue;
+     if(s.info.st&&ns<32){put(sa,ns,s.p[0],s.p[1],1+s.p[2]/RE);s.q=ST;s.i=ns;ns++;continue;}
+     put(a,m,s.p[0],s.p[1],1+s.p[2]/RE);const c=SAT_COL[s.info.cls]||SAT_COL.leo;ca.array.set(c,3*m);s.q=SA;s.i=m;m++;}
+   a.needsUpdate=true;ca.needsUpdate=true;sa.needsUpdate=true;SA.geometry.setDrawRange(0,m);ST.geometry.setDrawRange(0,ns);ST.visible=SA.visible;
+   if(selSat)orbitRing(L_,date,gm);saLabelPlace();}
+ // names beside the stations, always
+ let stLab=[];function saLabels(){stLab.forEach(x=>x.el.remove());stLab=sats.filter(s=>s.info.st).slice(0,12).map(s=>{const el=document.createElement('span');el.className='pt sat';el.textContent=s.name.replace(/\s*\(.*\)$/,'');labels.appendChild(el);return {s,el};});}
+ const lv=new THREE.Vector3();function saLabelPlace(){stLab.forEach(({s,el})=>{if(!s.p||!SA.visible){el.hidden=true;return;}const r=1+s.p[2]/RE,la=s.p[0]/D,lo=s.p[1]/D;lv.set(r*Math.cos(la)*Math.cos(lo),r*Math.sin(la)*(1-FLAT),-r*Math.cos(la)*Math.sin(lo));project(lv,el,true);});}
+ // the chosen satellite: its whole orbit as a ring, and a card of its numbers
+ let selSat=null,ringT=0;const ring=new THREE.Line(new THREE.BufferGeometry().setFromPoints(new Array(181).fill(0).map(()=>new THREE.Vector3())),new THREE.LineBasicMaterial({color:0xffffff,transparent:true,opacity:.75}));ring.visible=false;ring.frustumCulled=false;lg.add(ring);
+ function orbitRing(L_,date,gm){const now=performance.now();if(now-ringT<1500)return;ringT=now;const s=selSat,pa=ring.geometry.attributes.position,per=s.info.per*60e3;
+   for(let k=0;k<=180;k++){let q=null;try{q=L_.propagate(s.rec,new Date(date.getTime()+k/180*per));}catch(e){}
+     if(q&&q.position&&typeof q.position==='object'){const g=L_.eciToGeodetic(q.position,gm),r=1+g.height/RE;put(pa,k,g.latitude*D,g.longitude*D,r);}else if(k)pa.array.copyWithin(3*k,3*(k-1),3*k);}
+   pa.needsUpdate=true;ring.material.color.setRGB(...(s.info.st?[1,1,1]:SAT_COL[s.info.cls]||[1,1,1]));ring.visible=SA.visible;card();}
+ const fmtN=(v,d=0)=>Math.round(v*10**d)/10**d,km=v=>fmtN(v).toLocaleString('en-US')+' km';
+ function card(){const c=$('satCard'),s=selSat;if(!s){c.hidden=true;ring.visible=false;return;}const i=s.info,ep=new Date((s.rec.jdsatepoch-2440587.5)*864e5),age=(Date.now()-ep)/864e5;
+   c.innerHTML=`<button type="button" aria-label="Close">×</button><b>${esc(s.name)}</b><span class="k">${SAT_NAME[i.cls]}${i.year?' · launched '+i.year:''}</span><dl>`+
+     `<dt>Height now</dt><dd>${s.p?km(s.p[2]):'–'}</dd><dt>Speed</dt><dd>${s.v?fmtN(s.v,2)+' km/s':'–'}</dd><dt>Low / high point</dt><dd>${km(i.peri)} / ${km(i.apo)}</dd>`+
+     `<dt>Inclination</dt><dd>${fmtN(i.inc,1)}°</dd><dt>One orbit</dt><dd>${i.per<120?fmtN(i.per,1)+' min':fmtN(i.per/60,2)+' h'}</dd><dt>Over</dt><dd>${s.p?`${Math.abs(fmtN(s.p[0],1))}°${s.p[0]>=0?'N':'S'} ${Math.abs(fmtN(((s.p[1]+540)%360)-180,1))}°${((s.p[1]+540)%360)-180>=0?'E':'W'}`:'–'}</dd>`+
+     `<dt>NORAD number</dt><dd>${i.norad}</dd><dt>Designator</dt><dd>${esc(i.des||'–')}</dd><dt>Orbit data from</dt><dd>${ep.toISOString().slice(0,10)} (${age<1?'today':fmtN(age,0)+' d ago'})</dd></dl>`;
+   c.hidden=false;c.querySelector('button').onclick=()=>{selSat=null;card();};}
  // ---- hover: name, height and speed under the pointer
  const tip=document.createElement('span');tip.className='pt';tip.hidden=true;labels.appendChild(tip);let hx=null,hy=0,hT=0;
  renderer.domElement.addEventListener('pointermove',e=>{hx=e.clientX;hy=e.clientY;});renderer.domElement.addEventListener('pointerleave',()=>{hx=null;tip.hidden=true;});
- const wv=new THREE.Vector3(),pv=new THREE.Vector3();
+ const wv=new THREE.Vector3(),pv=new THREE.Vector3();let hoverSat=null,sdown=null;
+ renderer.domElement.addEventListener('pointerdown',e=>{sdown=[e.clientX,e.clientY];});
+ renderer.domElement.addEventListener('pointerup',e=>{if(!sdown||Math.hypot(e.clientX-sdown[0],e.clientY-sdown[1])>5)return;hover();if(hoverSat){selSat=hoverSat;ringT=0;}});
  function hover(){if(hx===null){tip.hidden=true;return;}world.updateMatrixWorld();const r=renderer.domElement.getBoundingClientRect(),c=camera.position;let best=null,bd=10;
    const test=(q,i,k,o)=>{const a=q.geometry.attributes.position.array;wv.set(a[3*i],a[3*i+1],a[3*i+2]).applyMatrix4(world.matrixWorld);
      // hidden behind the Earth?
      const dx=wv.x-c.x,dy=wv.y-c.y,dz=wv.z-c.z,L2=dx*dx+dy*dy+dz*dz,tt=-(c.x*dx+c.y*dy+c.z*dz)/L2;if(tt>0&&tt<1){const px=c.x+tt*dx,py=c.y+tt*dy,pz=c.z+tt*dz;if(px*px+py*py+pz*pz<.995)return;}
      pv.copy(wv).project(camera);if(pv.z>1)return;const sx=r.left+(pv.x+1)/2*r.width,sy=r.top+(1-pv.y)/2*r.height,d=Math.hypot(sx-hx,sy-hy);if(d<bd){bd=d;best={x:sx-r.left,y:sy-r.top,k,o};}};
    if(FL.visible)fl.forEach((f,i)=>test(FL,i,'f',f));
-   if(SA.visible&&SA.geometry.drawRange.count>0)sats.forEach(s=>{if(s.p)test(SA,s.i,'s',s);});
-   if(!best){tip.hidden=true;return;}const o=best.o;tip.textContent=best.k==='f'?`✈ ${o.cs} · ${(o.al/1000).toFixed(1)} km up · ${Math.round(o.v*3.6)} km/h${o.c?' · '+o.c:''}`:`🛰 ${o.name} · ${Math.round(o.p[2]).toLocaleString('en-US')} km up`;tip.style.left=best.x.toFixed(1)+'px';tip.style.top=best.y.toFixed(1)+'px';tip.hidden=false;}
+   if(SA.visible)sats.forEach(s=>{if(s.p&&s.q)test(s.q,s.i,'s',s);});hoverSat=best&&best.k==='s'?best.o:null;
+   if(!best){tip.hidden=true;return;}const o=best.o;tip.textContent=best.k==='f'?`✈ ${o.cs} · ${(o.al/1000).toFixed(1)} km up · ${Math.round(o.v*3.6)} km/h${o.c?' · '+o.c:''}`:`🛰 ${o.name} · ${SAT_NAME[o.info.cls]} · ${Math.round(o.p[2]).toLocaleString('en-US')} km up · ${o.v?fmtN(o.v,2)+' km/s':''} · ${fmtN(o.info.inc,0)}° · ${o.info.per<120?fmtN(o.info.per,0)+' min':fmtN(o.info.per/60,1)+' h'} an orbit — click for more`;tip.style.left=best.x.toFixed(1)+'px';tip.style.top=best.y.toFixed(1)+'px';tip.hidden=false;}
+ // for checking from the console: where each satellite is on screen
+ window.atlasSatScreen=()=>{world.updateMatrixWorld();const r=renderer.domElement.getBoundingClientRect();return sats.filter(s=>s.p&&s.q).map(s=>{const A=s.q.geometry.attributes.position.array;wv.set(A[3*s.i],A[3*s.i+1],A[3*s.i+2]).applyMatrix4(world.matrixWorld).project(camera);return {name:s.name,cls:s.info.cls,x:r.left+(wv.x+1)/2*r.width,y:r.top+(1-wv.y)/2*r.height,z:wv.z};});};
  // ---- the addresses
  $('liveFlUrl').value=FLU;$('liveSaUrl').value=SAU;
  function useUrls(f,a){const ok=u=>/^https?:\/\//i.test(u);if(!ok(f)||!ok(a)){$('loadMsg').textContent='Both live-data addresses need to start with https:// (or http://).';return;}
@@ -1076,10 +1117,10 @@ window.atlasSun=()=>SUNB?{lat:Math.asin(SUNB.y/SUNB.length())*180/Math.PI,lon:Ma
  $('liveUrlReset').onclick=()=>{try{localStorage.removeItem('atlasFlUrl');localStorage.removeItem('atlasSaUrl');}catch(e){}useUrls(DEF_FL,DEF_SA);};
  // ---- switches
  $('liveFl').onchange=e=>{FL.visible=e.target.checked;if(FL.visible&&!fl.length)flFetch();upd();};
- $('liveSat').onchange=e=>{SA.visible=e.target.checked;if(SA.visible&&!sats.length)saLoad(saGroup);upd();};
- $('liveSatG').onchange=e=>{saGroup=e.target.value;sats=[];SA.geometry.setDrawRange(0,0);if(SA.visible)saLoad(saGroup);};
+ $('liveSat').onchange=e=>{SA.visible=ST.visible=e.target.checked;$('satKey').hidden=!SA.visible;if(!SA.visible){selSat=null;card();}saLabelPlace();if(SA.visible&&!sats.length)saLoad(saGroup);upd();};
+ $('liveSatG').onchange=e=>{saGroup=e.target.value;sats=[];selSat=null;card();saLabels();SA.geometry.setDrawRange(0,0);ST.geometry.setDrawRange(0,0);if(SA.visible)saLoad(saGroup);};
  // ---- each globe frame
- window.LIVE_TICK=t=>{const earth=!!(P&&P.id==='earth');if(ui.hidden===earth)ui.hidden=!earth;lg.visible=earth;if(!earth)return;
+ window.LIVE_TICK=t=>{const earth=!!(P&&P.id==='earth');if(ui.hidden===earth)ui.hidden=!earth;lg.visible=earth;if(!earth){if(!$('satCard').hidden)$('satCard').hidden=true;stLab.forEach(x=>x.el.hidden=true);return;}
    if(FL.visible){if(!document.hidden&&t-flLast>90000)flFetch();if(t-flDraw>250&&fl.length){flDraw=t;flPlace();}}
    if(SA.visible&&window.SIMJD)saPlace(window.SIMJD());
    if(t-hT>100){hT=t;hover();}};}
@@ -1099,7 +1140,7 @@ boot();
  function shown(el){const r=el.getBoundingClientRect(),h=Math.max(0,Math.min(r.bottom,innerHeight)-Math.max(r.top,0)),w=Math.max(0,Math.min(r.right,innerWidth)-Math.max(r.left,0));return w*h;}
  function useView(k){if(V&&V!==VIEWS[k]){goal=null;zoomRate=0;spinRate=0;anchor=null;R.reset();R2.reset();tap0=null;lastTap=null;}V=VIEWS[k];const m=$("handMsg");if(m.parentNode!==V.stage)V.stage.appendChild(m);
    if(VIEWS.map)VIEWS.map.handOn=stream!==null&&V===VIEWS.map;}
- const showHelp=()=>{hmsg(`<b>Move your open hand</b> and the cursor follows; it snaps onto planets and buttons. <b>Pinch</b> (thumb to index finger) to press: the gold ring fills as your fingers close. ${V===VIEWS.map?'<b>Pinch a planet or moon to land on it</b>, or pinch and hold on it for half a second. ':'<b>↑ Solar System</b> at the top takes you back out. '}<b>Pinch on empty space and move</b> to turn the view. <b>Make a fist and move it up to zoom in, down to zoom out</b> (keep going to land on a planet or rise back to the map); <b>＋ and −</b> at the top also zoom while you hold a pinch on them. Hovering on a top button for a second also presses it. <button type='button' id='handHide' class='linkish'>Hide tips</button>`);const h=$("handHide");if(h)h.addEventListener("click",()=>hmsg(""));};
+ const showHelp=()=>{hmsg(`<b>Move your open hand</b> and the cursor follows; it snaps onto planets and buttons. <b>Pinch</b> (thumb to index finger) to press: the gold ring fills as your fingers close. ${V===VIEWS.map?'<b>Pinch a planet or moon to land on it</b>, or pinch and hold on it for half a second. ':'<b>↑ Solar System</b> at the top takes you back out. '}<b>Pinch on empty space and move</b> to turn the view. <b>Make a fist and move it up to zoom in, down to zoom out</b> ; <b>＋ and −</b> at the top also zoom while you hold a pinch on them. Hovering on a top button for a second also presses it. <button type='button' id='handHide' class='linkish'>Hide tips</button>`);const h=$("handHide");if(h)h.addEventListener("click",()=>hmsg(""));};
  let ac=null,tone=null,sndOn=true;
  function audio(){if(!ac){try{ac=new (window.AudioContext||window.webkitAudioContext)();}catch(e){ac=null;}}if(ac&&ac.state==="suspended")ac.resume();return ac;}
  function chime(up){if(!sndOn||!ac)return;const t=ac.currentTime,f0=up?880:523.25;
@@ -1226,7 +1267,7 @@ boot();
        if(!zoom0){V.stop();grabGoal();zoom0={d,r:goal.radius};chime(true);}
        const lo=V.floor||V.ctl.minDistance,hi=V.ctl.maxDistance;
        const want=zoom0.r*Math.pow(zoom0.d/Math.max(.02,d),V.floor?1.2:3);goal.radius=Math.min(hi,Math.max(lo,want));
-       if(V===VIEWS.globe&&want>hi*1.08){zoom0=null;goMap();}else if(V===VIEWS.map&&want<VIEWS.map.enterDist()&&VIEWS.map.has(VIEWS.map.focusId())){zoom0=null;goGlobe(VIEWS.map.focusId());}return;}   // the map spans a huge range, so its zoom is steeper
+       if(false){}else if(V===VIEWS.map&&want<VIEWS.map.enterDist()&&VIEWS.map.has(VIEWS.map.focusId())){zoom0=null;goGlobe(VIEWS.map.focusId());}return;}   // the map spans a huge range, so its zoom is steeper
      zoom0=null;
      if(R.mode==="idle"&&R2.mode==="idle")clapCheck(hands[0].L,hands[1].L,now);else clapN=0;return;}
    // one hand: cursor, taps and grab-to-turn
@@ -1243,7 +1284,7 @@ boot();
      cursorState("press",zoomRate<0?"Zooming in":zoomRate>0?"Zooming out":"Fist: move up or down to zoom");
      // holding at the limit carries on into the next view, like scrolling does
      if(goal&&zoomRate){const lo=V.floor||V.ctl.minDistance,hi=V.ctl.maxDistance;
-       if(V===VIEWS.globe&&zoomRate>0&&goal.radius>=hi*.99){if(!anchor.lim)anchor.lim=now;if(now-anchor.lim>500){zoomRate=0;anchor=null;toneStop();goMap();}}
+       if(false){}
        else if(V===VIEWS.map&&zoomRate<0&&goal.radius<=VIEWS.map.enterDist()&&VIEWS.map.has(VIEWS.map.focusId())){zoomRate=0;anchor=null;toneStop();goGlobe(VIEWS.map.focusId());}
        else anchor.lim=0;}
      return;}
@@ -1259,7 +1300,7 @@ boot();
      if(tap0.zoom){cursorState("press",tap0.zoom<0?"Zooming in":"Zooming out");
        // zooming past the limits carries on into the next view
        if(goal&&now-zoomHeld>700){const lo=V.floor||V.ctl.minDistance,hi=V.ctl.maxDistance;
-         if(V===VIEWS.globe&&tap0.zoom>0&&goal.radius>=hi*.99){tap0=null;zoomRate=0;goMap();}
+         if(false){}
          else if(V===VIEWS.map&&tap0.zoom<0&&goal.radius<=VIEWS.map.enterDist()&&VIEWS.map.has(VIEWS.map.focusId())){tap0=null;zoomRate=0;goGlobe(VIEWS.map.focusId());}}
        return;}
      const moved=dist(g,tap0);
