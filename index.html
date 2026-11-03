@@ -427,6 +427,11 @@
     background: var(--spaceink);
     color: var(--space);
   }
+  .mapbar > button[aria-pressed='false'] {
+    color: var(--spacemut);
+    text-decoration: line-through;
+    text-decoration-color: rgba(255, 255, 255, 0.35);
+  }
   .mapbar > button {
     background: rgba(7, 11, 20, 0.8);
     border-color: var(--spaceline);
@@ -1397,7 +1402,17 @@
       display: none;
     }
     .mapbar .yearpick input {
-      width: 80px;
+      width: 64px;
+    }
+    .mapbar > button,
+    .mapbar .yearpick {
+      padding: 5px 7px;
+    }
+    #mapDate {
+      order: -2;
+    }
+    #mapBelt {
+      order: -1;
     }
     #layerSeg {
       display: grid;
@@ -1471,7 +1486,7 @@
     <div class="hrow">
       <h1>
         Planetary Modeling Atlas
-        <span class="ver" title="Version v15mk2.6, 2 Nov 2026: phone layout and touch controls">v15mk2.6</span>
+        <span class="ver" title="Version v15mk2.7, 3 Nov 2026: the asteroid belt and Jupiter's Trojans">v15mk2.7</span>
       </h1>
       <p id="howTo">
         Pick a world on the map or below. Drag to turn, scroll or pinch to zoom, click a site to fly to it. ✋ Hand control (on a
@@ -1516,11 +1531,17 @@
             </button>
           </div>
           <label class="yearpick" for="mapYear"
-            >Year<input id="mapYear" type="range" min="-2999" max="2999" step="1" value="2026"
+            ><span class="wide">Year</span><input id="mapYear" type="range" min="-2999" max="2999" step="1" value="2026"
           /></label>
           <button type="button" id="mapNow">Today</button
           ><button type="button" id="mapInner" class="mapOnly">Inner<span class="wide"> planets</span></button
           ><button type="button" id="mapAll" class="mapOnly">Whole<span class="wide"> system</span></button
+          ><button
+            type="button"
+            id="mapBelt"
+            aria-pressed="true"
+            title="The main asteroid belt and Jupiter's Trojan asteroids: a sample of 6,000 drawn from their real orbit distributions"
+          >Asteroids</button
           ><button
             type="button"
             id="mapHand"
@@ -1542,7 +1563,9 @@
         the proleptic Gregorian calendar, and 1 BC is followed by AD 1. Pluto, Ceres and Vesta use single-epoch elements, so their
         positions are approximate, more so far from today. Moon orbits are drawn as circles at their true sizes, tilted by each
         planet's axial tilt as an approximation of the real planes; their positions along the orbit are illustrative. Body sizes
-        are not to scale.
+        are not to scale. The asteroids are a sample of 6,000 drawn from the real spread of the main belt (with the Kirkwood gaps
+        that Jupiter's resonances clear) and of Jupiter's Trojans, which lead and trail Jupiter by about 60°; they show where
+        asteroids are, not where any particular asteroid is.
       </p>
       </details>
     </section>
@@ -4357,6 +4380,7 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
         setJd(jdNow());
       };
       function place() {
+        BELT.update(jd);
         PL.forEach((id) => B[id].pos.copy(helio(id, jd)));
         Object.entries(MOONS).forEach(([id, [par, akm, P]]) => {
           const g = MOG[par].g;
@@ -4370,6 +4394,117 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
         });
         Object.values(B).forEach((b) => b.sprite.position.copy(b.pos));
       }
+      // asteroids: 4,800 in the main belt and 1,200 Trojans sharing Jupiter's orbit, drawn from the real distributions of
+      // semi-major axis (with the Kirkwood gaps Jupiter clears), eccentricity and inclination. Each is a sample, not a catalogued object.
+      const BELT = (() => {
+        let seed = 20261103;
+        const rnd = () => {
+          seed = (seed + 0x6d2b79f5) | 0;
+          let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+          t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+          return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+        };
+        const ray = (sig) => sig * Math.sqrt(-2 * Math.log(1 - rnd() * 0.999)),
+          // relative numbers of asteroids by distance from the Sun (AU): inner, middle, "pristine", outer belt, Cybeles
+          zone = (a) => (a < 2.06 ? 0 : a < 2.5 ? 1 : a < 2.825 ? 0.9 : a < 2.958 ? 0.35 : a < 3.279 ? 0.6 : a < 3.5 ? 0.08 : 0),
+          // the Kirkwood gaps at Jupiter's 3:1, 5:2, 7:3 and 2:1 resonances
+          gap = (a) =>
+            [
+              [2.502, 0.012],
+              [2.825, 0.01],
+              [2.958, 0.008],
+              [3.279, 0.025],
+            ].reduce((m, [g, w]) => m * (1 - 0.97 * Math.exp(-(((a - g) / w) ** 2))), 1);
+        const NM = 4800,
+          NT = 1200,
+          N = NM + NT,
+          el = new Float32Array(N * 7); // a, e, I, node, argp, M0 (deg at J2000), Trojan offset (deg, 0 = main belt)
+        for (let k = 0; k < NM; k++) {
+          let a;
+          do a = 2.06 + rnd() * 1.44;
+          while (rnd() > zone(a) * gap(a));
+          let e;
+          do e = ray(0.12);
+          while (e > 0.4 || a * (1 - e) < 1.67); // nothing crossing Mars's orbit
+          let I;
+          do I = ray(7.5);
+          while (I > 35);
+          el.set([a, e, I, rnd() * 360, rnd() * 360, rnd() * 360, 0], k * 7);
+        }
+        for (let k = NM; k < N; k++) {
+          const L4 = rnd() < 0.62, // the leading cloud holds more of them
+            lib = (rnd() - 0.5) * 2 * ray(14); // swing about the Lagrange point
+          let I;
+          do I = ray(11);
+          while (I > 40);
+          el.set([5.2 * (1 + (rnd() - 0.5) * 0.04), Math.min(0.2, ray(0.06)), I, rnd() * 360, rnd() * 360, 0, (L4 ? 60 : -60) + lib], k * 7);
+        }
+        const pos = new Float32Array(N * 3),
+          col = new Float32Array(N * 3);
+        for (let k = 0; k < N; k++) {
+          const t = k >= NM,
+            v = 0.75 + rnd() * 0.25;
+          col.set(t ? [0.62 * v, 0.72 * v, 0.6 * v] : [0.76 * v, 0.7 * v, 0.6 * v], k * 3);
+        }
+        const g = new THREE.BufferGeometry();
+        g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+        g.setAttribute('color', new THREE.BufferAttribute(col, 3));
+        const pts = new THREE.Points(
+          g,
+          new THREE.PointsMaterial({
+            size: 1.6 * Math.min(2, window.devicePixelRatio || 1),
+            sizeAttenuation: false,
+            vertexColors: true,
+            transparent: true,
+            opacity: 0.75,
+            depthWrite: false,
+          }),
+        );
+        pts.frustumCulled = false;
+        msc.add(pts);
+        let lastJd = NaN;
+        function update(jd) {
+          if (!pts.visible || Math.abs(jd - lastJd) < 0.02) return;
+          lastJd = jd;
+          const dT = jd - 2451545,
+            J = elements('jupiter', jd),
+            LJ = J.M + J.argp + J.node; // Jupiter's mean longitude: the Trojans lead or trail it by about 60°
+          for (let k = 0; k < N; k++) {
+            const o = k * 7,
+              a = el[o],
+              e = el[o + 1],
+              i = el[o + 2] * D2R,
+              O = el[o + 3] * D2R,
+              w = el[o + 4] * D2R;
+            const M = (el[o + 6] ? LJ + el[o + 6] - el[o + 3] - el[o + 4] : el[o + 5] + (0.9856076686 * dT) / (a * Math.sqrt(a))) * D2R;
+            let E = M + e * Math.sin(M);
+            for (let n = 0; n < 4; n++) E -= (E - e * Math.sin(E) - M) / (1 - e * Math.cos(E));
+            const xp = a * (Math.cos(E) - e),
+              yp = a * Math.sqrt(1 - e * e) * Math.sin(E),
+              cw = Math.cos(w),
+              sw = Math.sin(w),
+              cO = Math.cos(O),
+              sO = Math.sin(O),
+              ci = Math.cos(i),
+              si = Math.sin(i);
+            const x = (cw * cO - sw * sO * ci) * xp + (-sw * cO - cw * sO * ci) * yp,
+              y = (cw * sO + sw * cO * ci) * xp + (-sw * sO + cw * cO * ci) * yp,
+              z = sw * si * xp + cw * si * yp;
+            pos[k * 3] = x;
+            pos[k * 3 + 1] = z;
+            pos[k * 3 + 2] = -y;
+          }
+          g.attributes.position.needsUpdate = true;
+        }
+        $('mapBelt').onclick = (ev) => {
+          pts.visible = !pts.visible;
+          ev.currentTarget.setAttribute('aria-pressed', pts.visible);
+          lastJd = NaN;
+          mPoke();
+        };
+        return { pts, update };
+      })();
+      window.atlasBelt = () => ({ shown: BELT.pts.visible, n: BELT.pts.geometry.attributes.position.count });
       // focus and camera glide
       let focusId = null,
         glide = null;
