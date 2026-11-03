@@ -28,6 +28,10 @@ jobs:
           python-version: '3.12'
       - name: Take the snapshot
         run: python scripts/fetch_flights.py
+        env:
+          # optional: add these as repository secrets (Settings → Secrets and variables → Actions) to sign in to OpenSky
+          OPENSKY_CLIENT_ID: ${{ secrets.OPENSKY_CLIENT_ID }}
+          OPENSKY_CLIENT_SECRET: ${{ secrets.OPENSKY_CLIENT_SECRET }}
       - name: Publish it on the live branch (one commit, replaced each time, so the repository doesn't grow)
         run: |
           mkdir pub && mv flights.json pub/ && cd pub

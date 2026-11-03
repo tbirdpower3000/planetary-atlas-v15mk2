@@ -2,18 +2,37 @@
 websites), so this GitHub job reads one worldwide snapshot every few minutes and publishes it as flights.json on the
 repo's `live` branch, which raw.githubusercontent.com serves to any website. The format is OpenSky's own /states/all
 (trimmed to the fields the atlas uses), so the page reads it the same way."""
-import json, time, urllib.request, sys
+import json, os, time, urllib.parse, urllib.request, sys
 
 UA = 'planetary-modeling-atlas live-flight relay (github.com/tbirdpower3000/planetary-atlas-v15mk2)'
 
 
-def get(url, timeout=60):
-    with urllib.request.urlopen(urllib.request.Request(url, headers={'User-Agent': UA, 'Accept': 'application/json'}), timeout=timeout) as r:
+def get(url, timeout=60, headers=None):
+    h = {'User-Agent': UA, 'Accept': 'application/json', **(headers or {})}
+    with urllib.request.urlopen(urllib.request.Request(url, headers=h), timeout=timeout) as r:
         return json.load(r)
 
 
+def opensky_token():
+    """With the repo secrets OPENSKY_CLIENT_ID and OPENSKY_CLIENT_SECRET set, sign in to OpenSky (10x the daily
+    allowance and sharper data); without them the job stays anonymous."""
+    cid, sec = os.environ.get('OPENSKY_CLIENT_ID'), os.environ.get('OPENSKY_CLIENT_SECRET')
+    if not (cid and sec):
+        return None
+    body = urllib.parse.urlencode({'grant_type': 'client_credentials', 'client_id': cid, 'client_secret': sec}).encode()
+    req = urllib.request.Request('https://auth.opensky-network.org/auth/realms/opensky-network/protocol/openid-connect/token', data=body,
+                                 headers={'Content-Type': 'application/x-www-form-urlencoded', 'User-Agent': UA})
+    try:
+        with urllib.request.urlopen(req, timeout=30) as r:
+            return json.load(r)['access_token']
+    except Exception as e:
+        print('OpenSky sign-in failed, staying anonymous:', repr(e), flush=True)
+        return None
+
+
 def opensky():
-    j = get('https://opensky-network.org/api/states/all')
+    tok = opensky_token()
+    j = get('https://opensky-network.org/api/states/all', headers={'Authorization': 'Bearer ' + tok} if tok else None)
     st = []
     for v in j.get('states') or []:
         if v[5] is None or v[6] is None or v[8]:
@@ -21,7 +40,7 @@ def opensky():
         r = lambda x, n: None if x is None else round(x, n)
         # icao24, callsign, country, time_position, last_contact, lon, lat, baro_alt, on_ground, velocity, track, vertical_rate, sensors, geo_alt
         st.append([v[0], (v[1] or '').strip(), v[2], v[3], v[4], r(v[5], 4), r(v[6], 4), r(v[7], 0), False, r(v[9], 1), r(v[10], 1), r(v[11], 1), None, r(v[13], 0)])
-    return {'time': j.get('time') or int(time.time()), 'source': 'OpenSky Network (opensky-network.org), anonymous /states/all', 'states': st}
+    return {'time': j.get('time') or int(time.time()), 'source': 'OpenSky Network (opensky-network.org), ' + ('signed-in' if tok else 'anonymous') + ' /states/all', 'states': st}
 
 
 def airplaneslive():
