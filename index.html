@@ -1429,6 +1429,18 @@
     overflow: hidden;
     border: 1px solid var(--rule);
     background: #000;
+    /* see-through, so it doesn't cover the globe; it fades further while a gesture is in progress, back up when a hand is lost */
+    opacity: 0.55;
+    transition: opacity 0.35s;
+  }
+  #handBox.busy {
+    opacity: 0.3;
+  }
+  #handBox.lost {
+    opacity: 0.9;
+  }
+  #handBox:hover {
+    opacity: 1;
   }
   #handVid {
     display: block;
@@ -8354,11 +8366,6 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
         return { html: `Didn’t catch a command in “${esc(raw.trim())}”. Say <b>“Atlas, help”</b> for the list.`, err: true };
       }
       function heard(text) {
-        const A = window.atlasAdapt;
-        if (A && A.asking) {
-          if (/\b(good|great|better|yes|keep it)\b/i.test(text)) return A.feedback(true), pill('✓', 'Adaptive aim: keeping it');
-          if (/\b(bad|worse|no|undo)\b/i.test(text)) return A.feedback(false), pill('✓', 'Adaptive aim: undone');
-        }
         let cmd = null;
         const m = text.match(WAKE);
         if (m) cmd = text.slice(m.index + m[0].length);
@@ -8532,8 +8539,34 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
         if (ac && ac.state === 'suspended') ac.resume();
         return ac;
       }
+      // one soft mallet note: a warm fundamental with a quiet octave and a little attack, fading like a marimba key
+      function mallet(f, at, vol, dur) {
+        if (!sndOn || !ac) return;
+        const t = ac.currentTime + (at || 0);
+        [
+          [1, 1, dur || 0.5],
+          [2, 0.22, (dur || 0.5) * 0.5],
+          [3.99, 0.06, 0.12],
+        ].forEach(([m, a, d]) => {
+          const o = ac.createOscillator(),
+            g = ac.createGain();
+          o.type = m === 1 ? 'triangle' : 'sine';
+          o.frequency.value = f * m;
+          g.gain.setValueAtTime(0, t);
+          g.gain.linearRampToValueAtTime((vol || 0.1) * a, t + 0.008);
+          g.gain.exponentialRampToValueAtTime(0.0001, t + d);
+          o.connect(g).connect(ac.destination);
+          o.start(t);
+          o.stop(t + d + 0.05);
+        });
+      }
       function chime(up) {
         if (!sndOn || !ac) return;
+        // grab: a soft two-note lift (G5 then C6); let go: the same two notes falling
+        const [a, b] = up ? [783.99, 1046.5] : [1046.5, 783.99];
+        mallet(a, 0, 0.09, 0.4);
+        mallet(b, 0.07, 0.07, 0.5);
+        return;
         const t = ac.currentTime,
           f0 = up ? 880 : 523.25;
         [
@@ -8584,6 +8617,10 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
       }
       function outSound() {
         if (!sndOn || !ac) return;
+        // the hand left the picture: two gentle falling notes, E5 then C5
+        mallet(659.25, 0, 0.07, 0.45);
+        mallet(523.25, 0.14, 0.06, 0.6);
+        return;
         const t = ac.currentTime;
         [
           [587.33, 0],
@@ -8606,6 +8643,9 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
         missN = 0;
       function chord() {
         if (!sndOn || !ac) return;
+        // landing on a world: a rising pentatonic arpeggio, C E G A C, like a music box
+        [523.25, 659.25, 783.99, 880, 1046.5].forEach((f, i) => mallet(f, i * 0.09, 0.08, 1.1));
+        return;
         const t = ac.currentTime;
         [523.25, 659.25, 783.99, 1046.5].forEach((f, i) => {
           const o = ac.createOscillator(),
@@ -8782,21 +8822,67 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
         handLoop();
       }
       const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
-      // ---- adaptive aim: watches how steady the cursor is and how often a button takes several tries, and tunes the aim to you
+      // ---- the hand as a plane (multivariable calculus): the palm's centroid, its unit normal from the cross product of two palm
+      // edges, an in-plane frame (u toward the middle finger, v = n × u) and the palm length as the scale. Measured in MediaPipe's
+      // world landmarks (metres, centred on the hand) when they're there, so a pinch reads the same near or far and turned or flat.
+      const V3 = {
+        sub: (a, b) => ({ x: a.x - b.x, y: a.y - b.y, z: (a.z || 0) - (b.z || 0) }),
+        dot: (a, b) => a.x * b.x + a.y * b.y + a.z * b.z,
+        cross: (a, b) => ({ x: a.y * b.z - a.z * b.y, y: a.z * b.x - a.x * b.z, z: a.x * b.y - a.y * b.x }),
+        len: (a) => Math.hypot(a.x, a.y, a.z),
+        unit: (a) => {
+          const l = Math.hypot(a.x, a.y, a.z) || 1e-9;
+          return { x: a.x / l, y: a.y / l, z: a.z / l };
+        },
+        scale: (a, k) => ({ x: a.x * k, y: a.y * k, z: a.z * k }),
+      };
+      function handPlane(Pt, side) {
+        const ids = [0, 5, 9, 13, 17],
+          o = ids.reduce((s, i) => ({ x: s.x + Pt[i].x / 5, y: s.y + Pt[i].y / 5, z: s.z + (Pt[i].z || 0) / 5 }), { x: 0, y: 0, z: 0 });
+        let n = V3.unit(V3.cross(V3.sub(Pt[5], Pt[0]), V3.sub(Pt[17], Pt[0])));
+        if (side === 'Left') n = V3.scale(n, -1); // a left hand is a mirror image: flip so n always points out of the palm
+        const m = V3.sub(Pt[9], Pt[0]),
+          s = V3.len(m) || 1e-6,
+          u = V3.unit(V3.sub(m, V3.scale(n, V3.dot(m, n)))), // the wrist-to-middle-knuckle direction, projected into the plane
+          v = V3.cross(n, u);
+        // a point in the hand's own coordinates: across the palm, along it, and out of it, in palm lengths
+        const local = (p) => {
+          const d = V3.sub(p, o);
+          return { x: V3.dot(d, v) / s, y: V3.dot(d, u) / s, z: V3.dot(d, n) / s };
+        };
+        // how far the palm's long axis tilts out of the picture: its apparent length shrinks by the cosine of that angle
+        const tiltOut = Math.asin(Math.min(0.95, Math.abs(V3.unit(m).z)));
+        return { o, n, u, v, s, local, tiltOut };
+      }
+      // ---- adaptive aim: learns separately for each hand, from how you actually do, and checks its own changes
       const ADAPT = (() => {
         const BASE = { snap: 28, minCut: 0.8, beta: 3, pOn: 0.3, pOff: 0.48 },
           BASE_REACH = { x0: 0.22, xs: 0.56, y0: 0.18, ys: 0.52 };
+        const mk = () => ({ k: Object.assign({}, BASE), reach: Object.assign({}, BASE_REACH), sizeRef: null, trained: null });
         let on = true,
-          k = Object.assign({}, BASE),
-          reach = Object.assign({}, BASE_REACH),
+          H = { Left: mk(), Right: mk() },
+          side = 'Right',
           trained = null;
-        // the profile: what adaptive aim learned, plus what the training page measured (training.html)
+        const cur = () => H[side];
+        const okReach = (r) => r && ['x0', 'xs', 'y0', 'ys'].every((n) => isFinite(r[n]));
+        // the profile: what it learned for each hand, plus what the training page measured (training.html)
         function load(v) {
           if (!v) return;
           if (v.on === false) on = false;
-          if (v.k) Object.keys(BASE).forEach((n) => isFinite(v.k[n]) && (k[n] = +v.k[n]));
-          if (v.reach && ['x0', 'xs', 'y0', 'ys'].every((n) => isFinite(v.reach[n]))) reach = v.reach;
-          trained = v.trained || null;
+          const put = (h, src) => {
+            if (!src) return;
+            if (src.k) Object.keys(BASE).forEach((n) => isFinite(src.k[n]) && (h.k[n] = +src.k[n]));
+            if (okReach(src.reach)) h.reach = Object.assign({}, src.reach);
+            if (isFinite(src.sizeRef) && src.sizeRef > 0) h.sizeRef = +src.sizeRef;
+            if (src.trained) h.trained = src.trained;
+          };
+          if (v.hands) ['Left', 'Right'].forEach((sd) => put(H[sd], v.hands[sd]));
+          else {
+            // an older one-hand profile: it applies to the hand it was trained with, or to both
+            const sd = v.hand === 'left' ? ['Left'] : v.hand === 'right' ? ['Right'] : ['Left', 'Right'];
+            sd.forEach((x) => put(H[x], v));
+          }
+          trained = v.trained || H.Right.trained || H.Left.trained || null;
         }
         try {
           load(JSON.parse(localStorage.getItem('atlasHandAssist') || 'null'));
@@ -8809,63 +8895,118 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
           clearTimeout(saveT);
           saveT = setTimeout(() => {
             try {
-              localStorage.setItem('atlasHandAssist', JSON.stringify({ on, k, reach: trained ? reach : null, trained }));
+              localStorage.setItem('atlasHandAssist', JSON.stringify({ v: 2, on, hands: H, k: H.Right.k, reach: H.Right.trained ? H.Right.reach : null, trained }));
             } catch (e) {}
           }, 1500);
         };
-        // when it changes something it says so, at most every 20 s, and asks whether that helped:
-        // say "good" or "bad" (with voice commands on), or pinch 👍 / 👎. "Bad" undoes the change and that kind of change rests a while.
-        let last = null,
-          askUntil = 0;
-        const rest = {};
-        function note(t, cause) {
+        // a short note when it changes something, at most every 20 s; it never asks you anything
+        function note(t, force) {
           const now = performance.now();
-          if (now - noteT < 20000) return;
+          if (!force && now - noteT < 20000) return;
           noteT = now;
           const m = $('handMsg');
           if (!m.hidden && m.textContent.length > 160 && !m.textContent.startsWith('🎯')) return; // the tips are showing: don't cover them
-          askUntil = now + 12000;
-          hmsg(`🎯 ${t} Better? Say <b>“good”</b> or <b>“bad”</b>, or press: <button type='button' id='adGood'>👍 Good</button> <button type='button' id='adBad'>👎 Bad</button>`);
-          $('adGood').onclick = () => feedback(true);
-          $('adBad').onclick = () => feedback(false);
-          setTimeout(() => {
-            if (performance.now() >= askUntil && $('handMsg').textContent.startsWith('🎯')) hmsg('');
-          }, 12500);
+          hmsg('🎯 ' + t);
+          setTimeout(() => $('handMsg').textContent.startsWith('🎯') && hmsg(''), 4000);
         }
-        function feedback(good) {
-          if (!askUntil) return false;
-          askUntil = 0;
-          if (!good && last) {
-            k = last.prev;
+        // ---- checking itself: every change is a trial. It compares your next six presses with the eight before it
+        // (tries per press × time per press); if they got worse by more than 15%, the change is undone and that kind of change rests.
+        const perf = [],
+          rest = {};
+        let trial = null;
+        const score = (L) => {
+          if (L.length < 3) return null;
+          const tries = L.reduce((a, p) => a + p.tries, 0) / L.length,
+            ms = [...L].map((p) => p.ms).sort((a, b) => a - b)[Math.floor(L.length / 2)];
+          return tries * (ms + 500);
+        };
+        function judge(now) {
+          if (!trial) return;
+          const after = perf.filter((p) => p.t > trial.t0 && p.side === trial.side);
+          if (after.length < 6) {
+            if (now - trial.t0 > 180000) trial = null; // too few presses to tell: keep it
+            return;
+          }
+          const a = score(after);
+          if (trial.before != null && a != null && a > trial.before * 1.15) {
+            H[trial.side].k = trial.prev;
+            rest[trial.cause] = now + 180000;
             apply();
             save();
-            rest[last.cause] = performance.now() + 120000; // don't try that again for two minutes
+            note('That last change didn’t help, so it’s undone.', true);
           }
-          hmsg(good ? '🎯 Thanks: keeping it.' : '🎯 Undone. It won’t try that again for a while.');
-          setTimeout(() => $('handMsg').textContent.startsWith('🎯') && hmsg(''), 2500);
-          last = null;
-          return true;
+          trial = null;
         }
         function nudge(ch, why, cause) {
           if (!on) return;
-          if (cause && performance.now() < (rest[cause] || 0)) return;
-          const prev = Object.assign({}, k);
+          const now = performance.now();
+          if (cause && now < (rest[cause] || 0)) return;
+          if (trial && cause) return; // one experiment at a time
+          const h = cur(),
+            prev = Object.assign({}, h.k);
           let moved = false;
           Object.entries(ch).forEach(([n, d]) => {
-            const v = clamp(n, k[n] + d);
-            if (Math.abs(v - k[n]) > 1e-6) moved = true;
-            k[n] = v;
+            const v = clamp(n, h.k[n] + d);
+            if (Math.abs(v - h.k[n]) > 1e-6) moved = true;
+            h.k[n] = v;
           });
-          if (moved) {
+          if (!moved) return;
+          apply();
+          save();
+          if (why) {
+            trial = { cause, prev, side, t0: now, before: score(perf.filter((p) => p.side === side).slice(-8)) };
+            note(why);
+          }
+        }
+        // ---- which hand: MediaPipe names it (on the unmirrored camera picture it names your own hand); it switches after
+        // most of the last dozen frames agree, so a single wrong label doesn't flip your settings
+        const votes = [];
+        function see(label) {
+          if (label !== 'Left' && label !== 'Right') return;
+          votes.push(label);
+          if (votes.length > 12) votes.shift();
+          const n = votes.filter((x) => x !== side).length;
+          if (votes.length >= 8 && n >= 9) {
+            side = side === 'Left' ? 'Right' : 'Left';
+            votes.length = 0;
+            sizeAvg = null;
             apply();
-            save();
-            if (why) {
-              last = { prev, cause };
-              note(why, cause);
+            note(`${side} hand: using its own settings.`, true);
+          }
+        }
+        // ---- distance: how big the palm looks, corrected for tilt; when you sit further back than when it learned your reach,
+        // the reach box shrinks with your hand so the cursor still crosses the whole screen
+        let sizeAvg = null,
+          sizeT = 0;
+        const firstSizes = [];
+        function size(a, now) {
+          if (!(a > 0)) return;
+          const dt = Math.min(0.2, (now - (sizeT || now)) / 1000);
+          sizeT = now;
+          sizeAvg = sizeAvg == null ? a : sizeAvg + (a - sizeAvg) * (1 - Math.exp(-dt / 1.5));
+          const h = cur();
+          if (!h.sizeRef) {
+            // no reference yet: take the first few seconds of this hand as it
+            firstSizes.push(a);
+            if (firstSizes.length >= 60) {
+              h.sizeRef = [...firstSizes].sort((x, y) => x - y)[30];
+              firstSizes.length = 0;
+              save();
             }
           }
         }
-        // steadiness: how far the cursor wobbles around where it is heading, measured while it is nearly still
+        function reachNow() {
+          const h = cur(),
+            r = on ? h.reach : BASE_REACH;
+          if (!on || !h.sizeRef || !sizeAvg) return r;
+          const f = Math.max(0.6, Math.min(1.6, sizeAvg / h.sizeRef)),
+            cx = r.x0 + r.xs / 2,
+            cy = r.y0 + r.ys / 2,
+            xs = Math.min(1, r.xs * f),
+            ys = Math.min(1, r.ys * f);
+          return { x0: cx - xs / 2, xs, y0: cy - ys / 2, ys };
+        }
+        // ---- steadiness: how far the cursor wobbles around where it is heading, measured while it is nearly still
         let sx = null,
           sy = null,
           tre = 0,
@@ -8900,10 +9041,16 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
             }
           }
         }
-        // tries: each arrival at a button (coming close from further away, or landing on it) without pressing it is a try;
-        // a normal press is about two arrivals, so five within six seconds means you keep coming back and overshooting
-        const T = new Map(); // button -> { st: 0 far / 1 close / 2 on it, back: [arrival times], boostUntil }
-        const tr = (b) => T.get(b) || (T.set(b, { st: 0, back: [], boostUntil: 0 }), T.get(b));
+        // ---- tries: arriving at a button (coming close from further away, landing on it, or overshooting it: the distance's
+        // rate of change flips from approaching to receding while close) without pressing it. A normal press is about two;
+        // five within six seconds means you keep coming back.
+        const T = new Map(); // button -> { st, back: [arrival times], boostUntil, d, v, t }
+        const tr = (b) => T.get(b) || (T.set(b, { st: 0, back: [], boostUntil: 0, d: null, v: 0, t: 0 }), T.get(b));
+        const arrive = (b, t, now) => {
+          t.back = t.back.filter((w) => now - w < 6000);
+          t.back.push(now);
+          if (t.back.length >= 5) struggle(b, now);
+        };
         function sample(now, x, y, hv, btns) {
           let nb = null,
             nd = 1e9;
@@ -8916,16 +9063,24 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
             }
           });
           T.forEach((t, b) => {
-            if (b !== nb) t.st = 0;
+            if (b !== nb) {
+              t.st = 0;
+              t.d = null;
+            }
           });
           if (!nb) return;
           const t = tr(nb),
-            st = hv && hv.btn === nb ? 2 : nd < k.snap * 3 ? 1 : 0;
-          if ((st === 2 && t.st !== 2) || (st === 1 && t.st === 0)) {
-            t.back = t.back.filter((w) => now - w < 6000);
-            t.back.push(now);
-            if (t.back.length >= 5) struggle(nb, now);
+            snap = cur().k.snap,
+            st = hv && hv.btn === nb ? 2 : nd < snap * 3 ? 1 : 0;
+          if ((st === 2 && t.st !== 2) || (st === 1 && t.st === 0)) arrive(nb, t, now);
+          // dd/dt of the distance to the button: approaching then receding near it is an overshoot
+          if (t.d != null && now > t.t) {
+            const v = (nd - t.d) / ((now - t.t) / 1000);
+            if (t.v < -60 && v > 60 && nd < snap * 3 && st !== 2) arrive(nb, t, now);
+            t.v = v;
           }
+          t.d = nd;
+          t.t = now;
           t.st = st;
         }
         function struggle(b, now) {
@@ -8934,7 +9089,7 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
           t.boostUntil = now + 20000;
           nudge({ snap: 6 }, `Making buttons easier to grab: you came back to “${esc(b.textContent.trim().slice(0, 24))}” a few times.`, 'snap');
         }
-        // a press that lands just beside a button counts as a missed try at it
+        // a press that lands just beside a button counts as missed tries at it
         function missPress(now, x, y, btns) {
           let nb = null,
             nd = 1e9;
@@ -8946,16 +9101,20 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
               nb = b;
             }
           });
-          if (!nb || nd > k.snap * 3) return;
+          if (!nb || nd > cur().k.snap * 3) return;
           const t = tr(nb);
-          t.back = t.back.filter((w) => now - w < 6000);
-          t.back.push(now, now);
-          if (t.back.length >= 5) struggle(nb, now);
+          arrive(nb, t, now);
+          arrive(nb, t, now);
         }
         function success(b, now) {
-          const t = tr(b);
+          const t = tr(b),
+            tries = Math.max(1, Math.ceil(t.back.length / 2)),
+            ms = t.back.length ? now - t.back[0] : 0;
+          perf.push({ t: now, side, tries, ms });
+          if (perf.length > 200) perf.shift();
           if (t.back.length <= 2 && now > t.boostUntil) nudge({ snap: -1 }); // got it first time: give a little of the help back
           t.back = [];
+          judge(now);
         }
         // pinches that switch on and off within a moment: the fingers hover near the threshold, so widen the gap
         let lastOn = 0,
@@ -8976,19 +9135,21 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
           return on && t && performance.now() < t.boostUntil ? 16 : 0;
         };
         function apply() {
+          const k = on ? cur().k : BASE;
           [R, R2].forEach((h) => {
             if (!h) return;
             [h.fx, h.fy].forEach((f) => {
-              f.minCut = on ? k.minCut : BASE.minCut;
-              f.beta = on ? k.beta : BASE.beta;
+              f.minCut = k.minCut;
+              f.beta = k.beta;
             });
           });
         }
         function setOn(v) {
           on = v;
           if (!on) {
-            k = Object.assign({}, BASE);
+            H = { Left: mk(), Right: mk() };
             T.clear();
+            trial = null;
           }
           apply();
           save();
@@ -9001,37 +9162,41 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
           missPress,
           success,
           pinchEdge,
+          see,
+          size,
+          reachNow,
           apply,
           setOn,
           get on() {
             return on;
           },
-          snapFor: (b) => (on ? k.snap : BASE.snap) + extra(b),
-          feedback,
-          get asking() {
-            return performance.now() < askUntil;
+          get side() {
+            return side;
           },
+          snapFor: (b) => (on ? cur().k.snap : BASE.snap) + extra(b),
           get reach() {
-            return reach;
+            return reachNow();
           },
           get trained() {
             return trained;
           },
+          get hands() {
+            return H;
+          },
           // a profile file downloaded from the training page
           useProfile(v) {
             on = true;
-            k = Object.assign({}, BASE);
-            reach = Object.assign({}, BASE_REACH);
+            H = { Left: mk(), Right: mk() };
             load(v);
             apply();
             save();
             setOn(on);
           },
           get pOn() {
-            return on ? k.pOn : BASE.pOn;
+            return on ? cur().k.pOn : BASE.pOn;
           },
           get pOff() {
-            return on ? k.pOff : BASE.pOff;
+            return on ? cur().k.pOff : BASE.pOff;
           },
         };
       })();
@@ -9087,9 +9252,14 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
           this.prev = null;
           this.p = 0;
         }
-        update(L, t) {
-          // thumb tip to index tip, in palm lengths and in 3D, so turning the hand doesn't fake or break a pinch; other fingers can do anything
-          const pr = this.fp.f(d3(L[4], L[8]) / (d3(L[0], L[9]) || 1e-3), t);
+        update(L, t, W, side) {
+          // thumb tip to index tip, in palm lengths and in 3D (world landmarks in metres when there are any), so turning the hand
+          // or moving nearer the camera doesn't fake or break a pinch; other fingers can do anything
+          const Q = W && W.length === 21 ? W : L;
+          const pr = this.fp.f(d3(Q[4], Q[8]) / (d3(Q[0], Q[9]) || 1e-3), t);
+          this.plane = handPlane(Q, side);
+          // how big the palm looks on camera, divided by the cosine of its tilt out of the picture: a distance gauge
+          this.size = Math.hypot(L[9].x - L[0].x, L[9].y - L[0].y) / Math.cos(this.plane.tiltOut);
           if (this.pinchOn ? pr > ADAPT.pOff : pr < ADAPT.pOn) {
             this.pinchOn = !this.pinchOn;
             if (this === R) ADAPT.pinchEdge(this.pinchOn, t);
@@ -9207,6 +9377,9 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
       let tap0 = null,
         lastTap = null;
       function tick() {
+        // a press: one soft high wooden tap
+        mallet(1318.5, 0, 0.07, 0.18);
+        return;
         if (!sndOn || !ac) return;
         const t = ac.currentTime,
           o = ac.createOscillator(),
@@ -9333,7 +9506,12 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
         if (!landmarker || v.readyState < 2 || v.currentTime === lastT) return;
         lastT = v.currentTime;
         const r = landmarker.detectForVideo(v, now),
-          Ls = (r.landmarks || []).slice(0, 2).sort((a, b) => palmPt(b).x - palmPt(a).x); // left to right as you see yourself
+          // each hand with its world landmarks and which hand MediaPipe says it is, then left to right as you see yourself
+          HH = (r.landmarks || [])
+            .slice(0, 2)
+            .map((L, i) => ({ L, W: (r.worldLandmarks || [])[i], side: (((r.handedness || r.handednesses || [])[i] || [])[0] || {}).categoryName }))
+            .sort((a, b) => palmPt(b.L).x - palmPt(a.L).x),
+          Ls = HH.map((h) => h.L);
         if (!Ls.length && handLoop.n && now - missN < 300) return; // a dropout under 0.3 s keeps the gesture going
         if (Ls.length !== (handLoop.n || 0)) {
           R.reset();
@@ -9344,8 +9522,10 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
           zoomRate = 0;
           handLoop.n = Ls.length;
         }
-        const hands = Ls.map((L, i) => ({ L, st: i ? R2 : R }));
+        const hands = HH.map((h, i) => ({ L: h.L, W: h.W, side: h.side, st: i ? R2 : R }));
         drawHand(hands);
+        $('handBox').classList.toggle('lost', !hands.length);
+        $('handBox').classList.toggle('busy', hands.length > 0 && (R.mode === 'pinch' || (hands.length === 2 && !!zoom0)));
         if (!hands.length) {
           CUR.hidden = true;
           toneStop();
@@ -9360,8 +9540,8 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
         if (hands.length === 2) {
           CUR.hidden = true;
           tap0 = null;
-          R.update(hands[0].L, now);
-          R2.update(hands[1].L, now);
+          R.update(hands[0].L, now, hands[0].W, hands[0].side);
+          R2.update(hands[1].L, now, hands[1].W, hands[1].side);
           const gr = (m) => m === 'pinch';
           if (gr(R.mode) && gr(R2.mode)) {
             const d = dist(palmPt(hands[0].L), palmPt(hands[1].L));
@@ -9385,7 +9565,9 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
         // one hand: cursor, taps and grab-to-turn
         clapN = 0;
         zoom0 = null;
-        const { g, changed } = R.update(hands[0].L, now);
+        ADAPT.see(hands[0].side);
+        const { g, changed } = R.update(hands[0].L, now, hands[0].W, ADAPT.side);
+        ADAPT.size(R.size, now);
         CUR.hidden = false;
         placeCursor(g);
         if (now - (handLoop.ht || 0) > 90) {
