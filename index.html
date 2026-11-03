@@ -368,7 +368,14 @@
     background: var(--bg);
     color: var(--ink);
   }
+  #minT select,
   #blendT select,
+  #sources .use {
+    display: block;
+    color: var(--muted);
+    font-size: 0.8rem;
+    margin-top: 2px;
+  }
   #crT select,
   .crctl select {
     font: inherit;
@@ -1814,7 +1821,7 @@
     <div class="hrow">
       <h1>
         Planetary Modeling Atlas
-        <span class="ver" title="Version v15mk2.11, 3 Nov 2026: Mars through time: the timeline, Ancient Mars, the northern ocean and the great impacts">v15mk2.11</span>
+        <span class="ver" title="Version v15mk2.12, 3 Nov 2026: OMEGA mineral maps on Mars, and every world's sources with how each is used">v15mk2.12</span>
       </h1>
       <p id="howTo">
         Pick a world on the map or below. Drag to turn, scroll or pinch to zoom, click a site to fly to it. ✋ Hand control (on a
@@ -1915,6 +1922,17 @@
             <option value="overlay">Overlay</option>
           </select></label
         ><label class="tgroup" id="blendIL" hidden>Photo<select id="blendI" aria-label="Which photo map"></select></label></span
+      >
+      <span id="minT" class="toolbar" style="gap: 10px 18px" hidden
+        ><label class="tgroup"
+          >Mineral<select id="minSel" aria-label="Which OMEGA mineral map">
+            <option value="ferric">Ferric oxides</option>
+            <option value="dust">Dust</option>
+            <option value="pyroxene">Pyroxene</option>
+            <option value="olivine">Olivine</option>
+            <option value="albedo">Near-infrared albedo</option>
+          </select></label
+        ></span
       >
       <label class="tgroup" for="exag"
         >Relief ×<input id="exag" type="range" min="0" max="20" step="1" value="4" /><output id="exagO">4</output></label
@@ -2315,7 +2333,7 @@
       <ul id="methods"></ul>
     </div>
     <div class="box">
-      <h2>Sources</h2>
+      <h2>Sources and how they’re used</h2>
       <ul id="sources"></ul>
       <p class="note"><a class="srclink" href="sources.html">All sources for the whole project →</a></p>
     </div>
@@ -2468,6 +2486,8 @@
     function cmapFor(d) {
       const lo = d.min,
         hi = d.max;
+      if (d.ramp === 'pair')
+        return (v) => (isNaN(v) ? [150, 146, 142] : ((f) => d.c0.map((a, i) => a + (d.c1[i] - a) * f))(Math.max(0, Math.min(1, (v - lo) / (hi - lo)))));
       if (d.ramp === 'bands') return (v) => d.bands[Math.max(0, Math.min(d.bands.length - 1, Math.floor((v - d.bandLo) / d.bandStep)))];
       if (d.ramp === 'earth') return (v) => (v < 0 ? R_SEA((v - lo) / (0 - lo || 1)) : R_LAND(v / (hi || 1)));
       if (d.ramp === 'div' || d.ramp === 'bou') {
@@ -2840,7 +2860,7 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
       $('ticks').innerHTML = ticks
         .map(
           (t) =>
-            `<span style="left:${(((t - d.min) / (d.max - d.min)) * 100).toFixed(2)}%">${(+t).toLocaleString('en-US', { maximumFractionDigits: 1 })}</span>`,
+            `<span style="left:${(((t - d.min) / (d.max - d.min)) * 100).toFixed(2)}%">${(+t).toLocaleString('en-US', { maximumFractionDigits: d.max - d.min < 0.5 ? 3 : d.max - d.min < 5 ? 2 : 1 })}</span>`,
         )
         .join('');
     }
@@ -3009,9 +3029,14 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
         .catch(() => {});
     }
     function setLayer(id) {
+      if (id === 'minerals') id = 'min_' + ($('minSel').value || 'ferric');
       layer = id;
       gPoke();
-      document.querySelectorAll('#layerSeg button').forEach((b) => b.setAttribute('aria-pressed', b.dataset.id === id));
+      document.querySelectorAll('#layerSeg button').forEach((b) =>
+        b.setAttribute('aria-pressed', b.dataset.id === id || (b.dataset.id === 'minerals' && id.startsWith('min_'))),
+      );
+      $('minT').hidden = !id.startsWith('min_');
+      if (P && $('readout')) buildReadout();
       $('blendT').hidden = id !== 'blend';
       if (id === 'blend' && ELEV && blendBase()) {
         const base = blendBase();
@@ -3287,7 +3312,7 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
     }
     function buildReadout() {
       let h = '<dt>Position</dt><dd id="r_pos">–</dd>' + (ROT[P.id] ? '<dt>Sun</dt><dd id="r_sun">–</dd>' : '');
-      (P.grids || []).forEach((d) => (h += `<dt>${esc(d.label)}</dt><dd id="r_${esc(d.id)}">–</dd>`));
+      (P.grids || []).filter((d) => !d.transient || d.id === layer).forEach((d) => (h += `<dt>${esc(d.label)}</dt><dd id="r_${esc(d.id)}">–</dd>`));
       if (SITES.length) h += '<dt>Nearest site</dt><dd id="r_near">–</dd>';
       PTS.forEach((o, i) => (h += `<dt>Nearest: ${esc(o.L.label.split(' (')[0])}</dt><dd id="r_pt${i}">–</dd>`));
       $('readout').innerHTML = h;
@@ -3302,7 +3327,10 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
       }
       (P.grids || []).forEach((d) => {
         const e = $('r_' + d.id);
-        if (e) e.textContent = fmt(samp(G[d.id], lat, lon), d.unit);
+        if (e) {
+          const x = samp(G[d.id], lat, lon);
+          e.textContent = isNaN(x) ? 'no data' : fmt(x, d.unit);
+        }
       });
       const near = (list) => {
         let b = null,
@@ -3517,24 +3545,34 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
         ]
           .map(([a, b]) => `<li><b>${esc(a)}:</b> ${esc(b || '')}</li>`)
           .join('') || '<li>No maps yet.</li>';
+      const useOf = (t) => ((SRC_USE[P.id] || []).find((x) => t.startsWith(x[0])) || [])[1] || '';
       $('sources').innerHTML =
         [
-          ...(P.sources || []),
+          ...(P.sources || []).map(([t, u]) => [t, u, useOf(t)]),
           ...(ROT[P.id]
             ? [
                 [
                   'Archinal et al. (2018), IAU WGCCRE 2015 rotational elements, via NASA NAIF pck00011.tpc',
                   'https://naif.jpl.nasa.gov/pub/naif/generic_kernels/pck/pck00011.tpc',
+                  'The pole, rotation rate and prime meridian, so the globe faces and spins the way the real world does.',
                 ],
               ]
             : []),
+          ...(SRC_USE._extra[P.id] || []),
         ]
-          .map(([t, u]) => `<li>${esc(t)}${u ? ` <a href="${esc(u)}" target="_blank" rel="noopener">link</a>` : ''}</li>`)
+          .map(
+            ([t, u, use]) =>
+              `<li>${esc(t)}${u ? ` <a href="${esc(u)}" target="_blank" rel="noopener">link</a>` : ''}${use ? `<span class="use">${esc(use)}</span>` : ''}</li>`,
+          )
           .join('') || '<li>Loaded from your own files.</li>';
     }
+    // what each world's sources are used for (worked out from its pack by code/source_uses.py), and the sources of the features on top
+    const SRC_USE = {"mercury": [["Konopliv et al. (2020), JGMESS_160A gravity, Ica", "The Free-air gravity and Geoid maps, summed from the spherical-harmonic field on this page’s grid."], ["Celestia Content: Mercury texture and normal map", "The Visible colour map on the globe."]], "venus": [["Konopliv, Banerdt & Sjogren (1999), SHGJ180U gra", "The Free-air gravity and Geoid maps, summed from the spherical-harmonic field on this page’s grid."], ["Celestia Content: Venus surface texture and norm", "The Surface map on the globe."], ["Lander coordinates: List of artificial objects o", "The positions of the 17 landing sites, on the globe and in the sites table."]], "earth": [["Amante & Eakins (2009), ETOPO1, via Fatiando a T", "The Topography map and the globe’s relief, which every map is draped on."], ["Förste et al. (2014), EIGEN-6C4 gravity, via Fat", "The Gravity disturbance map, summed from the spherical-harmonic field on this page’s grid."], ["EIGEN-6C4 geoid via Fatiando a Terra earth-geoid", "The Geoid map."], ["WGS84 normal gravity from Boule (Fatiando a Terr", "The normal gravity of the WGS84 ellipsoid, subtracted from EIGEN-6C4 to make the Gravity disturbance map."], ["Celestia Content: Earth colour, cloud and night ", "The Visible colour, Visible colour with clouds and Night lights maps, as prepared for Celestia."], ["NASA Earth Observatory, Blue Marble and Night Li", "The NASA imagery behind the cloud cover and the night lights."]], "moon": [["Wieczorek (2015), LOLA shape MoonTopo2600p, grid", "The Topography map and the globe’s relief, which every map is draped on."], ["Goossens et al. (2020), GRGM1200L, NASA PDS GRAI", "The Free-air gravity, Bouguer gravity and Selenoid maps, summed from the spherical-harmonic field on this page’s grid. Bouguer gravity also uses the topography."], ["Lognonné, Gagnepain-Beyneix & Chenet (2003), moo", "The Moonquakes and impacts points (Apollo seismic network)."], ["Tai Udovicic et al. (2023), MoonPIES polar crate", "The south-polar cold-trap craters."], ["LRO Wide Angle Camera colour, NASA SVS CGI Moon ", "The Visible colour map on the globe (Imagery + relief uses it too)."], ["Landing coordinates: List of artificial objects ", "The positions of the 41 landing sites, on the globe and in the sites table."]], "mars": [["Smith et al. (2001), MOLA, as gridded in the Mar", "The Topography map and the globe’s relief, which every map is draped on."], ["Genova et al. (2016), GMM-3 gravity field (SHTOO", "The Free-air gravity, Bouguer gravity and Areoid maps, summed from the spherical-harmonic field on this page’s grid. Bouguer gravity also uses the topography."], ["Wieczorek (2015), MarsTopo719 shape model (SHTOO", "The shape of Mars, used to take the pull of the topography out of the free-air gravity for the Bouguer gravity map."], ["Viking MDIM colour mosaic, USGS", "The Imagery map on the globe (Imagery + relief uses it too)."], ["Landing coordinates: List of artificial objects ", "The positions of the 16 landing sites, on the globe and in the sites table."]], "phobos": [["Celestia Content, phobos.jpg (CC-BY-3.0)", "The Colour map on the globe."], ["Feature names and positions: IAU Gazetteer of Pl", "The 14 feature names on the globe: IAU names at their official positions."]], "deimos": [["Celestia Content, deimos.jpg (CC0-1.0)", "The Colour map on the globe."], ["Feature names and positions: IAU Gazetteer of Pl", "The 2 feature names on the globe: IAU names at their official positions."]], "jupiter": [["Celestia Content, jupiter.jpg (CC-BY-3.0); shape", "The Cloud tops map on the globe. Also the shape: the radius and the polar flattening."], ["Entry points: NASA/JPL (Cassini, PIA21896) and t", "Where the probes entered the atmosphere, marked on the globe."]], "io": [["Celestia Content, textures/hires/io.png (CC-BY-4", "The Colour map on the globe."], ["Feature names and positions: IAU Gazetteer of Pl", "The 14 feature names on the globe: IAU names at their official positions."]], "europa": [["Celestia Content, textures/hires/europa.jpg (see", "The Colour map on the globe."], ["Feature names and positions: IAU Gazetteer of Pl", "The 14 feature names on the globe: IAU names at their official positions."]], "ganymede": [["Celestia Content, textures/hires/ganymede.jpg (C", "The Colour map on the globe."], ["Feature names and positions: IAU Gazetteer of Pl", "The 14 feature names on the globe: IAU names at their official positions."]], "callisto": [["Celestia Content, textures/hires/callisto.jpg (s", "The Colour map on the globe."], ["Feature names and positions: IAU Gazetteer of Pl", "The 14 feature names on the globe: IAU names at their official positions."]], "saturn": [["Celestia Content, saturn.jpg (CC-BY-3.0); shape ", "The Cloud tops map on the globe. Also the shape: the radius and the polar flattening."], ["Entry points: NASA/JPL (Cassini, PIA21896) and t", "Where the probes entered the atmosphere, marked on the globe."]], "mimas": [["Celestia Content, mimas.jpg (see repository)", "The Colour map on the globe."], ["Feature names and positions: IAU Gazetteer of Pl", "The 14 feature names on the globe: IAU names at their official positions."]], "enceladus": [["Celestia Content, textures/hires/enceladus.jpg (", "The Colour map on the globe."], ["Feature names and positions: IAU Gazetteer of Pl", "The 14 feature names on the globe: IAU names at their official positions."]], "tethys": [["Celestia Content, tethys.jpg (see repository)", "The Colour map on the globe."], ["Feature names and positions: IAU Gazetteer of Pl", "The 14 feature names on the globe: IAU names at their official positions."]], "dione": [["Celestia Content, dione.jpg (see repository)", "The Colour map on the globe."], ["Feature names and positions: IAU Gazetteer of Pl", "The 14 feature names on the globe: IAU names at their official positions."]], "rhea": [["Celestia Content, rhea.jpg (see repository)", "The Colour map on the globe."], ["Feature names and positions: IAU Gazetteer of Pl", "The 14 feature names on the globe: IAU names at their official positions."]], "titan": [["Celestia Content, textures/hires/titan.png (CC-B", "The Colour map on the globe."], ["Feature names and positions: IAU Gazetteer of Pl", "The 14 feature names on the globe: IAU names at their official positions."]], "hyperion": [["Celestia Content, hyperion.jpg (CC-BY-4.0)", "The Colour map on the globe."], ["Feature names and positions: IAU Gazetteer of Pl", "The 5 feature names on the globe: IAU names at their official positions."]], "iapetus": [["Celestia Content, iapetus.jpg (see repository)", "The Colour map on the globe."], ["Feature names and positions: IAU Gazetteer of Pl", "The 14 feature names on the globe: IAU names at their official positions."]], "uranus": [["Celestia Content, uranus.jpg (CC-BY-NC-SA-3.0); ", "The Cloud tops map on the globe. Also the shape: the radius and the polar flattening."], ["Entry points: NASA/JPL (Cassini, PIA21896) and t", "The giant planets’ probe entry sites; no probe has entered this world, so none is marked."]], "miranda": [["Celestia Content, miranda.jpg (CC-BY-SA-4.0)", "The Colour map on the globe."], ["Feature names and positions: IAU Gazetteer of Pl", "The 14 feature names on the globe: IAU names at their official positions."]], "ariel": [["Celestia Content, ariel.jpg (CC-BY-SA-4.0)", "The Colour map on the globe."], ["Feature names and positions: IAU Gazetteer of Pl", "The 14 feature names on the globe: IAU names at their official positions."]], "umbriel": [["Celestia Content, umbriel.jpg (CC-BY-SA-4.0)", "The Colour map on the globe."], ["Feature names and positions: IAU Gazetteer of Pl", "The 13 feature names on the globe: IAU names at their official positions."]], "titania": [["Celestia Content, titania.jpg (CC-BY-SA-4.0)", "The Colour map on the globe."], ["Feature names and positions: IAU Gazetteer of Pl", "The 14 feature names on the globe: IAU names at their official positions."]], "oberon": [["Celestia Content, oberon.jpg (CC-BY-SA-4.0)", "The Colour map on the globe."], ["Feature names and positions: IAU Gazetteer of Pl", "The 10 feature names on the globe: IAU names at their official positions."]], "neptune": [["Celestia Content, neptune.jpg (CC-BY-3.0); shape", "The Cloud tops map on the globe. Also the shape: the radius and the polar flattening."], ["Entry points: NASA/JPL (Cassini, PIA21896) and t", "The giant planets’ probe entry sites; no probe has entered this world, so none is marked."]], "triton": [["Celestia Content, textures/hires/triton.jpg (CC-", "The Colour map on the globe."], ["Feature names and positions: IAU Gazetteer of Pl", "The 14 feature names on the globe: IAU names at their official positions."]], "ceres": [["Celestia Content, textures/hires/ceres.jpg (see ", "The Colour map on the globe."], ["Feature names and positions: IAU Gazetteer of Pl", "The 14 feature names on the globe: IAU names at their official positions."]], "vesta": [["Celestia Content, textures/hires/vesta.jpg (see ", "The Colour map on the globe."], ["Feature names and positions: IAU Gazetteer of Pl", "The 14 feature names on the globe: IAU names at their official positions."]], "pluto": [["Celestia Content, textures/hires/pluto.jpg (CC-B", "The Colour map on the globe."], ["Feature names and positions: IAU Gazetteer of Pl", "The 14 feature names on the globe: IAU names at their official positions."]], "charon": [["Celestia Content, charon.jpg (CC-BY-NC-SA-3.0)", "The Colour map on the globe."], ["Feature names and positions: IAU Gazetteer of Pl", "The 14 feature names on the globe: IAU names at their official positions."]], "_extra": {"earth": [["Kelso, T.S. CelesTrak general perturbations element sets", "https://celestrak.org/NORAD/elements/", "The live satellites: each one’s orbit, read in the browser."], ["Vallado, D.A. et al. (2006). Revisiting Spacetrack Report #3. AIAA 2006-6753; satellite.js", "https://github.com/shashwatak/satellite-js", "The SGP4 model that places each satellite at the time shown."], ["Schäfer, M. et al. (2014). OpenSky Network", "https://opensky-network.org", "The live flights."]], "moon": [["Robbins, S.J. (2019). A new global database of lunar impact craters >1–2 km. JGR Planets 124, 871–892", "https://doi.org/10.1029/2018JE005592", "The crater rings, crater density and crater counts (1.3 million craters)."], ["Povilaitis, R.Z. et al. (2018). Crater density differences. Planetary and Space Science 162, 41–51", "https://doi.org/10.1016/j.pss.2017.05.006", "The alternative 5–20 km crater catalog (22,746 craters)."], ["Neukum, G., Ivanov, B.A. & Hartmann, W.K. (2001). Space Science Reviews 96, 55–86", "https://doi.org/10.1023/A:1011989004263", "The lunar production and chronology functions for model ages."], ["Michael, G.G. craterstats", "https://github.com/ggmichael/craterstats", "The production and chronology function coefficients for crater model ages (BSD-3 licence)."], ["Michael, G.G., Kneissl, T. & Neesemann, A. (2016). Poisson timing analysis. Icarus 277, 279–285", "https://doi.org/10.1016/j.icarus.2016.05.019", "The Poisson fit behind each crater model age."]], "mars": [["Robbins, S.J. & Hynek, B.M. (2012). A new global database of Mars impact craters ≥1 km. JGR 117, E05004", "https://doi.org/10.1029/2011JE003966", "The crater rings, crater density and crater counts (384,343 craters)."], ["Ivanov, B.A. (2001); Hartmann, W.K. & Neukum, G. (2001). Space Science Reviews 96", "https://doi.org/10.1023/A:1011945222010", "The Mars production and chronology functions for model ages."], ["Michael, G.G. craterstats", "https://github.com/ggmichael/craterstats", "The production and chronology function coefficients for crater model ages (BSD-3 licence)."], ["Michael, G.G., Kneissl, T. & Neesemann, A. (2016). Poisson timing analysis. Icarus 277, 279–285", "https://doi.org/10.1016/j.icarus.2016.05.019", "The Poisson fit behind each crater model age."], ["Ody, A. et al. (2012). Global maps of anhydrous minerals at the surface of Mars from OMEGA/MEx. JGR 117, E00J14", "https://doi.org/10.1029/2012JE004117", "The five mineral maps: ferric oxides, dust, pyroxene, olivine and near-infrared albedo."], ["ESA Planetary Science Archive: Mars Express OMEGA global maps (MEX-M-OMEGA-5-DDR-GLOBAL-MAPS-V1.0)", "https://archives.esac.esa.int/psa/ftp/MARS-EXPRESS/OMEGA/MEX-M-OMEGA-5-DDR-GLOBAL-MAPS-V1.0/", "The 40 pixel-per-degree map files, averaged to 1° cells in the Mars Planetary Modeling Atlas."], ["Wordsworth, R. et al. (2021). Nature Geoscience 14, 127–132 (Fig. 1a)", "https://doi.org/10.1038/s41561-021-00701-8", "The geologic timeline and the dates of Tharsis, Hellas and Argyre."], ["Andrews-Hanna, J.C., Zuber, M.T. & Banerdt, W.B. (2008). The Borealis basin. Nature 453, 1212–1215", "https://doi.org/10.1038/nature07011", "The Borealis ellipse and its alternative fits, the Hellas axes, and how Ancient Mars removes Tharsis."], ["Melosh, H.J. (2008). Did an impact blast away half of the martian crust? Nature Geoscience 1, 412–414", "", "The 4.4 Ga date of the Borealis impact."], ["Bouley, S. et al. (2016). Late Tharsis formation and implications for early Mars. Nature 531, 344–347", "https://doi.org/10.1038/nature17171", "The alternative ancient spin axis."], ["Konopliv, A.S. et al. (2016). Icarus 274, 253–260", "", "Mars’s moment of inertia, which sets the rotational bulge Ancient Mars is measured against."], ["Robbins, S.J., Hynek, B.M., Lillis, R.J. & Bottke, W.F. (2013). Large impact crater histories of Mars. Icarus 225, 173–184", "https://doi.org/10.1016/j.icarus.2013.03.019", "The ages of the major impacts."], ["Bottke, W.F. & Andrews-Hanna, J.C. (2017), Nature Geoscience 10; Frey, H.V. (2004)", "", "Utopia’s age and Ladon’s size."], ["Citron, R.I., Manga, M. & Hemingway, D.J. (2018). Timing of oceans on Mars from shoreline deformation. Nature 555, 643–646", "https://doi.org/10.1038/nature26144", "The Tharsis correction for the ocean and the shoreline ages."], ["Carr, M.H. & Head, J.W. (2003); Sholes, S.F. et al. (2021), JGR Planets 126, e2020JE006486", "https://doi.org/10.1029/2020JE006486", "The Arabia and Deuteronilus shorelines and their mean heights."], ["Scheller, E.L. et al. (2021). Long-term drying of Mars. Science 372, 56–62", "https://doi.org/10.1126/science.abc7717", "When the ocean dries out on the timeline."]]}};
     function buildLayerSeg() {
       const photos = blendPhotos(),
-        items = [...(P.grids || []).map((d) => [d.id, d.label]), ...(P.images || []).map((d) => [d.id, d.label])];
+        mins = (P.grids || []).filter((d) => d.group === 'min'),
+        items = [...(P.grids || []).filter((d) => d.group !== 'min').map((d) => [d.id, d.label]), ...(P.images || []).map((d) => [d.id, d.label])];
+      if (mins.length) items.splice((P.grids || []).filter((d) => d.group !== 'min').length, 0, ['minerals', 'Minerals']);
       if (ELEV && photos.length) items.push(['blend', 'Imagery + relief']);
       const keep = $('blendI').value;
       $('blendI').innerHTML = photos.map((im) => `<option value="${esc(im.id)}">${esc(im.label)}</option>`).join('');
@@ -4551,7 +4589,9 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
     };
     // crater density: craters per million km² above a size, in 1° cells summed over a cap about each point
     const crMarkLayer = () =>
-      document.querySelectorAll('#layerSeg button').forEach((b) => b.setAttribute('aria-pressed', b.dataset.id === layer));
+      document.querySelectorAll('#layerSeg button').forEach((b) =>
+        b.setAttribute('aria-pressed', b.dataset.id === layer || (b.dataset.id === 'minerals' && String(layer).startsWith('min_'))),
+      );
     async function crDensity() {
       if (!CR.on || !CR.cat || !P) return;
       const pid = P.id,
@@ -5036,12 +5076,70 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
           if (!r.ok) throw new Error('HTTP ' + r.status);
           j = await r.json();
         }
-        return (ML.data = { NP: mlDec(j.anc.present), NT: mlDec(j.anc.T), NH: mlDec(j.anc.H), NA: mlDec(j.anc.A), pole: j.anc.pole, DH: mlDec(j.tharsisDH), shore: j.shorelines });
+        return (ML.data = { NP: mlDec(j.anc.present), NT: mlDec(j.anc.T), NH: mlDec(j.anc.H), NA: mlDec(j.anc.A), pole: j.anc.pole, DH: mlDec(j.tharsisDH), shore: j.shorelines, omega: j.omega || null });
       })().catch((e) => {
         ML.loading = null;
         throw e;
       }));
     }
+    // ---- OMEGA mineral maps (Ody et al. 2012), averaged to 1° cells in the Mars Planetary Modeling Atlas ----
+    const MINDEF = {
+      ferric: { name: 'Ferric oxides', param: 'BD530', c0: [247, 232, 214], c1: [160, 44, 14], unit: 'BD530',
+        note: 'Strength of the 0.53 µm ferric-iron absorption edge (BD530). High values mean more oxidized, ferric iron: the bright, dusty regions such as Tharsis and Arabia Terra. The dark volcanic plains, such as Syrtis Major, are low.' },
+      dust: { name: 'Dust', param: 'NNPHS', c0: [246, 239, 222], c1: [150, 74, 30], unit: 'NNPHS',
+        note: 'The 0.86 µm absorption of nanometre-sized ferric oxides, the fine material that makes Mars red (NNPHS). Higher means more of it: about 1.02 over dusty Tharsis and Arabia, against 0.95 over dark Syrtis Major.' },
+      pyroxene: { name: 'Pyroxene', param: 'BD2000', c0: [231, 241, 228], c1: [22, 104, 52], unit: 'BD2000',
+        note: 'Depth of the 2 µm absorption band of high- and low-calcium pyroxene (BD2000), the main mineral of Mars’s basaltic crust. Strongest on the dark, dust-free southern highlands and volcanic plains; grey where dust hides the surface.' },
+      olivine: { name: 'Olivine', param: 'OSP1', c0: [238, 240, 214], c1: [96, 112, 8], unit: '% of cell', pct: true,
+        note: 'Share of each 1° cell where the olivine parameter OSP1 (the broad 1 µm band) detects olivine. Nili Fossae, beside Jezero crater, stands out at 73%. Olivine weathers quickly in water, so where it survives the surface has stayed largely dry.' },
+      albedo: { name: 'Near-infrared albedo', param: 'R1080', c0: [40, 38, 36], c1: [242, 240, 236], unit: 'R1080',
+        note: 'Reflectance at 1.08 µm (R1080), corrected for the Sun’s angle. Bright areas are dust-covered; dark areas are sand and bare rock. It closely tracks the ferric and dust maps.' },
+    };
+    function mlMinerals() {
+      if (!ML.data || !ML.data.omega || !P || P.id !== 'mars' || P.grids.some((g) => g.group === 'min')) return;
+      const O = ML.data.omega;
+      Object.entries(MINDEF).forEach(([k, d]) => {
+        const o = O[k];
+        if (!o) return;
+        const raw = atob(o.b64),
+          u = new Uint8Array(raw.length);
+        for (let i = 0; i < raw.length; i++) u[i] = raw.charCodeAt(i);
+        // cell-centred 1° cells (89.5° N.., 179.5° W..) to this page's grid nodes (90° N.., 0° E..), over valid cells only
+        const m = d.pct ? 100 : 1,
+          out = new Float32Array(181 * 360);
+        for (let r = 0; r <= 180; r++) {
+          const lat = 90 - r,
+            y = Math.min(179, Math.max(0, 89.5 - lat)),
+            j = Math.min(178, Math.floor(y)),
+            fy = y - j;
+          for (let c = 0; c < 360; c++) {
+            const x = (((c > 180 ? c - 360 : c) + 179.5) % 360 + 360) % 360,
+              i = Math.floor(x) % 360,
+              fx = x - Math.floor(x),
+              i2 = (i + 1) % 360;
+            let sum = 0,
+              w = 0;
+            [[j, i, (1 - fx) * (1 - fy)], [j, i2, fx * (1 - fy)], [j + 1, i, (1 - fx) * fy], [j + 1, i2, fx * fy]].forEach(([rr, cc, ww]) => {
+              const q = u[rr * 360 + cc];
+              if (q !== 255 && ww > 0) {
+                sum += q * ww;
+                w += ww;
+              }
+            });
+            out[r * 360 + c] = w > 0.25 ? (o.lo + (sum / w / 250) * (o.hi - o.lo)) * m : NaN;
+          }
+        }
+        const lo = o.lo * m,
+          hi = o.hi * m;
+        P.grids.push({ id: 'min_' + k, group: 'min', label: d.name, unit: d.unit, rows: 181, cols: 360, data: out, ramp: 'pair', c0: d.c0, c1: d.c1, min: lo, max: hi,
+          ticks: [lo, (lo + hi) / 2, hi], transient: true,
+          note: d.note + ' From OMEGA on Mars Express (Ody et al. 2012), averaged to 1° cells, so features smaller than about 60 km blur together. Grey means no data: OMEGA left out dusty, icy or poorly observed areas for some minerals.' });
+        G['min_' + k] = mkGrid(P.grids[P.grids.length - 1]);
+      });
+      buildLayerSeg();
+      crMarkLayer();
+    }
+    $('minSel').onchange = () => setLayer('min_' + $('minSel').value);
     // ---- Ancient Mars: a grid layer on the globe, today's areoid minus the chosen share of Tharsis, Hellas and Argyre ----
     const TH_A = 4.33,
       TH_D = 3.52,
@@ -5778,6 +5876,7 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
         .then(() => {
           if (!P || P.id !== 'mars') return;
           ML.on = true;
+          mlMinerals();
           mlUpdate(true);
         })
         .catch((e) => ($('mlAncNote').textContent = `Ancient Mars could not be loaded (${e.message}).`));
