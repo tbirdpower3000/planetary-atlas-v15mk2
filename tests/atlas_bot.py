@@ -3,7 +3,7 @@
 Runs on GitHub (see .github/workflows/atlas-bot.yml) and writes a report to the job summary:
   1. Planet packs: every file in index.json opens, its grids and images decode, sizes.
   2. The page: loads, lands on Mars and comes back (the globe fades in inside the Solar System box), opens Earth,
-     checks Earth's photo layers and live-data switches, the Moon's crater rings and a crater count, Mars through time, the Sources page, the real-time clock, and that there are no script errors.
+     checks Earth's photo layers and live-data switches, the Moon's crater rings and a crater count, Mars through time, the mineral maps, the Sources page and how each source is used, the real-time clock, and that there are no script errors.
   3. Live data: whether each source answers and whether it lets a web page read the answer (the CORS header).
      Report only; it never fails the run.
 Exit code 1 if part 1 or 2 finds a problem.
@@ -117,6 +117,12 @@ async def page_bot():
             m = await pg.evaluate('window.atlasMars()')
             step('The northern ocean fills to the Arabia shoreline', m['water'] and abs(m['level'] + 2611) < 1, f"(sea level {m['level']} m)")
             await (await pg.query_selector('#stage')).screenshot(path=str(OUT / 'mars-ocean.png'))
+            await pg.evaluate("document.querySelector('#layerSeg button[data-id=minerals]').click()"); await pg.wait_for_timeout(1500)
+            await pg.select_option('#minSel', 'olivine'); await pg.wait_for_timeout(1500)
+            mn = await pg.evaluate("({layer: window.atlasMars().layer, leg: document.getElementById('legT').textContent})")
+            step('Mars has the OMEGA mineral maps', mn['layer'] == 'min_olivine', f"({mn['leg']})")
+            su = await pg.evaluate("document.querySelectorAll('#sources .use').length")
+            step('Each source says how it is used', su >= 5, f'({su} on Mars)')
             st = await pg.evaluate("fetch('sources.html').then(r=>r.status)")
             step('The project Sources page is there', st == 200, f'(HTTP {st})')
             step('No script errors', not errs, '; '.join(errs[:3]))
