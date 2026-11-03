@@ -137,8 +137,20 @@ def probe(name, url):
     except urllib.error.HTTPError as x: return (name, x.code, x.headers.get('Access-Control-Allow-Origin') or 'none')
     except Exception as x: return (name, 'no answer', str(x)[:60])
 
+def snapshot():
+    # the atlas's own flight snapshot (the live-flights job): readable by any website, and how old it is
+    url = 'https://raw.githubusercontent.com/tbirdpower3000/planetary-atlas-v15mk2/live/flights.json'
+    try:
+        with urllib.request.urlopen(urllib.request.Request(url, headers={'Origin': ORIGIN, 'User-Agent': 'planetary-atlas bot'}), timeout=30) as r:
+            j = json.load(r); cors = r.headers.get('Access-Control-Allow-Origin') or 'none'
+        age = (time.time() - j['time']) / 60
+        if age > 60: notes.append(f'The flight snapshot is {age:.0f} minutes old: check the Live flights job on the Actions tab.')
+        return ('Atlas flight snapshot', f"200, {len(j['states'])} aircraft, {age:.0f} min old", cors)
+    except Exception as x:
+        return ('Atlas flight snapshot', 'no answer', str(x)[:60])
+
 def live():
-    return [probe('OpenSky flights', 'https://opensky-network.org/api/states/all?lamin=45.8&lomin=5.9&lamax=47.8&lomax=10.5'),
+    return [snapshot(), probe('OpenSky flights', 'https://opensky-network.org/api/states/all?lamin=45.8&lomin=5.9&lamax=47.8&lomax=10.5'),
             probe('CelesTrak satellites', 'https://celestrak.org/NORAD/elements/gp.php?CATNR=25544&FORMAT=TLE'),
             probe('adsb.lol flights', 'https://api.adsb.lol/v2/point/40.7/-74.0/100'),
             probe('adsb.fi flights', 'https://opendata.adsb.fi/api/v2/lat/40.7/lon/-74.0/dist/100')]
