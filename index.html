@@ -1140,7 +1140,7 @@ boot();
  function shown(el){const r=el.getBoundingClientRect(),h=Math.max(0,Math.min(r.bottom,innerHeight)-Math.max(r.top,0)),w=Math.max(0,Math.min(r.right,innerWidth)-Math.max(r.left,0));return w*h;}
  function useView(k){if(V&&V!==VIEWS[k]){goal=null;zoomRate=0;spinRate=0;anchor=null;R.reset();R2.reset();tap0=null;lastTap=null;}V=VIEWS[k];const m=$("handMsg");if(m.parentNode!==V.stage)V.stage.appendChild(m);
    if(VIEWS.map)VIEWS.map.handOn=stream!==null&&V===VIEWS.map;}
- const showHelp=()=>{hmsg(`<b>Move your open hand</b> and the cursor follows; it snaps onto planets and buttons. <b>Pinch</b> (thumb to index finger) to press: the gold ring fills as your fingers close. ${V===VIEWS.map?'<b>Pinch a planet or moon to land on it</b>, or pinch and hold on it for half a second. ':'<b>↑ Solar System</b> at the top takes you back out. '}<b>Pinch on empty space and move</b> to turn the view. <b>Make a fist and move it up to zoom in, down to zoom out</b> ; <b>＋ and −</b> at the top also zoom while you hold a pinch on them. Hovering on a top button for a second also presses it. <button type='button' id='handHide' class='linkish'>Hide tips</button>`);const h=$("handHide");if(h)h.addEventListener("click",()=>hmsg(""));};
+ const showHelp=()=>{hmsg(`<b>Move your open hand</b> and the cursor follows; it snaps onto planets and buttons. <b>Pinch</b> (thumb to index finger) to press: the gold ring fills as your fingers close. ${V===VIEWS.map?'<b>Pinch a planet or moon to land on it</b>, or pinch and hold on it for half a second. ':'<b>↑ Solar System</b> at the top takes you back out. '}<b>Pinch on empty space and move</b> to turn the view. <b>To zoom</b>, hold a pinch on <b>＋ or −</b> at the top, or pinch with both hands and pull them apart or push them together. Hovering on a top button for a second also presses it. <button type='button' id='handHide' class='linkish'>Hide tips</button>`);const h=$("handHide");if(h)h.addEventListener("click",()=>hmsg(""));};
  let ac=null,tone=null,sndOn=true;
  function audio(){if(!ac){try{ac=new (window.AudioContext||window.webkitAudioContext)();}catch(e){ac=null;}}if(ac&&ac.state==="suspended")ac.resume();return ac;}
  function chime(up){if(!sndOn||!ac)return;const t=ac.currentTime,f0=up?880:523.25;
@@ -1199,7 +1199,7 @@ boot();
      this.p=Math.max(0,Math.min(1,(.75-pr)/.45));   // how close the fingers are to a pinch, for the meter on the cursor
      // the cursor follows the wrist and knuckles, which barely move when you pinch, so pressing doesn't knock it off target
      const ax=(L[0].x+L[5].x+L[9].x+L[13].x+L[17].x)/5,ay=(L[0].y+L[5].y+L[9].y+L[13].y+L[17].y)/5;
-     const curled=[8,12,16,20].filter(i=>dist(L[i],L[0])<dist(L[i-2],L[0])*1.05).length;if(this.fistOn?curled<=2:curled>=4)this.fistOn=!this.fistOn;
+     const curled=[8,12,16,20].filter(i=>dist(L[i],L[0])<dist(L[i-2],L[0])*1.05).length;this.fistOn=false;   // no fist gesture: zoom with the ＋/− buttons or two hands
      const g={pinch:this.pinchOn&&!this.fistOn,fist:this.fistOn,x:this.fx.f(ax,t),y:this.fy.f(ay,t)};
      const want=g.fist?"fist":g.pinch?"pinch":"idle";this.held=this.held.m===want?{m:want,n:this.held.n+1}:{m:want,n:1};
      let changed=false;if(want!==this.mode&&this.held.n>=2){this.mode=want;this.prev={x:g.x,y:g.y};changed=true;}return {g,changed};}}
@@ -1262,11 +1262,11 @@ boot();
    if(!hands.length){CUR.hidden=true;toneStop();if(seenHand&&now-missN>250){seenHand=false;outSound();}return;}
    seenHand=true;missN=now;
    if(hands.length===2){CUR.hidden=true;tap0=null;R.update(hands[0].L,now);R2.update(hands[1].L,now);
-     const gr=m=>m==="pinch"||m==="fist";
+     const gr=m=>m==="pinch";
      if(gr(R.mode)&&gr(R2.mode)){const d=dist(palmPt(hands[0].L),palmPt(hands[1].L));
        if(!zoom0){V.stop();grabGoal();zoom0={d,r:goal.radius};chime(true);}
        const lo=V.floor||V.ctl.minDistance,hi=V.ctl.maxDistance;
-       const want=zoom0.r*Math.pow(zoom0.d/Math.max(.02,d),V.floor?1.2:3);goal.radius=Math.min(hi,Math.max(lo,want));
+       const want=zoom0.r*Math.pow(zoom0.d/Math.max(.02,d),V.floor?2.5:3);goal.radius=Math.min(hi,Math.max(lo,want));
        if(false){}else if(V===VIEWS.map&&want<VIEWS.map.enterDist()&&VIEWS.map.has(VIEWS.map.focusId())){zoom0=null;goGlobe(VIEWS.map.focusId());}return;}   // the map spans a huge range, so its zoom is steeper
      zoom0=null;
      if(R.mode==="idle"&&R2.mode==="idle")clapCheck(hands[0].L,hands[1].L,now);else clapN=0;return;}
@@ -1292,7 +1292,7 @@ boot();
      if(R.mode==="pinch"){
        // use what was under the cursor just before the fingers started closing, so the press lands where you aimed
        const back=(hist.find(h=>now-h[0]<=160)||[now,hv])[1];
-       tap0={t:now,x:g.x,y:g.y,hv:back,drag:false,done:false,zoom:back&&back.btn?(back.btn.id==="fsZin"?-1.6:back.btn.id==="fsZout"?1.6:0):0};
+       tap0={t:now,x:g.x,y:g.y,hv:back,drag:false,done:false,zoom:back&&back.btn?(back.btn.id==="fsZin"?-2.8:back.btn.id==="fsZout"?2.8:0):0};
        if(tap0.zoom){V.stop();grabGoal();zoomRate=tap0.zoom;zoomHeld=now;}}
      else{if(tap0&&!tap0.drag&&!tap0.done&&!tap0.zoom)click(tap0.hv,now);if(tap0&&tap0.zoom)zoomRate=0;tap0=null;}   // released: a tap
      R.prev={x:g.x,y:g.y};dwell=null;}

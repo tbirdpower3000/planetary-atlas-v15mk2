@@ -4,7 +4,7 @@
 
 ## The atlas
 
-`index.html` is the Planetary Modeling Atlas, version **v15mk2**, built with Claude. It is v15 (the Solar System map and globes in one view, real lighting and spin, and hand control on a planet's globe with the fist zoom) with these added:
+`index.html` is the Planetary Modeling Atlas, version **v15mk2**, built with Claude. It is v15 (the Solar System map and globes in one view, real lighting and spin, and hand control on a planet's globe) with these added:
 
 - Earth's photo layers: Visible colour, Visible colour with clouds, and Night lights.
 - Earth by night: a moonlit blue night side, warm city lights that dim under clouds, an orange band at dusk, and a thin atmosphere at the edge of the photo layers.
