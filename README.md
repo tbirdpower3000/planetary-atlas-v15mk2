@@ -1,10 +1,10 @@
-# Planetary Modeling Atlas · v15mk2
+# Planetary Modeling Atlas · v15mk2.3
 
 **This is not my data.** None of the maps, gravity models, images or coordinates in this repository were made by me, and I make no claim of ownership over them. They were produced by NASA, ESA, JPL, USGS, the IAU and the researchers and artists credited below. This repository holds reformatted copies of their published work, so that the Planetary Modeling Atlas (a personal, non-commercial viewer) can load it from the web.
 
 ## The atlas
 
-`index.html` is the Planetary Modeling Atlas, version **v15mk2**, built with Claude. It is v15 (the Solar System map and globes in one view, real lighting and spin, and hand control on a planet's globe) with these added:
+`index.html` is the Planetary Modeling Atlas, version **v15mk2.3**, built with Claude. It is v15 (the Solar System map and globes in one view, real lighting and spin, and hand control on a planet's globe) with these added:
 
 - Earth's photo layers: Visible colour, Visible colour with clouds, and Night lights.
 - Earth by night: a moonlit blue night side, warm city lights that dim under clouds, an orange band at dusk, and a thin atmosphere at the edge of the photo layers.
@@ -15,6 +15,13 @@
 With GitHub Pages turned on (Settings → Pages → Deploy from a branch → main, / (root)) it runs at **https://tbirdpower3000.github.io/planetary-atlas-v15mk2/**. Opened there in Chrome, hand control (your camera) and the live data can work, which they can't on claude.ai.
 
 The live layers come straight from their providers in your browser, not from this repository: satellite orbits from [CelesTrak](https://celestrak.org) and aircraft from the [OpenSky Network](https://opensky-network.org) by default. The same "not my data" applies to them. CelesTrak lets any web page read its data; the free flight feeds checked so far (OpenSky, adsb.lol, adsb.fi) don't, so live flights need a small relay before they show on the web page.
+
+## Versions
+
+- **v15mk2**: v15 plus Earth's photo layers and night look, real-time start, and live satellites and flights.
+- **v15mk2.1**: hand control on the planet globe only; closer zoom (1.1 radii); satellites coloured by orbit type, labelled stations, data card and orbit ring.
+- **v15mk2.2**: fist zoom removed; pinch zoom about twice as sensitive, ＋/− about 75% faster.
+- **v15mk2.3**: the focus view from the Mars Modeling Atlas (click a site or double-click a spot to look across it close up; ← Whole planet).
 
 ## The bots
 
