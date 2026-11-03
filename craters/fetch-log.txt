@@ -10,5 +10,5 @@
     LROC_5TO20KM_CRATERS_NPOLE_180.DBF: 1723 rows, fields ['Diam_km', 'x_coord', 'y_coord', 'tag']
   SPOLE_180.ZIP: 147 MB zip, entries: LROC_5TO20KM_CRATERS_SPOLE_180.DBF (0.1 MB), LROC_5TO20KM_CRATERS_SPOLE_180.PRJ (0.0 MB), LROC_5TO20KM_CRATERS_SPOLE_180.SHP (195.8 MB), LROC_5TO20KM_CRATERS_SPOLE_180.SHP.XML (0.0 MB), LROC_5TO20KM_CRATERS_SPOLE_180.SHX (0.0 MB), LROC_5TO20KM_CRATERS_SPOLE.PNG (1.7 MB), LROC_5TO20KM_CRATERS_SPOLE_README.TXT (0.0 MB)
     LROC_5TO20KM_CRATERS_SPOLE_180.DBF: 1688 rows, fields ['Diam_km', 'x_coord', 'y_coord', 'tag']
-Povilaitis total: 0 craters, 0 marked questionable
+Povilaitis total: 22746 craters, 4425 marked questionable
 Head 2010: page not reachable: <urlopen error timed out>
