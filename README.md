@@ -1,10 +1,10 @@
-# Planetary Modeling Atlas · v15mk2.8
+# Planetary Modeling Atlas · v15mk2.9
 
 **This is not my data.** None of the maps, gravity models, images or coordinates in this repository were made by me, and I make no claim of ownership over them. They were produced by NASA, ESA, JPL, USGS, the IAU and the researchers and artists credited below. This repository holds reformatted copies of their published work, so that the Planetary Modeling Atlas (a personal, non-commercial viewer) can load it from the web.
 
 ## The atlas
 
-`index.html` is the Planetary Modeling Atlas, version **v15mk2.8**, built with Claude. It is v15 (the Solar System map and globes in one view, real lighting and spin, and hand control on a planet's globe) with these added:
+`index.html` is the Planetary Modeling Atlas, version **v15mk2.9**, built with Claude. It is v15 (the Solar System map and globes in one view, real lighting and spin, and hand control on a planet's globe) with these added:
 
 - Earth's photo layers: Visible colour, Visible colour with clouds, and Night lights.
 - Earth by night: a moonlit blue night side, warm city lights that dim under clouds, an orange band at dusk, and a thin atmosphere at the edge of the photo layers.
@@ -27,6 +27,7 @@ The live layers come straight from their providers in your browser, not from thi
 - **v15mk2.6**: works on phones: the page fits the screen; on a phone the globe sits right under the world list with its layer buttons below it, and the Solar System map is taller; double-tap a spot to look at it close up, pinch in on a world to land on it, tap a satellite for its card; site names no longer pile on top of each other, and names near the edge flip to the other side; maps are scaled down only on devices that cannot hold them.
 - **v15mk2.7**: the asteroid belt and Jupiter's Trojans on the Solar System map: 6,000 asteroids drawn from the real spread of orbits (with the Kirkwood gaps Jupiter clears), moving on their own Kepler orbits with the map's clock; the Trojans keep about 60° ahead of and behind Jupiter. An Asteroids button turns them off.
 - **v15mk2.8**: craters on the Moon and Mars. A Craters switch draws published crater catalogs on the globe as rings to scale (more appear as you zoom in), adds a crater-density layer, and counts the craters in a circle wherever you click or tap: a cumulative size-frequency plot with isochrons and a model age from the Neukum (Moon) or Neukum–Ivanov / Ivanov (Mars) chronologies. The Asteroids button now says on or off.
+- **v15mk2.9**: Imagery + relief, a layer on every world that has both a photo map and a topography grid (Earth, the Moon, Mars, and any pack you load): the photo tinted by height, shaded by the relief, or both, with a mix slider; on Earth you can pick which photo, and the night lights still come on after dark.
 
 ## The bots
 

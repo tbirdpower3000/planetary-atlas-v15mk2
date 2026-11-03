@@ -92,6 +92,9 @@ async def page_bot():
             step('Earth has its photo layers', all(x in lay for x in ('Visible colour', 'Visible colour with clouds', 'Night lights')))
             await pg.evaluate("document.querySelector('#layerSeg button[data-id=visc]').click()"); await pg.wait_for_timeout(2000)
             await (await pg.query_selector('#stage')).screenshot(path=str(OUT / 'earth-clouds.png'))
+            await pg.evaluate("document.querySelector('#layerSeg button[data-id=blend]').click()"); await pg.wait_for_timeout(2500)
+            bl = await pg.evaluate('window.atlasBlend && window.atlasBlend()')
+            step('Earth has Imagery + relief, built from its photo', bool(bl) and bl['layer'] == 'blend' and bl['w'] > 0, f"({bl and bl['w']}x{bl and bl['h']} from {bl and bl['base']})")
             # craters: the Moon's catalog streams in, draws rings, and a count of Mare Crisium gives a mare-like age
             await pg.evaluate('document.querySelector("#bodies button[data-id=moon]").click()')
             await until('document.getElementById("bName").textContent==="Moon"&&document.getElementById("busy").hidden', 40)
