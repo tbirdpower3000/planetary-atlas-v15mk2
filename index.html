@@ -193,8 +193,6 @@
   }
   #mapGl canvas {
     display: block;
-    width: 100% !important;
-    height: 100% !important;
   }
   #mapLabels {
     position: absolute;
@@ -727,8 +725,6 @@
   }
   #globe canvas {
     display: block;
-    width: 100% !important;
-    height: 100% !important;
   }
   #labels {
     position: absolute;
@@ -1522,7 +1518,7 @@
     <div class="hrow">
       <h1>
         Planetary Modeling Atlas
-        <span class="ver" title="Version v15mk2.9, 3 Nov 2026: Imagery + relief, the photo map merged with the topography">v15mk2.9</span>
+        <span class="ver" title="Version v15mk2.10, 3 Nov 2026: the globe and the map are drawn pixel for pixel, never stretched">v15mk2.10</span>
       </h1>
       <p id="howTo">
         Pick a world on the map or below. Drag to turn, scroll or pinch to zoom, click a site to fly to it. ✋ Hand control (on a
@@ -1947,6 +1943,8 @@
     });
   }
   const TOUCH = matchMedia('(pointer: coarse)').matches;
+  // a WebGL canvas shown even a fraction of a pixel bigger than its drawing gets stretched and looks soft, so each one is
+  // given a whole-pixel CSS size equal to its drawing size (the browser already puts boxes on whole pixels)
   (function () {
     const $ = (id) => document.getElementById(id);
     const esc = (s) =>
@@ -4539,7 +4537,7 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
     function resize() {
       const w = stage.clientWidth,
         h = stage.clientHeight;
-      renderer.setSize(w, h, false);
+      renderer.setSize(w, h);
       camera.aspect = w / h;
       camera.updateProjectionMatrix();
     }
@@ -5580,7 +5578,7 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
       function mresize() {
         const w = ms.clientWidth,
           h = ms.clientHeight;
-        mr.setSize(w, h, false);
+        mr.setSize(w, h);
         mcam.aspect = w / h;
         mcam.updateProjectionMatrix();
       }
