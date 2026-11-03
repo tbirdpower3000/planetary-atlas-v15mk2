@@ -2104,7 +2104,8 @@
         aria-pressed="false"
         title="Turn and zoom the globe with your hand, using your computer's camera"
       >✋ Hand control</button
-      ><button id="handSnd" type="button" aria-pressed="true" hidden title="Turn hand-control sounds on or off">🔊 Sound</button>
+      ><button id="handSnd" type="button" aria-pressed="true" hidden title="Turn hand-control sounds on or off">🔊 Sound</button
+      ><button id="handAssist" type="button" aria-pressed="true" hidden title="Adaptive aim: learns from your movements and makes buttons easier to hit when you're having trouble. Press to switch it off and reset what it learned.">🎯 Adaptive aim</button>
       <span id="viewBtns" class="row"></span>
     </div>
   </header>
@@ -8502,7 +8503,7 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
       }
       const showHelp = () => {
         hmsg(
-          `<b>Move your open hand</b> and the cursor follows; it snaps onto planets and buttons. <b>Pinch</b> (thumb to index finger) to press: the gold ring fills as your fingers close. ${V === VIEWS.map ? '<b>Pinch a planet or moon to land on it</b>, or pinch and hold on it for half a second. ' : '<b>‹ 🗺 ›</b> at the top change the map; <b>↑ Solar System</b> takes you back out. '}<b>Pinch on empty space and move</b> to turn the view. <b>To zoom</b>, hold a pinch on <b>＋ or −</b> at the top, or pinch with both hands and pull them apart or push them together. Hovering on a top button for a second also presses it. <button type='button' id='handHide' class='linkish'>Hide tips</button>`,
+          `<b>Move your open hand</b> and the cursor follows; it snaps onto planets and buttons. <b>Pinch</b> (thumb to index finger) to press: the gold ring fills as your fingers close. ${V === VIEWS.map ? '<b>Pinch a planet or moon to land on it</b>, or pinch and hold on it for half a second. ' : '<b>‹ 🗺 ›</b> at the top change the map; <b>↑ Solar System</b> takes you back out. '}<b>Pinch on empty space and move</b> to turn the view. <b>To zoom</b>, hold a pinch on <b>＋ or −</b> at the top, or pinch with both hands and pull them apart or push them together. Hovering on a top button for a second also presses it. 🎯 Adaptive aim learns as you go: if a button takes a few tries, it gets easier to grab. <button type='button' id='handHide' class='linkish'>Hide tips</button>`,
         );
         const h = $('handHide');
         if (h) h.addEventListener('click', () => hmsg(''));
@@ -8688,6 +8689,7 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
         paused = false;
         $('handBox').style.opacity = '';
         $('handSnd').hidden = true;
+        $('handAssist').hidden = true;
         cancelAnimationFrame(raf);
         goal = null;
         zoomRate = 0;
@@ -8765,10 +8767,211 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
         useView(k);
         setBtn(true);
         $('handSnd').hidden = false;
+        $('handAssist').hidden = false;
         showHelp();
         handLoop();
       }
       const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
+      // ---- adaptive aim: watches how steady the cursor is and how often a button takes several tries, and tunes the aim to you
+      const ADAPT = (() => {
+        const BASE = { snap: 28, minCut: 0.8, beta: 3, pOn: 0.3, pOff: 0.48 };
+        let on = true,
+          k = Object.assign({}, BASE);
+        try {
+          const v = JSON.parse(localStorage.getItem('atlasHandAssist') || 'null');
+          if (v && v.on === false) on = false;
+          else if (v && v.k) Object.keys(BASE).forEach((n) => isFinite(v.k[n]) && (k[n] = v.k[n]));
+        } catch (e) {}
+        const LIM = { snap: [28, 72], minCut: [0.25, 0.8], beta: [1, 3], pOn: [0.24, 0.3], pOff: [0.48, 0.6] };
+        const clamp = (n, v) => Math.max(LIM[n][0], Math.min(LIM[n][1], v));
+        let saveT = 0,
+          noteT = -1e9;
+        const save = () => {
+          clearTimeout(saveT);
+          saveT = setTimeout(() => {
+            try {
+              localStorage.setItem('atlasHandAssist', JSON.stringify({ on, k }));
+            } catch (e) {}
+          }, 1500);
+        };
+        // a short note when it changes something, at most every 20 s
+        function note(t) {
+          const now = performance.now();
+          if (now - noteT < 20000) return;
+          noteT = now;
+          const m = $('handMsg');
+          if (!m.hidden && m.textContent.length > 120) return; // the tips are showing: don't cover them
+          hmsg(`🎯 ${t} <button type='button' id='handHide' class='linkish'>OK</button>`);
+          const h = $('handHide');
+          if (h) h.addEventListener('click', () => hmsg(''));
+          setTimeout(() => {
+            if ($('handMsg').textContent.startsWith('🎯')) hmsg('');
+          }, 5000);
+        }
+        function nudge(ch, why) {
+          if (!on) return;
+          let moved = false;
+          Object.entries(ch).forEach(([n, d]) => {
+            const v = clamp(n, k[n] + d);
+            if (Math.abs(v - k[n]) > 1e-6) moved = true;
+            k[n] = v;
+          });
+          if (moved) {
+            apply();
+            save();
+            if (why) note(why);
+          }
+        }
+        // steadiness: how far the cursor wobbles around where it is heading, measured while it is nearly still
+        let sx = null,
+          sy = null,
+          tre = 0,
+          tLast = 0,
+          steadyT = 0,
+          shakyT = 0;
+        function frame(now, x, y, mode) {
+          const dt = Math.min(0.1, (now - (tLast || now)) / 1000);
+          tLast = now;
+          if (sx === null) {
+            sx = x;
+            sy = y;
+            return;
+          }
+          const a = 1 - Math.exp(-dt / 0.35);
+          sx += (x - sx) * a;
+          sy += (y - sy) * a;
+          const off = Math.hypot(x - sx, y - sy);
+          if (mode !== 'idle' || off > 60) return; // moving on purpose, or pinching
+          tre += (off - tre) * (1 - Math.exp(-dt / 1.2));
+          if (tre > 7) {
+            steadyT = 0;
+            if ((shakyT += dt) > 2) {
+              shakyT = 0;
+              nudge({ minCut: -0.1, beta: -0.3, snap: 4 }, 'Smoothing the cursor: it was wobbling a lot.');
+            }
+          } else if (tre < 3) {
+            shakyT = 0;
+            if ((steadyT += dt) > 20) {
+              steadyT = 0;
+              nudge({ minCut: 0.05, beta: 0.15 }); // steady for a while: ease back so the cursor stays quick
+            }
+          }
+        }
+        // tries: each arrival at a button (coming close from further away, or landing on it) without pressing it is a try;
+        // a normal press is about two arrivals, so five within six seconds means you keep coming back and overshooting
+        const T = new Map(); // button -> { st: 0 far / 1 close / 2 on it, back: [arrival times], boostUntil }
+        const tr = (b) => T.get(b) || (T.set(b, { st: 0, back: [], boostUntil: 0 }), T.get(b));
+        function sample(now, x, y, hv, btns) {
+          let nb = null,
+            nd = 1e9;
+          btns.forEach((b) => {
+            const r = b.getBoundingClientRect(),
+              d = Math.hypot(Math.max(r.left - x, 0, x - r.right), Math.max(r.top - y, 0, y - r.bottom));
+            if (d < nd) {
+              nd = d;
+              nb = b;
+            }
+          });
+          T.forEach((t, b) => {
+            if (b !== nb) t.st = 0;
+          });
+          if (!nb) return;
+          const t = tr(nb),
+            st = hv && hv.btn === nb ? 2 : nd < k.snap * 3 ? 1 : 0;
+          if ((st === 2 && t.st !== 2) || (st === 1 && t.st === 0)) {
+            t.back = t.back.filter((w) => now - w < 6000);
+            t.back.push(now);
+            if (t.back.length >= 5) struggle(nb, now);
+          }
+          t.st = st;
+        }
+        function struggle(b, now) {
+          const t = tr(b);
+          t.back = [];
+          t.boostUntil = now + 20000;
+          nudge({ snap: 6 }, `Making buttons easier to grab: you came back to “${esc(b.textContent.trim().slice(0, 24))}” a few times.`);
+        }
+        // a press that lands just beside a button counts as a missed try at it
+        function missPress(now, x, y, btns) {
+          let nb = null,
+            nd = 1e9;
+          btns.forEach((b) => {
+            const r = b.getBoundingClientRect(),
+              d = Math.hypot(Math.max(r.left - x, 0, x - r.right), Math.max(r.top - y, 0, y - r.bottom));
+            if (d < nd) {
+              nd = d;
+              nb = b;
+            }
+          });
+          if (!nb || nd > k.snap * 3) return;
+          const t = tr(nb);
+          t.back = t.back.filter((w) => now - w < 6000);
+          t.back.push(now, now);
+          if (t.back.length >= 5) struggle(nb, now);
+        }
+        function success(b, now) {
+          const t = tr(b);
+          if (t.back.length <= 2 && now > t.boostUntil) nudge({ snap: -1 }); // got it first time: give a little of the help back
+          t.back = [];
+        }
+        // pinches that switch on and off within a moment: the fingers hover near the threshold, so widen the gap
+        let lastOn = 0,
+          flicks = [];
+        function pinchEdge(isOn, now) {
+          if (isOn) lastOn = now;
+          else if (now - lastOn < 160) {
+            flicks = flicks.filter((w) => now - w < 10000);
+            flicks.push(now);
+            if (flicks.length >= 3) {
+              flicks = [];
+              nudge({ pOn: -0.02, pOff: 0.04 }, 'Steadier pinch: your pinches were flickering on and off.');
+            }
+          }
+        }
+        const extra = (b) => {
+          const t = T.get(b);
+          return on && t && performance.now() < t.boostUntil ? 16 : 0;
+        };
+        function apply() {
+          [R, R2].forEach((h) => {
+            if (!h) return;
+            [h.fx, h.fy].forEach((f) => {
+              f.minCut = on ? k.minCut : BASE.minCut;
+              f.beta = on ? k.beta : BASE.beta;
+            });
+          });
+        }
+        function setOn(v) {
+          on = v;
+          if (!on) {
+            k = Object.assign({}, BASE);
+            T.clear();
+          }
+          apply();
+          save();
+          $('handAssist').setAttribute('aria-pressed', on);
+          $('handAssist').textContent = on ? '🎯 Adaptive aim' : '🎯 Adaptive aim: off';
+        }
+        return {
+          frame,
+          sample,
+          missPress,
+          success,
+          pinchEdge,
+          apply,
+          setOn,
+          get on() {
+            return on;
+          },
+          snapFor: (b) => (on ? k.snap : BASE.snap) + extra(b),
+          get pOn() {
+            return on ? k.pOn : BASE.pOn;
+          },
+          get pOff() {
+            return on ? k.pOff : BASE.pOff;
+          },
+        };
+      })();
       class OneEuro {
         constructor(minCut = 1.0, beta = 4, dCut = 1.0) {
           this.minCut = minCut;
@@ -8824,7 +9027,10 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
         update(L, t) {
           // thumb tip to index tip, in palm lengths and in 3D, so turning the hand doesn't fake or break a pinch; other fingers can do anything
           const pr = this.fp.f(d3(L[4], L[8]) / (d3(L[0], L[9]) || 1e-3), t);
-          if (this.pinchOn ? pr > 0.48 : pr < 0.3) this.pinchOn = !this.pinchOn;
+          if (this.pinchOn ? pr > ADAPT.pOff : pr < ADAPT.pOn) {
+            this.pinchOn = !this.pinchOn;
+            if (this === R) ADAPT.pinchEdge(this.pinchOn, t);
+          }
           this.p = Math.max(0, Math.min(1, (0.75 - pr) / 0.45)); // how close the fingers are to a pinch, for the meter on the cursor
           // the cursor follows the wrist and knuckles, which barely move when you pinch, so pressing doesn't knock it off target
           const ax = (L[0].x + L[5].x + L[9].x + L[13].x + L[17].x) / 5,
@@ -8844,6 +9050,18 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
       }
       const R = new HandState(),
         R2 = new HandState();
+      ADAPT.apply();
+      ADAPT.setOn(ADAPT.on);
+      window.atlasAdapt = ADAPT; // for testing
+      $('handAssist').onclick = () => {
+        ADAPT.setOn(!ADAPT.on);
+        hmsg(
+          ADAPT.on
+            ? '🎯 Adaptive aim is on: it learns from your movements and makes buttons easier to hit when you’re having trouble.'
+            : '🎯 Adaptive aim is off, and what it learned is reset.',
+        );
+        setTimeout(() => $('handMsg').textContent.startsWith('🎯') && hmsg(''), 4000);
+      };
       let goal = null,
         zoomRate = 0,
         anchor = null,
@@ -8895,18 +9113,22 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
           ...V.stage.querySelectorAll('button:not([hidden])'),
         ].filter((b) => !b.disabled && b.offsetParent !== null && getComputedStyle(b).visibility !== 'hidden');
         let best = null,
-          bd = 1e9;
+          bd = 1e9,
+          bs = 1e9;
         btns.forEach((b) => {
           const r = b.getBoundingClientRect(),
             dx = Math.max(r.left - x, 0, x - r.right),
             dy = Math.max(r.top - y, 0, y - r.bottom),
-            d = Math.hypot(dx, dy);
-          if (d < bd) {
+            d = Math.hypot(dx, dy),
+            sc = d - ADAPT.snapFor(b); // the button with the most reach to spare wins
+          if (sc < bs) {
+            bs = sc;
             bd = d;
             best = b;
           }
         });
-        if (best && bd < 28) {
+        hoverAt.btns = btns;
+        if (best && bd < ADAPT.snapFor(best)) {
           const [bx, by] = center(best);
           return { btn: best, label: best.textContent.trim().slice(0, 28), x: bx, y: by };
         }
@@ -8936,6 +9158,8 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
       }
       function click(hv, now) {
         tick();
+        if (hv && hv.btn) ADAPT.success(hv.btn, now);
+        else ADAPT.missPress(now, cx, cy, hoverAt.btns || []);
         if (!hv) return;
         if (hv.btn) {
           const id = hv.btn.id;
@@ -9103,7 +9327,9 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
         if (now - (handLoop.ht || 0) > 90) {
           handLoop.ht = now;
           handLoop.hv = hoverAt(cx, cy);
+          if (R.mode === 'idle') ADAPT.sample(now, cx, cy, handLoop.hv, hoverAt.btns || []);
         } // hover-test about ten times a second; aiming into the globe is costly
+        ADAPT.frame(now, cx, cy, R.mode);
         const hv = handLoop.hv,
           sx = hv && hv.x != null ? hv.x : cx,
           sy = hv && hv.y != null ? hv.y : cy;
