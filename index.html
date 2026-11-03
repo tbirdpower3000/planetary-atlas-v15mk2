@@ -186,29 +186,102 @@
     flex-wrap: wrap;
     gap: 6px;
   }
+  .bodies {
+    align-items: center;
+    gap: 8px;
+  }
   .bodies button {
-    display: inline-flex;
-    align-items: baseline;
-    gap: 6px;
     border-radius: 999px;
-    padding: 5px 12px;
+    padding: 5px 13px;
   }
-  .bodies button small {
-    font-family: var(--mono);
-    font-size: 0.68rem;
-    color: var(--muted);
+  /* a world and its moons: one tray, the world in bold, the moons a step smaller */
+  .bodies .sys {
+    display: inline-flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 2px;
+    padding: 2px;
+    border: 1px solid var(--rule);
+    border-radius: 18px;
+    background: var(--sheet);
+    max-width: 100%;
   }
-  .bodies button[aria-pressed='true'] {
+  .bodies .sys button {
+    border-color: transparent;
+    background: transparent;
+  }
+  .bodies .sys button:hover {
+    border-color: var(--rule);
+  }
+  .bodies .sys .primary {
+    font-weight: 600;
+  }
+  .bodies .sys .moon {
+    font-size: 0.8rem;
+    padding: 4px 10px;
+  }
+  .bodies button[aria-pressed='true'],
+  .bodies .sys button[aria-pressed='true'] {
     background: var(--chipon);
     color: var(--chiptx);
     border-color: var(--chipon);
   }
-  .bodies button[aria-pressed='true'] small {
-    color: inherit;
-    opacity: 0.7;
+  .bodies .sys.yours {
+    border-color: var(--accent);
+  }
+  .ws {
+    grid-column: 1 / -1;
+  }
+  .wslist {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+  }
+  .wslist li {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: center;
+    gap: 6px 12px;
+    padding: 8px 0;
+    border-top: 1px solid var(--rule);
+  }
+  .wslist li:last-child {
+    border-bottom: 1px solid var(--rule);
+  }
+  .wslist li.empty {
+    color: var(--muted);
+    font-size: 0.85rem;
+  }
+  .wslist li[aria-current='true'] b {
+    color: var(--accent);
+  }
+  .wsn {
+    display: grid;
+    min-width: 0;
+  }
+  .wsn small {
+    color: var(--muted);
+    font-size: 0.78rem;
+  }
+  button.warn {
+    border-color: var(--warn);
+    color: var(--warn);
   }
   .bodies .load {
     border-style: dashed;
+  }
+  @media (max-width: 560px) {
+    .bodies {
+      gap: 6px;
+    }
+    .bodies button {
+      padding: 5px 11px;
+    }
+    .bodies .sys .moon {
+      padding: 4px 8px;
+    }
   }
   /* Solar-system map: a tracking-station view in deep navy, orbits as thin coloured lines */
   :root {
@@ -622,17 +695,6 @@
       right: 10px;
       max-width: none;
     }
-  }
-  .bodies .gl {
-    font-size: 0.66rem;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    color: var(--muted);
-    align-self: center;
-    padding: 0 2px 0 8px;
-  }
-  .bodies .gl:first-child {
-    padding-left: 0;
   }
   #worlds {
     font-size: 0.86rem;
@@ -1821,7 +1883,7 @@
     <div class="hrow">
       <h1>
         Planetary Modeling Atlas
-        <span class="ver" title="Version v15mk2.13, 3 Nov 2026: live flights work, from the atlas’s own GitHub snapshot of the OpenSky Network">v15mk2.13</span>
+        <span class="ver" title="Version v15mk2.15, 3 Nov 2026: your workspace (worlds and data you load are kept in this browser), map images, tidier world buttons">v15mk2.15</span>
       </h1>
       <p id="howTo">
         Pick a world on the map or below. Drag to turn, scroll or pinch to zoom, click a site to fly to it. ✋ Hand control (on a
@@ -1911,6 +1973,7 @@
     </details>
     <div class="toolbar">
       <div class="seg" role="group" aria-label="Map layer" id="layerSeg"></div>
+      <button type="button" id="mapPng" title="Download this layer as a flat map image (PNG) with its colour bar">⤓ Map image</button>
       <span id="blendT" class="toolbar" style="gap: 10px 18px" hidden
         ><label class="tgroup" title="How strongly the topography shows through the photo"
           >Mix<input id="blendA" type="range" min="0" max="100" step="5" value="55" /><output id="blendO">55%</output></label
@@ -2206,16 +2269,32 @@
   </section>
 
   <section class="box loader" aria-labelledby="loadH" id="load">
-    <h2 id="loadH">Load another planet</h2>
+    <h2 id="loadH">Your worlds and data</h2>
     <p class="note">
-      Everything here stays in your browser. You can open a planet pack, build a new world from map images, or add a layer or
-      sites to the world on screen.
+      Everything here stays in your browser. Open a planet pack, build a new world from map images, or add a layer or sites to
+      the world on screen; whatever you load is kept together in your workspace for next time.
     </p>
     <div class="lgrid">
+      <div class="box ws" id="wsBox">
+        <h3>Your workspace</h3>
+        <p class="note" id="wsNote">
+          Worlds you open, build, or add layers and sites to are kept here, in this browser only, until you remove them.
+        </p>
+        <ul class="wslist" id="wsList"></ul>
+        <div class="row">
+          <button type="button" id="wsDl">⤓ Download workspace</button
+          ><label class="tgroup" title="Keep your worlds in this browser's storage so they are here next time"
+            ><input type="checkbox" id="wsKeep" checked /> Keep in this browser</label
+          >
+        </div>
+        <p class="note" id="wsMsg" role="status"></p>
+      </div>
       <div class="box">
         <h3>Open a planet pack</h3>
-        <p class="note">A <code>.json</code> pack in the format described below, such as one saved from this page.</p>
-        <input type="file" id="packFile" accept=".json,application/json" aria-label="Planet pack file" />
+        <p class="note">
+          A <code>.json</code> pack in the format described below, or a whole workspace, such as one saved from this page.
+        </p>
+        <input type="file" id="packFile" accept=".json,application/json" aria-label="Planet pack or workspace file" />
       </div>
       <div class="box">
         <h3>Build from map images</h3>
@@ -2293,10 +2372,6 @@
       </div>
     </div>
     <p id="loadMsg" role="status"></p>
-    <div class="row" id="saveRow" hidden>
-      <button type="button" id="saveBtn">Save this world as a pack</button
-      ><span class="note">Downloads a .json you can open here again later.</span>
-    </div>
     <details>
       <summary class="note" style="cursor: pointer">Planet pack format</summary>
       <pre class="schema">
@@ -3749,7 +3824,7 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
       $('selCard').innerHTML = '';
       if (SITES.length) select(SITES[0], false);
       if (!keepView && (!FS || MODE === 'globe')) arrive();
-      $('saveRow').hidden = !(P.custom && window.parent === window);
+      drawWS();
     }
     // ---------- body picker ----------
     let INDEX = [],
@@ -3778,29 +3853,30 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
       } catch (e) {}
     }
     const km = (r) => (r >= 1000 ? (r / 1000).toFixed(1) + 'k' : r >= 20 ? Math.round(r) : r.toFixed(1));
+    // each moon sits in one tray with the world it orbits, so the row needs no group labels; sizes are in the tooltips
+    const PARENT = { moon: 'earth', phobos: 'mars', deimos: 'mars', charon: 'pluto' },
+      GIANTS = ['jupiter', 'saturn', 'uranus', 'neptune'];
+    const parentOf = (b) => PARENT[b.id] || (GIANTS.includes(b.group) && b.id !== b.group ? b.group : '');
+    const chipFor = (b, cls) =>
+      `<button type="button" data-id="${esc(b.id)}" aria-pressed="${b.id === current}"${cls ? ` class="${cls}"` : ''} title="${esc(
+        [b.name, b.kind, b.radiusKm ? `${(+b.radiusKm).toLocaleString('en-US', { maximumFractionDigits: 1 })} km radius` : '']
+          .filter(Boolean)
+          .join(' · '),
+      )}">${esc(b.name)}</button>`;
     function drawBodies() {
+      const shown = (b) => ON.has(b.id) || b.id === current;
       let h = '';
-      GROUPS.forEach(([g, label]) => {
-        const list = INDEX.filter((b) => (b.group || 'dwarf') === g && (ON.has(b.id) || b.id === current));
-        if (!list.length) return;
-        h +=
-          `<span class="gl">${esc(label.replace(' system', '').replace('Dwarf planets and asteroids', 'Small worlds'))}</span>` +
-          list
-            .map(
-              (b) =>
-                `<button type="button" data-id="${esc(b.id)}" aria-pressed="${b.id === current}">${esc(b.name)}<small>${km(b.radiusKm)} km</small></button>`,
-            )
-            .join('');
+      INDEX.filter((b) => !parentOf(b) || !INDEX.some((p) => p.id === parentOf(b))).forEach((p) => {
+        const moons = INDEX.filter((m) => parentOf(m) === p.id && shown(m));
+        if (!moons.length) {
+          if (shown(p)) h += chipFor(p);
+          return;
+        }
+        // a moon always comes with its world, even if that world is switched off in the list
+        h += `<span class="sys" role="group" aria-label="${esc(p.name)} and its moons">${chipFor(p, 'primary')}${moons.map((m) => chipFor(m, 'moon')).join('')}</span>`;
       });
       if (custom.length)
-        h +=
-          '<span class="gl">Yours</span>' +
-          custom
-            .map(
-              (b) =>
-                `<button type="button" data-id="${esc(b.id)}" aria-pressed="${b.id === current}">${esc(b.name)}<small>${km(b.radiusKm)} km</small></button>`,
-            )
-            .join('');
+        h += `<span class="sys yours" role="group" aria-label="Your worlds">${custom.map((b) => chipFor(Object.assign({ kind: b.pack.kind || 'Your world' }, b), b.pack.base ? 'moon' : '')).join('')}</span>`;
       $('bodies').innerHTML = h + `<button type="button" class="load" id="toLoad">+ Load planet</button>`;
       $('bodies')
         .querySelectorAll('button[data-id]')
@@ -3933,10 +4009,17 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
         INDEX = [];
       }
       if (!INDEX.length) $('worlds').hidden = true;
+      // your workspace: the worlds you loaded last time come back (a slow or blocked store never holds the page up)
+      try {
+        const saved = await Promise.race([WS.all(), wait(2500).then(() => [])]);
+        (saved || []).forEach((p) => p && p.name && addCustom(p, { open: false, keep: false }));
+      } catch (e) {}
       drawBodies();
       drawWorldList();
+      drawWS();
       const want = (location.hash || '').slice(1);
-      if (INDEX.length) open(INDEX.some((b) => b.id === want) ? want : 'moon', true);
+      if (custom.some((b) => b.id === want)) open(want, true);
+      else if (INDEX.length) open(INDEX.some((b) => b.id === want) ? want : 'moon', true);
       else {
         $('busy').textContent = SRC
           ? 'The worlds at your web source could not be reached. Check the address under “Load another planet”.'
@@ -4004,7 +4087,7 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
       $('loadMsg').textContent = t;
       $('loadMsg').className = err ? 'err' : '';
     };
-    function addCustom(pack) {
+    function addCustom(pack, opt = {}) {
       pack.custom = true;
       pack.id = pack.id || 'w' + Date.now().toString(36);
       let id = pack.id;
@@ -4013,20 +4096,40 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
         e = { id, name: pack.name, radiusKm: pack.radiusKm, pack };
       if (i >= 0) custom[i] = e;
       else custom.push(e);
-      open(id);
+      if (opt.keep !== false) keepWorld(pack);
+      if (opt.open !== false) open(id);
+      else drawBodies();
+      drawWS();
+    }
+    function checkPack(p) {
+      if (!p || !p.name || !(p.radiusKm > 0)) throw new Error('A pack needs at least "name" and "radiusKm".');
+      (p.grids || []).forEach((g) => {
+        if (!g.b64 || !g.rows || !g.cols) throw new Error(`Grid "${g.label || g.id}" needs rows, cols and b64.`);
+        if (g.cols !== 2 * (g.rows - 1)) throw new Error(`Grid "${g.label || g.id}" must have cols = 2 × (rows − 1).`);
+      });
     }
     $('packFile').onchange = async (e) => {
       const f = e.target.files[0];
       if (!f) return;
       try {
         const p = JSON.parse(await f.text());
-        if (!p.name || !(p.radiusKm > 0)) throw new Error('A pack needs at least "name" and "radiusKm".');
-        (p.grids || []).forEach((g) => {
-          if (!g.b64 || !g.rows || !g.cols) throw new Error(`Grid "${g.label || g.id}" needs rows, cols and b64.`);
-          if (g.cols !== 2 * (g.rows - 1)) throw new Error(`Grid "${g.label || g.id}" must have cols = 2 × (rows − 1).`);
-        });
-        addCustom(p);
-        msg(`Opened ${p.name}.`);
+        if (p && p.format === WS_FORMAT) {
+          const ws = (p.worlds || []).filter((w) => {
+            try {
+              checkPack(w);
+              return true;
+            } catch (err) {
+              return false;
+            }
+          });
+          if (!ws.length) throw new Error('That workspace has no worlds in it.');
+          ws.forEach((w, k) => addCustom(w, { open: k === 0 }));
+          msg(`Opened your workspace: ${ws.map((w) => w.name).join(', ')}.`);
+        } else {
+          checkPack(p);
+          addCustom(p);
+          msg(`Opened ${p.name}.`);
+        }
       } catch (err) {
         msg(`That file couldn't be opened as a planet pack. ${err.message || ''}`, true);
       }
@@ -4074,8 +4177,9 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
       c.images = P.images.slice();
       c.shade = P.shade;
       c.id = P.id;
-      c.name = P.name;
-      c.blurb = (P.blurb || '') + ' Includes layers you added.';
+      c.base = P.id;
+      c.name = P.name + ' (yours)';
+      c.blurb = (P.blurb || '') + ' Your copy, with the layers and sites you added.';
       return c;
     }
     $('alGo').onclick = async () => {
@@ -4223,16 +4327,235 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
       }
       e.target.value = '';
     };
-    $('saveBtn').onclick = () => {
-      const p = Object.assign({}, P);
-      delete p.custom;
-      p.grids = (p.grids || []).filter((g) => !g.transient);
-      const b = new Blob([JSON.stringify(p)], { type: 'application/json' }),
-        a = document.createElement('a');
-      a.href = URL.createObjectURL(b);
-      a.download = (P.name || 'world').toLowerCase().replace(/[^a-z0-9]+/g, '-') + '.json';
+    // ---------- your workspace ----------
+    // every world you open, build or add to is kept in this browser's IndexedDB (it holds far more than localStorage) and
+    // comes back next visit; one file holds them all, to keep elsewhere or move to another browser
+    const WS_FORMAT = 'planetary-atlas-workspace';
+    const WS = (() => {
+      let dbp = null;
+      const db = () =>
+        dbp ||
+        (dbp = new Promise((res, rej) => {
+          const r = indexedDB.open('planetary-atlas', 1);
+          r.onupgradeneeded = () => r.result.createObjectStore('worlds');
+          r.onsuccess = () => res(r.result);
+          r.onerror = () => rej(r.error);
+          r.onblocked = () => rej(new Error('blocked'));
+        }));
+      const run = (mode, fn) =>
+        db().then(
+          (d) =>
+            new Promise((res, rej) => {
+              const t = d.transaction('worlds', mode),
+                q = fn(t.objectStore('worlds'));
+              t.oncomplete = () => res(q && q.result);
+              t.onerror = t.onabort = () => rej(t.error);
+            }),
+        );
+      return {
+        put: (p) => run('readwrite', (st) => st.put(p, p.id)),
+        del: (id) => run('readwrite', (st) => st.delete(id)),
+        all: () => run('readonly', (st) => st.getAll()),
+      };
+    })();
+    let KEEP = true;
+    try {
+      KEEP = localStorage.getItem('atlasKeep') !== '0';
+    } catch (e) {}
+    $('wsKeep').checked = KEEP;
+    const inFrame = window.parent !== window;
+    const wsMsg = (t, err) => {
+      $('wsMsg').textContent = t || '';
+      $('wsMsg').className = 'note' + (err ? ' err' : '');
+    };
+    // a pack as it is saved: none of the layers the page works out for itself
+    function cleanPack(p) {
+      const o = Object.assign({}, p);
+      delete o.custom;
+      o.grids = (p.grids || []).filter((g) => !g.transient);
+      return o;
+    }
+    const sizeMB = (p) => {
+      try {
+        return JSON.stringify(cleanPack(p)).length / 1e6;
+      } catch (e) {
+        return 0;
+      }
+    };
+    async function keepWorld(p) {
+      if (!KEEP) return;
+      try {
+        await WS.put(cleanPack(p));
+        if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});
+      } catch (e) {
+        wsMsg('This browser isn’t keeping your worlds (a private window, or site storage is blocked). Download the workspace to keep them.', true);
+      }
+    }
+    function download(name, blob) {
+      if (inFrame) {
+        wsMsg('Downloads are blocked inside this preview. Open the atlas on its GitHub page, or a downloaded copy, to save files.', true);
+        return false;
+      }
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = name;
+      document.body.appendChild(a);
       a.click();
+      a.remove();
       setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+      return true;
+    }
+    const slug = (t) =>
+      String(t || 'world')
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-|-$/g, '') || 'world';
+    function drawWS() {
+      const L = $('wsList');
+      if (!L) return;
+      if (!custom.length) {
+        L.innerHTML = '<li class="empty">Nothing here yet. Open a pack, build a world, or add a layer or sites below.</li>';
+      } else
+        L.innerHTML = custom
+          .map((b) => {
+            const p = b.pack,
+              nl = (p.grids || []).filter((g) => !g.transient).length + (p.images || []).length,
+              ns = (p.sites || []).length,
+              mb = b.mb != null ? b.mb : (b.mb = sizeMB(p));
+            return `<li data-ws="${esc(b.id)}" aria-current="${b.id === current}"><span class="wsn"><b>${esc(p.name)}</b><small>${esc(
+              p.base ? 'Your copy of a built-in world' : p.kind || 'Your world',
+            )} · ${nl} layer${nl === 1 ? '' : 's'} · ${ns} site${ns === 1 ? '' : 's'} · ${mb < 0.1 ? '<0.1' : mb.toFixed(1)} MB</small></span><span class="row"><button type="button" data-a="open">Open</button><button type="button" data-a="save" title="Download this world as a .json pack">⤓ .json</button><button type="button" data-a="del">Remove</button></span></li>`;
+          })
+          .join('');
+      L.querySelectorAll('li[data-ws] button').forEach((bt) => {
+        const id = bt.closest('li').dataset.ws,
+          b = custom.find((x) => x.id === id);
+        bt.onclick = () => {
+          if (!b) return;
+          const a = bt.dataset.a;
+          if (a === 'open') {
+            open(id);
+            $('stage').scrollIntoView({ behavior: 'smooth', block: 'start' });
+          } else if (a === 'save') {
+            if (download(slug(b.pack.name) + '.json', new Blob([JSON.stringify(cleanPack(b.pack))], { type: 'application/json' })))
+              wsMsg(`Saved ${b.pack.name} as ${slug(b.pack.name)}.json.`);
+          } else if (a === 'del') {
+            // asks once on the button itself: a second click within a few seconds removes it
+            if (!bt.classList.contains('warn')) {
+              bt.classList.add('warn');
+              bt.textContent = 'Remove for good?';
+              setTimeout(() => {
+                if (bt.isConnected) {
+                  bt.classList.remove('warn');
+                  bt.textContent = 'Remove';
+                }
+              }, 4000);
+              return;
+            }
+            custom.splice(custom.indexOf(b), 1);
+            WS.del(id).catch(() => {});
+            wsMsg(`Removed ${b.pack.name}.`);
+            if (current === id) open(INDEX.some((x) => x.id === (b.pack.base || '')) ? b.pack.base : INDEX.length ? 'moon' : null);
+            drawBodies();
+            drawWS();
+          }
+        };
+      });
+      $('wsDl').disabled = !custom.length;
+      if (navigator.storage && navigator.storage.estimate && KEEP && custom.length)
+        navigator.storage
+          .estimate()
+          .then((q) => {
+            if (q && q.usage) $('wsNote').textContent = `Worlds you open, build, or add layers and sites to are kept here, in this browser only, until you remove them. In use: about ${(q.usage / 1e6).toFixed(0)} MB.`;
+          })
+          .catch(() => {});
+    }
+    $('wsDl').onclick = () => {
+      if (!custom.length) return;
+      const ws = {
+        format: WS_FORMAT,
+        version: 1,
+        atlas: 'v15mk2.15',
+        saved: new Date().toISOString(),
+        worlds: custom.map((b) => cleanPack(b.pack)),
+        shown: [...ON],
+      };
+      const name = `atlas-workspace-${new Date().toISOString().slice(0, 10)}.json`;
+      if (download(name, new Blob([JSON.stringify(ws)], { type: 'application/json' })))
+        wsMsg(`Saved ${custom.length} world${custom.length === 1 ? '' : 's'} as ${name}. Open it with “Open a planet pack” in any browser.`);
+    };
+    $('wsKeep').onchange = async (e) => {
+      KEEP = e.target.checked;
+      try {
+        localStorage.setItem('atlasKeep', KEEP ? '1' : '0');
+      } catch (er) {}
+      if (KEEP) {
+        for (const b of custom) await keepWorld(b.pack);
+        wsMsg(custom.length ? 'Your worlds are kept in this browser again.' : 'New worlds will be kept in this browser.');
+      } else {
+        await Promise.all(custom.map((b) => WS.del(b.id).catch(() => {})));
+        wsMsg('Your worlds stay open on this page but are no longer kept in this browser. Download the workspace to keep them.');
+      }
+      drawWS();
+    };
+    // ---------- the map on the globe, flat, as a PNG with its colour bar ----------
+    $('mapPng').onclick = () => {
+      const t = mat.uniforms.map.value,
+        src = t && t.image;
+      if (!P || !src) return;
+      const W = src.naturalWidth || src.width,
+        H = src.naturalHeight || src.height,
+        legendOn = !$('legend').hidden,
+        fs = Math.max(14, Math.round(W / 100)),
+        pad = Math.round(fs * 1.1),
+        lh = Math.round(fs * 0.9),
+        foot = Math.round(pad * 2 + fs * 1.4 + (legendOn ? lh + fs * 2 : 0) + fs * 1.4),
+        c = document.createElement('canvas');
+      c.width = W;
+      c.height = H + foot;
+      const x = c.getContext('2d'),
+        font = getComputedStyle(document.body).fontFamily || 'system-ui, sans-serif';
+      x.fillStyle = '#f8f9fa';
+      x.fillRect(0, 0, c.width, c.height);
+      x.drawImage(src, 0, 0, W, H);
+      let y = H + pad + fs;
+      x.fillStyle = '#1e2429';
+      x.font = `600 ${fs}px ${font}`;
+      x.fillText($('cap').textContent || P.name, pad, y);
+      x.font = `${Math.round(fs * 0.78)}px ${font}`;
+      x.fillStyle = '#5d6770';
+      if (legendOn) {
+        y += fs * 0.7;
+        const lw = Math.min(W - 2 * pad, fs * 32);
+        x.imageSmoothingEnabled = true;
+        x.drawImage($('legend'), pad, y, lw, lh);
+        x.strokeStyle = '#5d6770';
+        x.strokeRect(pad + 0.5, y + 0.5, lw - 1, lh - 1);
+        const ty = y + lh + fs * 1.05;
+        [...$('ticks').children].forEach((sp) => {
+          const f = parseFloat(sp.style.left) / 100,
+            tw = x.measureText(sp.textContent).width;
+          x.fillText(sp.textContent, Math.min(pad + lw - tw, Math.max(pad, pad + f * lw - tw / 2)), ty);
+        });
+        x.fillText($('legT').textContent, pad + lw + fs, y + lh);
+        y = ty;
+      }
+      y += fs * 1.4;
+      x.fillText(
+        'Simple cylindrical map, 180° W to 180° E, 90° N to 90° S · Planetary Modeling Atlas v15mk2.15 · data sources: tbirdpower3000.github.io/planetary-atlas-v15mk2/sources.html',
+        pad,
+        y,
+      );
+      const name = `${slug(P.name)}-${slug(($('cap').textContent || '').split('·').pop())}.png`;
+      try {
+        c.toBlob((b) => {
+          if (!b) return;
+          if (download(name, b)) msg(`Saved the map as ${name} (${W} × ${H} pixels, plus the colour bar).`);
+          else $('load').scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }, 'image/png');
+      } catch (e) {
+        msg('This map could not be saved as an image.', true);
+      }
     };
     // ---------- spin and sunlight ----------
     // IAU 2015 rotation models from NASA NAIF pck00011.tpc: pole RA, its rate per century, pole Dec, its rate, prime meridian W0, rate per day.
@@ -6529,7 +6852,7 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
           const g = new THREE.Group();
           g.rotation.z = (TILT[par] || 0) * D2R;
           msc.add(g);
-          MOG[par] = { g, max: 0 };
+          MOG[par] = { g, max: 0, min: Infinity };
         }
         const a = akm / AU,
           pts = [];
@@ -6539,6 +6862,7 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
         }
         MOG[par].g.add(orbitLine(pts, 0x9fb3cc, 0.4));
         MOG[par].max = Math.max(MOG[par].max, a);
+        MOG[par].min = Math.min(MOG[par].min, a);
       });
       // time
       const jdNow = () => Date.now() / 86400000 + 2440587.5;
@@ -6716,6 +7040,14 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
         if (b.kind === 'moon') return Math.max((MOONS[id][1] / AU) * 1.6, 2e-4);
         if (MOG[id]) return MOG[id].max * 3.2;
         return Math.max(0.01, elements(id, jd).a * 0.04);
+      }
+      // how close you zoom before landing on the globe: a planet with moons waits until you are inside its innermost moon's
+      // orbit, so you can zoom in among the moons first; a moon waits until it fills the view beside its planet
+      function landDist(id) {
+        const b = B[id];
+        if (b && b.kind === 'moon') return viewDist(id) * 0.3;
+        if (MOG[id]) return Math.min(viewDist(id) * 0.45, MOG[id].min * 0.6);
+        return viewDist(id) * 0.45;
       }
       function card(id) {
         const c = $('mapCard');
@@ -6896,7 +7228,7 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
         },
         has: (id) => INDEX.some((x) => x.id === id),
         focusId: () => focusId,
-        enterDist: () => (focusId && focusId !== 'sun' ? viewDist(focusId) * 0.3 : 0),
+        enterDist: () => (focusId && focusId !== 'sun' ? Math.min(viewDist(focusId) * 0.3, landDist(focusId)) : 0),
         open(id) {
           enterGlobe(id);
         },
@@ -6940,7 +7272,7 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
         'wheel',
         (e) => {
           if (glide || DIVE || e.deltaY >= 0 || !focusId || focusId === 'sun' || !INDEX.some((x) => x.id === focusId)) return;
-          if (mcam.position.distanceTo(mco.target) <= viewDist(focusId) * 0.45) enterGlobe(focusId, FS ? null : 'zoom');
+          if (mcam.position.distanceTo(mco.target) <= landDist(focusId)) enterGlobe(focusId, FS ? null : 'zoom');
         },
         { passive: true },
       );
@@ -6952,7 +7284,7 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
           inward = d < mPrevD * 0.999;
         mPrevD = d;
         if (!mFinger || !inward || glide || DIVE || !focusId || focusId === 'sun' || !INDEX.some((x) => x.id === focusId)) return;
-        if (d <= viewDist(focusId) * 0.45) {
+        if (d <= landDist(focusId)) {
           mFinger = false;
           enterGlobe(focusId, FS ? null : 'zoom');
         }
