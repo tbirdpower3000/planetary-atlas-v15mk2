@@ -3,7 +3,7 @@
 Runs on GitHub (see .github/workflows/atlas-bot.yml) and writes a report to the job summary:
   1. Planet packs: every file in index.json opens, its grids and images decode, sizes.
   2. The page: loads, lands on Mars and comes back (the globe fades in inside the Solar System box), opens Earth,
-     checks Earth's photo layers and live-data switches, the Moon's crater rings and a crater count, the real-time clock, and that there are no script errors.
+     checks Earth's photo layers and live-data switches, the Moon's crater rings and a crater count, Mars through time, the Sources page, the real-time clock, and that there are no script errors.
   3. Live data: whether each source answers and whether it lets a web page read the answer (the CORS header).
      Report only; it never fails the run.
 Exit code 1 if part 1 or 2 finds a problem.
@@ -105,6 +105,20 @@ async def page_bot():
             c = await pg.evaluate('window.atlasCraters().last')
             step('Crater count of Mare Crisium gives a mare age (3.2-3.8 Ga)', bool(c) and 3.2 < c['T'] < 3.8, f"({c and round(c['T'], 2)} Ga from {c and c['n']} craters)")
             await (await pg.query_selector('#stage')).screenshot(path=str(OUT / 'moon-craters.png'))
+            # Mars through time: the data streams in, Ancient Mars is a layer, and the Arabia ocean fills
+            await pg.evaluate('document.querySelector("#bodies button[data-id=mars]").click()')
+            await until('document.getElementById("bName").textContent==="Mars"&&document.getElementById("busy").hidden', 40)
+            t = await until('window.atlasMars&&window.atlasMars().on', 60)
+            step('Mars through time loads with Mars', t is not None and await pg.evaluate('!document.getElementById("mlab").hidden'), f'({t} s)')
+            await pg.click('#mlAncGo'); await pg.wait_for_timeout(1500)
+            m = await pg.evaluate('window.atlasMars()')
+            step('Ancient Mars shows on the globe', m['layer'] == 'anc' and m['anc'], f"({m['overlays']} overlays)")
+            await pg.check('#mlWater'); await pg.select_option('#mlWMode', 'arabia'); await pg.wait_for_timeout(3000)
+            m = await pg.evaluate('window.atlasMars()')
+            step('The northern ocean fills to the Arabia shoreline', m['water'] and abs(m['level'] + 2611) < 1, f"(sea level {m['level']} m)")
+            await (await pg.query_selector('#stage')).screenshot(path=str(OUT / 'mars-ocean.png'))
+            st = await pg.evaluate("fetch('sources.html').then(r=>r.status)")
+            step('The project Sources page is there', st == 200, f'(HTTP {st})')
             step('No script errors', not errs, '; '.join(errs[:3]))
             await b.close()
     finally:

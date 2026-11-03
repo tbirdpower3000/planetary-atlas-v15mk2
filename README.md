@@ -1,10 +1,10 @@
-# Planetary Modeling Atlas · v15mk2.10
+# Planetary Modeling Atlas · v15mk2.11
 
 **This is not my data.** None of the maps, gravity models, images or coordinates in this repository were made by me, and I make no claim of ownership over them. They were produced by NASA, ESA, JPL, USGS, the IAU and the researchers and artists credited below. This repository holds reformatted copies of their published work, so that the Planetary Modeling Atlas (a personal, non-commercial viewer) can load it from the web.
 
 ## The atlas
 
-`index.html` is the Planetary Modeling Atlas, version **v15mk2.10**, built with Claude. It is v15 (the Solar System map and globes in one view, real lighting and spin, and hand control on a planet's globe) with these added:
+`index.html` is the Planetary Modeling Atlas, version **v15mk2.11**, built with Claude. It is v15 (the Solar System map and globes in one view, real lighting and spin, and hand control on a planet's globe) with these added:
 
 - Earth's photo layers: Visible colour, Visible colour with clouds, and Night lights.
 - Earth by night: a moonlit blue night side, warm city lights that dim under clouds, an orange band at dusk, and a thin atmosphere at the edge of the photo layers.
@@ -29,6 +29,7 @@ The live layers come straight from their providers in your browser, not from thi
 - **v15mk2.8**: craters on the Moon and Mars. A Craters switch draws published crater catalogs on the globe as rings to scale (more appear as you zoom in), adds a crater-density layer, and counts the craters in a circle wherever you click or tap: a cumulative size-frequency plot with isochrons and a model age from the Neukum (Moon) or Neukum–Ivanov / Ivanov (Mars) chronologies. The Asteroids button now says on or off.
 - **v15mk2.9**: Imagery + relief, a layer on every world that has both a photo map and a topography grid (Earth, the Moon, Mars, and any pack you load): the photo tinted by height, shaded by the relief, or both, with a mix slider; on Earth you can pick which photo, and the night lights still come on after dark.
 - **v15mk2.10**: sharper globe and map: each 3D view is now shown at exactly its drawing size in whole pixels. Before, the page layout could leave it a fraction of a pixel larger, so the browser stretched it by one pixel and softened it by up to about 25% (the quality bot caught this after v15mk2.8 and v15mk2.9 made the toolbar taller).
+- **v15mk2.11**: Mars through time, from the Mars Planetary Modeling Atlas: the geologic timeline (Wordsworth et al. 2021) with a player that tours the big events; Ancient Mars, the areoid without Tharsis, Hellas and Argyre, with the ancient spin axis and equator; the proposed northern ocean, flooded from the lowest northern point to the Arabia or Deuteronilus shoreline or a level you set, with the Tharsis correction and the mapped shorelines; and the Tharsis, Hellas, Argyre and Borealis outlines and 16 major impacts, appearing as the timeline reaches them. Plus a Sources page for the whole project (`sources.html`), built from every world's data files.
 
 ## The bots
 
@@ -92,6 +93,14 @@ If you are a rights holder and want something credited differently or removed, p
 ## Format
 
 `index.json` lists the worlds. Each `<id>.json` is one planet pack: gridded maps (int16, base64, rows 90°N→90°S, columns from 0°E), images (equirectangular, 180°W at the left), sites, feature names and sources. The full format is described in the atlas under "Planet pack format".
+
+## Sources
+
+`sources.html` lists every dataset, paper and tool behind the atlas, built from the planet packs and the features' own sources by the build.
+
+## Mars through time (`mars-lab.json`)
+
+The ancient-areoid pieces (today, and the parts due to Tharsis, Hellas and Argyre), the ancient pole, Tharsis's deformation (Citron et al. 2018) and the Sholes et al. (2021) shoreline points, as prepared in the Mars Planetary Modeling Atlas. Loaded only when Mars is open.
 
 ## Crater catalogs (`craters/`)
 
