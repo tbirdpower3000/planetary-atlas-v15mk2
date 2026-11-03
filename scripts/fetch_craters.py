@@ -130,6 +130,7 @@ def povilaitis():
                 fields, rows = dbf(zip_read(url, ent, ref))
                 log(f'    {ent["name"]}: {len(rows)} rows, fields {[f[0] for f in fields]}')
                 for r in rows:
+                    r = {k.upper(): v for k, v in r.items()}  # the tables spell the fields Diam_km, x_coord, y_coord, tag
                     try:
                         x, y, dk = float(r['X_COORD']), float(r['Y_COORD']), float(r['DIAM_KM'])
                     except (KeyError, ValueError):
