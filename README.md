@@ -1,10 +1,10 @@
-# Planetary Modeling Atlas · v15mk2.5
+# Planetary Modeling Atlas · v15mk2.6
 
 **This is not my data.** None of the maps, gravity models, images or coordinates in this repository were made by me, and I make no claim of ownership over them. They were produced by NASA, ESA, JPL, USGS, the IAU and the researchers and artists credited below. This repository holds reformatted copies of their published work, so that the Planetary Modeling Atlas (a personal, non-commercial viewer) can load it from the web.
 
 ## The atlas
 
-`index.html` is the Planetary Modeling Atlas, version **v15mk2.5**, built with Claude. It is v15 (the Solar System map and globes in one view, real lighting and spin, and hand control on a planet's globe) with these added:
+`index.html` is the Planetary Modeling Atlas, version **v15mk2.6**, built with Claude. It is v15 (the Solar System map and globes in one view, real lighting and spin, and hand control on a planet's globe) with these added:
 
 - Earth's photo layers: Visible colour, Visible colour with clouds, and Night lights.
 - Earth by night: a moonlit blue night side, warm city lights that dim under clouds, an orange band at dusk, and a thin atmosphere at the edge of the photo layers.
@@ -24,6 +24,7 @@ The live layers come straight from their providers in your browser, not from thi
 - **v15mk2.3**: the focus view from the Mars Modeling Atlas (click a site or double-click a spot to look across it close up; ← Whole planet).
 - **v15mk2.4**: sharper built-in maps: 29 of the 33 worlds at 4096 × 2048 (twice as sharp), Earth's photo layers included; no ↑ Solar System button on the bottom globe.
 - **v15mk2.5**: cleaned-up code: dead code removed (the fist gesture, zoom-through paths hand control can no longer reach, leftovers of the old Fly view) and the code laid out readably; idle views redraw about 4 times a second instead of 60, so the page uses far less power when nothing moves.
+- **v15mk2.6**: works on phones: the page fits the screen; on a phone the globe sits right under the world list with its layer buttons below it, and the Solar System map is taller; double-tap a spot to look at it close up, pinch in on a world to land on it, tap a satellite for its card; site names no longer pile on top of each other, and names near the edge flip to the other side; maps are scaled down only on devices that cannot hold them.
 
 ## The bots
 

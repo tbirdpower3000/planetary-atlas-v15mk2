@@ -1,3 +1,4 @@
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 <meta charset="utf-8" />
 <title>Planetary Modeling Atlas</title>
 <meta name="claude:viewport-fit-sides" content="cover" />
@@ -708,6 +709,13 @@
     pointer-events: auto;
     cursor: pointer;
   }
+  #labels span:not(.feat) {
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  #labels span.flip {
+    transform: translate(calc(-100% - 9px), -50%);
+  }
   #labels span.feat {
     background: transparent;
     border: 0;
@@ -1326,6 +1334,136 @@
     background: color-mix(in srgb, var(--accent) 16%, transparent);
     font-weight: 600;
   }
+  .orbitnote summary {
+    cursor: pointer;
+    font-size: 0.86rem;
+    color: var(--muted);
+  }
+  .orbitnote p {
+    margin: 6px 0 0;
+  }
+  /* phones: the globe sits right under the world list, with its controls just below it; the map is taller than wide */
+  @media (max-width: 600px) {
+    header,
+    .grid {
+      display: contents;
+    }
+    #stage {
+      order: 1;
+    }
+    header > .toolbar {
+      order: 2;
+    }
+    .grid > .panel {
+      order: 3;
+    }
+    .wrap > section {
+      order: 4;
+    }
+    .mapstage {
+      aspect-ratio: 4/5;
+      max-height: 78svh;
+    }
+    .mapbar {
+      left: 8px;
+      right: 8px;
+      bottom: 8px;
+      gap: 6px;
+    }
+    .mapbar .seg {
+      flex-wrap: nowrap;
+      overflow-x: auto;
+      max-width: 100%;
+      scrollbar-width: none;
+    }
+    .mapbar .seg::-webkit-scrollbar {
+      display: none;
+    }
+    .mapbar .seg button {
+      white-space: nowrap;
+      flex: none;
+    }
+    #mapCard {
+      top: 8px;
+      bottom: auto;
+      left: 8px;
+      right: 8px;
+      max-width: none;
+      max-height: 44%;
+      overflow: auto;
+    }
+    #mapAcc,
+    .mapbar .wide {
+      display: none;
+    }
+    .mapbar .yearpick input {
+      width: 80px;
+    }
+    #layerSeg {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 1px;
+      width: 100%;
+      background: var(--rule);
+    }
+    #layerSeg button {
+      border: 0;
+      background: var(--sheet);
+      text-align: left;
+      line-height: 1.25;
+    }
+    #layerSeg button:last-child:nth-child(odd) {
+      grid-column: 1 / -1;
+    }
+    #layerSeg button[aria-pressed='true'] {
+      background: var(--ink);
+      color: var(--sheet);
+    }
+    .mapbar input[type='range'] {
+      width: 90px;
+    }
+    .toolbar {
+      gap: 8px 14px;
+    }
+    .seg button {
+      padding: 8px 11px;
+    }
+    #labels span {
+      font-size: 0.68rem;
+    }
+
+    .stage {
+      min-height: 0;
+    }
+  }
+  /* fingers: bigger targets, no grey flash on tap, no font boosting when turned sideways */
+  @media (pointer: coarse) {
+    html {
+      -webkit-text-size-adjust: 100%;
+      text-size-adjust: 100%;
+    }
+    * {
+      -webkit-tap-highlight-color: transparent;
+    }
+    button,
+    select {
+      min-height: 38px;
+    }
+    .mapbar button,
+    #fsBar button {
+      min-height: 32px;
+    }
+    input[type='checkbox'] {
+      width: 18px;
+      height: 18px;
+    }
+    input[type='range'] {
+      height: 28px;
+    }
+    #labels span:not(.feat):not(.pt) {
+      padding: 3px 7px;
+    }
+  }
 </style>
 
 <div class="wrap">
@@ -1333,9 +1471,9 @@
     <div class="hrow">
       <h1>
         Planetary Modeling Atlas
-        <span class="ver" title="Version v15mk2.5, 2 Nov 2026: cleaned-up code; idle views redraw only when something changes">v15mk2.5</span>
+        <span class="ver" title="Version v15mk2.6, 2 Nov 2026: phone layout and touch controls">v15mk2.6</span>
       </h1>
-      <p>
+      <p id="howTo">
         Pick a world on the map or below. Drag to turn, scroll or pinch to zoom, click a site to fly to it. ✋ Hand control (on a
         planet's globe) opens a full-screen view.
       </p>
@@ -1347,7 +1485,7 @@
     <section class="mapbox" aria-labelledby="mapH">
       <div class="maphead">
         <h2 id="mapH">Solar System</h2>
-        <p class="note">
+        <p class="note" id="mapHow">
           Click a planet or moon to fly to it, then keep zooming in (or double-click it) to land on its globe right here. Drag to
           turn, scroll or pinch to zoom.
         </p>
@@ -1381,8 +1519,8 @@
             >Year<input id="mapYear" type="range" min="-2999" max="2999" step="1" value="2026"
           /></label>
           <button type="button" id="mapNow">Today</button
-          ><button type="button" id="mapInner" class="mapOnly">Inner planets</button
-          ><button type="button" id="mapAll" class="mapOnly">Whole system</button
+          ><button type="button" id="mapInner" class="mapOnly">Inner<span class="wide"> planets</span></button
+          ><button type="button" id="mapAll" class="mapOnly">Whole<span class="wide"> system</span></button
           ><button
             type="button"
             id="mapHand"
@@ -1394,7 +1532,9 @@
           </button>
         </div>
       </div>
-      <p class="note orbitnote">
+      <details class="orbitnote" id="orbitD" open>
+        <summary>How the planet positions are worked out</summary>
+        <p class="note">
         Planet orbits and positions come from JPL's approximate orbital elements (Standish): Table 1 for 1800–2050, and Table 2,
         with its extra terms for the giant planets, from 3000 BC to AD 3000. JPL gives the Table 2 errors in longitude as about
         20″ for Mercury up to 40′ for Uranus. The planets can't be placed this way before 3000 BC: the Solar System is chaotic, so
@@ -1404,6 +1544,7 @@
         planet's axial tilt as an approximation of the real planes; their positions along the orbit are illustrative. Body sizes
         are not to scale.
       </p>
+      </details>
     </section>
     <nav class="bodies" id="bodies" aria-label="Worlds"></nav>
     <details id="worlds">
@@ -1661,6 +1802,37 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
 <script>
+  // phones: a quick second tap counts as a double-click (the turn-and-zoom control swallows the browser's own one)
+  function dblTap(el, fn) {
+    let last = null,
+      multi = false;
+    const downs = new Map();
+    el.addEventListener('pointerdown', (e) => {
+      if (e.pointerType !== 'touch') return;
+      downs.set(e.pointerId, [e.clientX, e.clientY]);
+      if (downs.size > 1) multi = true;
+    });
+    const end = (e) => {
+      if (e.pointerType !== 'touch') return;
+      const d = downs.get(e.pointerId);
+      downs.delete(e.pointerId);
+      const tap = e.type === 'pointerup' && d && !multi && Math.hypot(e.clientX - d[0], e.clientY - d[1]) < 10;
+      if (!downs.size) multi = false;
+      if (!tap) return void (last = null);
+      const t = performance.now();
+      if (last && t - last.t < 350 && Math.hypot(e.clientX - last.x, e.clientY - last.y) < 30) {
+        last = null;
+        el._tapT = t;
+        fn(e);
+      } else last = { t, x: e.clientX, y: e.clientY };
+    };
+    el.addEventListener('pointerup', end);
+    el.addEventListener('pointercancel', end);
+    el.addEventListener('dblclick', (e) => {
+      if (performance.now() - (el._tapT || 0) > 700) fn(e);
+    });
+  }
+  const TOUCH = matchMedia('(pointer: coarse)').matches;
   (function () {
     const $ = (id) => document.getElementById(id);
     const esc = (s) =>
@@ -1800,6 +1972,13 @@
       $('busy').hidden = true;
       return;
     }
+    if (TOUCH)
+      $('howTo').textContent =
+        'Pick a world on the map or below. Drag to turn, pinch to zoom, tap a site to fly to it, double-tap any spot to look at it close up.';
+    if (TOUCH)
+      $('mapHow').textContent =
+        'Tap a planet or moon to fly to it, then pinch in (or double-tap it) to land on its globe right here. Drag to turn.';
+    if (matchMedia('(max-width: 600px)').matches) $('orbitD').open = false;
     const renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
     host.appendChild(renderer.domElement);
@@ -2140,10 +2319,22 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
         .join('');
     }
     // the night side: colour views of a world with a night-lights image show its cities after dark; the night layer itself borrows the day map, dimly
+    function fitTex(el) {
+      const cap = Math.min(renderer.capabilities.maxTextureSize || 4096, (navigator.deviceMemory || 8) < 4 ? 2048 : 16384),
+        w = el.naturalWidth || el.width,
+        h = el.naturalHeight || el.height;
+      if (w <= cap && h <= cap) return el;
+      const k = cap / Math.max(w, h),
+        c = document.createElement('canvas');
+      c.width = Math.round(w * k);
+      c.height = Math.round(h * k);
+      c.getContext('2d').drawImage(el, 0, 0, c.width, c.height);
+      return c;
+    }
     function imgTexOf(im) {
       if (imgTex[im.id]) return Promise.resolve(imgTex[im.id]);
       return loadImg(im.src).then((el) => {
-        const t = new THREE.Texture(el);
+        const t = new THREE.Texture(fitTex(el));
         t.anisotropy = 4;
         t.needsUpdate = true;
         imgTex[im.id] = t;
@@ -2519,15 +2710,17 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
       if (ll) readout(ll[0], ll[1]);
     });
     renderer.domElement.addEventListener('pointerdown', (ev) => (downAt = [ev.clientX, ev.clientY]));
-    renderer.domElement.addEventListener('dblclick', (ev) => {
+    dblTap(renderer.domElement, (ev) => {
       if (!P) return;
       const { ll } = pick(ev);
       if (ll) focusOn(ll[0], ll[1]);
-    }); // double-click any spot to look at it close up
+    }); // double-click (or double-tap) any spot to look at it close up
     $('unfocusBtn').onclick = () => unfocus(false);
     renderer.domElement.addEventListener('pointerup', (ev) => {
+      if (ev.pointerType === 'touch') hoverSite = null;
       if (!P || !downAt || Math.hypot(ev.clientX - downAt[0], ev.clientY - downAt[1]) > 5) return;
-      const { site } = pick(ev);
+      const { site, ll } = pick(ev);
+      if (ll) readout(ll[0], ll[1]);
       if (site) select(site, true);
     });
     // ---------- camera flights ----------
@@ -3573,6 +3766,45 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
       });
       FEAT.forEach((f) => project(f.pos, f.el, showFeat));
       PTS.forEach((o) => o.labels.forEach((el, i) => project(o.items[i].pos, el, o.grp.visible && dist < 2.6)));
+      declutter();
+    }
+    const LBOX = [],
+      LPRI = [];
+    function declutter() {
+      LBOX.length = LPRI.length = 0;
+      SITES.forEach((s) => s.label.hidden || LPRI.push([s === selected || s === hoverSite ? 0 : 1, s.label]));
+      PTS.forEach((o) => o.labels.forEach((el) => el.hidden || LPRI.push([2, el])));
+      FEAT.forEach((f) => f.el.hidden || LPRI.push([3, f.el]));
+      LPRI.sort((a, b) => a[0] - b[0]);
+      const W = stage.clientWidth;
+      for (const [, el] of LPRI) {
+        if (!el._w || el._t !== el.textContent || el._c !== el.classList.contains('sel')) {
+          el.style.maxWidth = '';
+          el._w = el.offsetWidth + 4;
+          el._h = el.offsetHeight;
+          el._t = el.textContent;
+          el._c = el.classList.contains('sel');
+        }
+        const x = parseFloat(el.style.left),
+          y = parseFloat(el.style.top),
+          feat = el.classList.contains('feat');
+        let w = el._w,
+          x0 = x - w / 2;
+        if (!feat) {
+          // a site name goes right of its marker, or left when it only fits there; if neither, it is cut short on the roomier side
+          const R = W - x - 13,
+            L = x - 13,
+            flip = w > R && (w <= L || L > R);
+          w = Math.min(w, Math.max(40, flip ? L : R));
+          x0 = flip ? x - 9 - w : x + 7;
+          el.classList.toggle('flip', flip);
+          const mw = w < el._w ? w - 4 + 'px' : '';
+          if (el.style.maxWidth !== mw) el.style.maxWidth = mw;
+        }
+        const b = [x0, y - el._h / 2, x0 + w, y + el._h / 2];
+        if (LBOX.some((q) => b[0] < q[2] && b[2] > q[0] && b[1] < q[3] && b[3] > q[1])) el.hidden = true;
+        else LBOX.push(b);
+      }
     }
     requestAnimationFrame(frame);
 
@@ -4379,7 +4611,20 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
         },
         { passive: true },
       );
-      mr.domElement.addEventListener('dblclick', (e) => {
+      let mFinger = false,
+        mPrevD = 0;
+      mr.domElement.addEventListener('pointerdown', (e) => (mFinger = e.pointerType === 'touch'));
+      mco.addEventListener('change', () => {
+        const d = mcam.position.distanceTo(mco.target),
+          inward = d < mPrevD * 0.999;
+        mPrevD = d;
+        if (!mFinger || !inward || glide || DIVE || !focusId || focusId === 'sun' || !INDEX.some((x) => x.id === focusId)) return;
+        if (d <= viewDist(focusId) * 0.45) {
+          mFinger = false;
+          enterGlobe(focusId, FS ? null : 'zoom');
+        }
+      });
+      dblTap(mr.domElement, (e) => {
         const id = pickAt(e.clientX, e.clientY);
         if (id && id !== 'sun') enterGlobe(id);
       });
@@ -4974,7 +5219,10 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
       });
       renderer.domElement.addEventListener('pointerup', (e) => {
         if (!sdown || Math.hypot(e.clientX - sdown[0], e.clientY - sdown[1]) > 5) return;
+        hx = e.clientX;
+        hy = e.clientY;
         hover();
+        if (e.pointerType === 'touch') setTimeout(() => (hx = null), 0);
         if (hoverSat) {
           selSat = hoverSat;
           ringT = 0;
