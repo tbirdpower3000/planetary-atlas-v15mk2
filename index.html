@@ -2105,7 +2105,8 @@
         title="Turn and zoom the globe with your hand, using your computer's camera"
       >✋ Hand control</button
       ><button id="handSnd" type="button" aria-pressed="true" hidden title="Turn hand-control sounds on or off">🔊 Sound</button
-      ><button id="handAssist" type="button" aria-pressed="true" hidden title="Adaptive aim: learns from your movements and makes buttons easier to hit when you're having trouble. Press to switch it off and reset what it learned.">🎯 Adaptive aim</button>
+      ><button id="handAssist" type="button" aria-pressed="true" hidden title="Adaptive aim: learns from your movements and makes buttons easier to hit when you're having trouble. Press to switch it off and reset what it learned.">🎯 Adaptive aim</button
+      ><a id="handTrain" class="srclink" href="training.html" title="A one-minute exercise that teaches hand control your reach, pinch and steadiness">Train hand control →</a>
       <span id="viewBtns" class="row"></span>
     </div>
   </header>
@@ -4175,7 +4176,11 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
       if (!f) return;
       try {
         const p = JSON.parse(await f.text());
-        if (p && p.format === WS_FORMAT) {
+        if (p && p.format === 'planetary-atlas-hand-profile') {
+          if (!window.atlasAdapt) throw new Error('Hand control isn’t available in this copy.');
+          window.atlasAdapt.useProfile(p);
+          msg(`Loaded your hand-control profile${p.trained ? ` (trained ${new Date(p.trained).toLocaleDateString()})` : ''}. It’s used the next time you start hand control.`);
+        } else if (p && p.format === WS_FORMAT) {
           const ws = (p.worlds || []).filter((w) => {
             try {
               checkPack(w);
@@ -8349,6 +8354,11 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
         return { html: `Didn’t catch a command in “${esc(raw.trim())}”. Say <b>“Atlas, help”</b> for the list.`, err: true };
       }
       function heard(text) {
+        const A = window.atlasAdapt;
+        if (A && A.asking) {
+          if (/\b(good|great|better|yes|keep it)\b/i.test(text)) return A.feedback(true), pill('✓', 'Adaptive aim: keeping it');
+          if (/\b(bad|worse|no|undo)\b/i.test(text)) return A.feedback(false), pill('✓', 'Adaptive aim: undone');
+        }
         let cmd = null;
         const m = text.match(WAKE);
         if (m) cmd = text.slice(m.index + m[0].length);
@@ -8503,7 +8513,7 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
       }
       const showHelp = () => {
         hmsg(
-          `<b>Move your open hand</b> and the cursor follows; it snaps onto planets and buttons. <b>Pinch</b> (thumb to index finger) to press: the gold ring fills as your fingers close. ${V === VIEWS.map ? '<b>Pinch a planet or moon to land on it</b>, or pinch and hold on it for half a second. ' : '<b>‹ 🗺 ›</b> at the top change the map; <b>↑ Solar System</b> takes you back out. '}<b>Pinch on empty space and move</b> to turn the view. <b>To zoom</b>, hold a pinch on <b>＋ or −</b> at the top, or pinch with both hands and pull them apart or push them together. Hovering on a top button for a second also presses it. 🎯 Adaptive aim learns as you go: if a button takes a few tries, it gets easier to grab. <button type='button' id='handHide' class='linkish'>Hide tips</button>`,
+          `<b>Move your open hand</b> and the cursor follows; it snaps onto planets and buttons. <b>Pinch</b> (thumb to index finger) to press: the gold ring fills as your fingers close. ${V === VIEWS.map ? '<b>Pinch a planet or moon to land on it</b>, or pinch and hold on it for half a second. ' : '<b>‹ 🗺 ›</b> at the top change the map; <b>↑ Solar System</b> takes you back out. '}<b>Pinch on empty space and move</b> to turn the view. <b>To zoom</b>, hold a pinch on <b>＋ or −</b> at the top, or pinch with both hands and pull them apart or push them together. Hovering on a top button for a second also presses it. 🎯 Adaptive aim learns as you go: if a button takes a few tries, it gets easier to grab${ADAPT.trained ? '' : ", and a one-minute <a href='training.html'>training session</a> teaches it your reach and pinch"}. <button type='button' id='handHide' class='linkish'>Hide tips</button>`,
         );
         const h = $('handHide');
         if (h) h.addEventListener('click', () => hmsg(''));
@@ -8774,13 +8784,22 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
       const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
       // ---- adaptive aim: watches how steady the cursor is and how often a button takes several tries, and tunes the aim to you
       const ADAPT = (() => {
-        const BASE = { snap: 28, minCut: 0.8, beta: 3, pOn: 0.3, pOff: 0.48 };
+        const BASE = { snap: 28, minCut: 0.8, beta: 3, pOn: 0.3, pOff: 0.48 },
+          BASE_REACH = { x0: 0.22, xs: 0.56, y0: 0.18, ys: 0.52 };
         let on = true,
-          k = Object.assign({}, BASE);
+          k = Object.assign({}, BASE),
+          reach = Object.assign({}, BASE_REACH),
+          trained = null;
+        // the profile: what adaptive aim learned, plus what the training page measured (training.html)
+        function load(v) {
+          if (!v) return;
+          if (v.on === false) on = false;
+          if (v.k) Object.keys(BASE).forEach((n) => isFinite(v.k[n]) && (k[n] = +v.k[n]));
+          if (v.reach && ['x0', 'xs', 'y0', 'ys'].every((n) => isFinite(v.reach[n]))) reach = v.reach;
+          trained = v.trained || null;
+        }
         try {
-          const v = JSON.parse(localStorage.getItem('atlasHandAssist') || 'null');
-          if (v && v.on === false) on = false;
-          else if (v && v.k) Object.keys(BASE).forEach((n) => isFinite(v.k[n]) && (k[n] = v.k[n]));
+          load(JSON.parse(localStorage.getItem('atlasHandAssist') || 'null'));
         } catch (e) {}
         const LIM = { snap: [28, 72], minCut: [0.25, 0.8], beta: [1, 3], pOn: [0.24, 0.3], pOff: [0.48, 0.6] };
         const clamp = (n, v) => Math.max(LIM[n][0], Math.min(LIM[n][1], v));
@@ -8790,26 +8809,47 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
           clearTimeout(saveT);
           saveT = setTimeout(() => {
             try {
-              localStorage.setItem('atlasHandAssist', JSON.stringify({ on, k }));
+              localStorage.setItem('atlasHandAssist', JSON.stringify({ on, k, reach: trained ? reach : null, trained }));
             } catch (e) {}
           }, 1500);
         };
-        // a short note when it changes something, at most every 20 s
-        function note(t) {
+        // when it changes something it says so, at most every 20 s, and asks whether that helped:
+        // say "good" or "bad" (with voice commands on), or pinch 👍 / 👎. "Bad" undoes the change and that kind of change rests a while.
+        let last = null,
+          askUntil = 0;
+        const rest = {};
+        function note(t, cause) {
           const now = performance.now();
           if (now - noteT < 20000) return;
           noteT = now;
           const m = $('handMsg');
-          if (!m.hidden && m.textContent.length > 120) return; // the tips are showing: don't cover them
-          hmsg(`🎯 ${t} <button type='button' id='handHide' class='linkish'>OK</button>`);
-          const h = $('handHide');
-          if (h) h.addEventListener('click', () => hmsg(''));
+          if (!m.hidden && m.textContent.length > 160 && !m.textContent.startsWith('🎯')) return; // the tips are showing: don't cover them
+          askUntil = now + 12000;
+          hmsg(`🎯 ${t} Better? Say <b>“good”</b> or <b>“bad”</b>, or press: <button type='button' id='adGood'>👍 Good</button> <button type='button' id='adBad'>👎 Bad</button>`);
+          $('adGood').onclick = () => feedback(true);
+          $('adBad').onclick = () => feedback(false);
           setTimeout(() => {
-            if ($('handMsg').textContent.startsWith('🎯')) hmsg('');
-          }, 5000);
+            if (performance.now() >= askUntil && $('handMsg').textContent.startsWith('🎯')) hmsg('');
+          }, 12500);
         }
-        function nudge(ch, why) {
+        function feedback(good) {
+          if (!askUntil) return false;
+          askUntil = 0;
+          if (!good && last) {
+            k = last.prev;
+            apply();
+            save();
+            rest[last.cause] = performance.now() + 120000; // don't try that again for two minutes
+          }
+          hmsg(good ? '🎯 Thanks: keeping it.' : '🎯 Undone. It won’t try that again for a while.');
+          setTimeout(() => $('handMsg').textContent.startsWith('🎯') && hmsg(''), 2500);
+          last = null;
+          return true;
+        }
+        function nudge(ch, why, cause) {
           if (!on) return;
+          if (cause && performance.now() < (rest[cause] || 0)) return;
+          const prev = Object.assign({}, k);
           let moved = false;
           Object.entries(ch).forEach(([n, d]) => {
             const v = clamp(n, k[n] + d);
@@ -8819,7 +8859,10 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
           if (moved) {
             apply();
             save();
-            if (why) note(why);
+            if (why) {
+              last = { prev, cause };
+              note(why, cause);
+            }
           }
         }
         // steadiness: how far the cursor wobbles around where it is heading, measured while it is nearly still
@@ -8847,7 +8890,7 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
             steadyT = 0;
             if ((shakyT += dt) > 2) {
               shakyT = 0;
-              nudge({ minCut: -0.1, beta: -0.3, snap: 4 }, 'Smoothing the cursor: it was wobbling a lot.');
+              nudge({ minCut: -0.1, beta: -0.3, snap: 4 }, 'Smoothing the cursor: it was wobbling a lot.', 'smooth');
             }
           } else if (tre < 3) {
             shakyT = 0;
@@ -8889,7 +8932,7 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
           const t = tr(b);
           t.back = [];
           t.boostUntil = now + 20000;
-          nudge({ snap: 6 }, `Making buttons easier to grab: you came back to “${esc(b.textContent.trim().slice(0, 24))}” a few times.`);
+          nudge({ snap: 6 }, `Making buttons easier to grab: you came back to “${esc(b.textContent.trim().slice(0, 24))}” a few times.`, 'snap');
         }
         // a press that lands just beside a button counts as a missed try at it
         function missPress(now, x, y, btns) {
@@ -8924,7 +8967,7 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
             flicks.push(now);
             if (flicks.length >= 3) {
               flicks = [];
-              nudge({ pOn: -0.02, pOff: 0.04 }, 'Steadier pinch: your pinches were flickering on and off.');
+              nudge({ pOn: -0.02, pOff: 0.04 }, 'Steadier pinch: your pinches were flickering on and off.', 'pinch');
             }
           }
         }
@@ -8964,6 +9007,26 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
             return on;
           },
           snapFor: (b) => (on ? k.snap : BASE.snap) + extra(b),
+          feedback,
+          get asking() {
+            return performance.now() < askUntil;
+          },
+          get reach() {
+            return reach;
+          },
+          get trained() {
+            return trained;
+          },
+          // a profile file downloaded from the training page
+          useProfile(v) {
+            on = true;
+            k = Object.assign({}, BASE);
+            reach = Object.assign({}, BASE_REACH);
+            load(v);
+            apply();
+            save();
+            setOn(on);
+          },
           get pOn() {
             return on ? k.pOn : BASE.pOn;
           },
@@ -9091,8 +9154,9 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
       function placeCursor(g) {
         const r = V.stage.getBoundingClientRect(),
           clamp = (v) => Math.max(0, Math.min(1, v));
-        cx = r.left + clamp((1 - g.x - 0.22) / 0.56) * r.width;
-        cy = r.top + clamp((g.y - 0.18) / 0.52) * r.height;
+        const q = ADAPT.reach; // your comfortable area of the camera view, from training (or the default)
+        cx = r.left + clamp((1 - g.x - q.x0) / q.xs) * r.width;
+        cy = r.top + clamp((g.y - q.y0) / q.ys) * r.height;
       }
       function drawCursor(x, y) {
         CUR.style.left = x + 'px';
