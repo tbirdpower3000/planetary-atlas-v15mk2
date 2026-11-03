@@ -1,10 +1,10 @@
-# Planetary Modeling Atlas · v15mk2.14
+# Planetary Modeling Atlas · v15mk2.15
 
 **This is not my data.** None of the maps, gravity models, images or coordinates in this repository were made by me, and I make no claim of ownership over them. They were produced by NASA, ESA, JPL, USGS, the IAU and the researchers and artists credited below. This repository holds reformatted copies of their published work, so that the Planetary Modeling Atlas (a personal, non-commercial viewer) can load it from the web.
 
 ## The atlas
 
-`index.html` is the Planetary Modeling Atlas, version **v15mk2.14**, built with Claude. It is v15 (the Solar System map and globes in one view, real lighting and spin, and hand control on a planet's globe) with these added:
+`index.html` is the Planetary Modeling Atlas, version **v15mk2.15**, built with Claude. It is v15 (the Solar System map and globes in one view, real lighting and spin, and hand control on a planet's globe) with these added:
 
 - Earth's photo layers: Visible colour, Visible colour with clouds, and Night lights.
 - Earth by night: a moonlit blue night side, warm city lights that dim under clouds, an orange band at dusk, and a thin atmosphere at the edge of the photo layers.
@@ -33,6 +33,7 @@ The live layers come straight from their providers in your browser, not from thi
 - **v15mk2.12**: the OMEGA mineral maps on Mars (ferric oxides, dust, pyroxene, olivine and near-infrared albedo, Ody et al. 2012) as one Minerals layer with a chooser, grey where OMEGA has no data; and every world's Sources box now says how each source is used, including the features layered on top (craters, live data, Mars through time). The project Sources page shows the same notes for all 122 entries.
 - **v15mk2.13**: live flights work. None of the free flight feeds lets another website read it, so the new Live flights job takes a worldwide OpenSky snapshot every few minutes and publishes it as `flights.json` on the `live` branch, which the atlas reads from raw.githubusercontent.com; planes are moved along their heading between snapshots, and the message says how old the snapshot is.
 - **v15mk2.14**: tidier world buttons. Each moon sits in one tray with the world it orbits (Earth and the Moon, Mars with Phobos and Deimos, each giant planet with its moons, Pluto and Charon), so the plain-text group labels and the km sizes are gone from the row; a button's size and kind show when you hover over it.
+- **v15mk2.15**: your workspace. Everything you load yourself (packs you open, worlds you build, layers and sites you add to a world) is kept together in this browser and comes back next visit, listed under “Your worlds and data” with Open, ⤓ .json and Remove; ⤓ Download workspace saves them all as one file that “Open a planet pack” reads back in any browser. ⤓ Map image saves the layer on the globe as a flat PNG with its colour bar. Zooming in on a planet with moons now lands on its globe only once you are inside the innermost moon's orbit, so you can look around the moons first.
 
 ## The bots
 
