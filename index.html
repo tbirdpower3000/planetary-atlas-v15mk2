@@ -1035,6 +1035,40 @@
     gap: 6px;
   }
   /* the map stepper: a blue edge sets it apart from the time controls */
+  #voiceBtn[aria-pressed='true'] {
+    background: var(--chipon);
+    color: var(--chiptx);
+    border-color: var(--chipon);
+  }
+  /* what voice control heard and did: a small card at the bottom left, above the full-screen views too */
+  #voicePill {
+    position: fixed;
+    left: max(12px, env(safe-area-inset-left, 0px));
+    bottom: max(12px, env(safe-area-inset-bottom, 0px));
+    z-index: 80;
+    display: flex;
+    gap: 8px;
+    align-items: baseline;
+    max-width: min(34rem, calc(100vw - 24px));
+    padding: 8px 14px;
+    border-radius: 14px;
+    background: rgba(14, 18, 28, 0.92);
+    color: #e9eef5;
+    border: 1px solid rgba(201, 212, 227, 0.35);
+    font-size: 0.9rem;
+    line-height: 1.35;
+  }
+  #voicePill.armed {
+    border-color: #ffd88a;
+    box-shadow: 0 0 0 3px rgba(255, 216, 138, 0.25);
+  }
+  #voicePill.err {
+    border-color: #f07a6e;
+  }
+  #voicePill ul {
+    margin: 4px 0 0;
+    padding-left: 18px;
+  }
   #fsLyr button {
     border-color: rgba(127, 182, 230, 0.7);
   }
@@ -1900,6 +1934,7 @@
         Planetary Modeling Atlas
         <span class="ver" title="Version v15mk2.15, 3 Nov 2026: your workspace (worlds and data you load are kept in this browser), map images, tidier world buttons">v15mk2.15</span>
       </h1>
+      <button type="button" id="voiceBtn" aria-pressed="false" title="Voice commands: say “Atlas”, then what you want, e.g. “Atlas, show Mars” or “Atlas, next map”">🎤 Voice</button>
       <p id="howTo">
         Pick a world on the map or below. Drag to turn, scroll or pinch to zoom, click a site to fly to it. ✋ Hand control (on a
         planet's globe) opens a full-screen view.
@@ -2015,6 +2050,9 @@
       <label class="tgroup" for="exag"
         >Relief ×<input id="exag" type="range" min="0" max="20" step="1" value="4" /><output id="exagO">4</output></label
       >
+      <label class="tgroup" for="briT" title="Make the globe brighter or darker"
+        >Brightness<input id="briT" type="range" min="40" max="250" step="10" value="100" /><output id="briO">100%</output></label
+      >
       <label class="tgroup"><input id="gridT" type="checkbox" checked /> Lat/lon grid</label>
       <label class="tgroup"><input id="featT" type="checkbox" checked /> Feature names</label>
       <label class="tgroup"><input id="namesT" type="checkbox" /> All site names</label>
@@ -2089,6 +2127,7 @@
         ><button type="button" id="fsLyPrev" title="Previous map" aria-label="Previous map">‹</button
         ><button type="button" id="fsLy" title="Next map">🗺</button
         ><button type="button" id="fsLyNext" title="Next map" aria-label="Next map">›</button></span
+      ><button type="button" id="fsBri" title="Brightness: each press steps it up, then back round">☀ 100%</button
       ><span class="fsTime"
         ><button type="button" id="fsZin" title="Zoom in: pinch and hold">＋</button
         ><button type="button" id="fsZout" title="Zoom out: pinch and hold">−</button></span
@@ -2100,6 +2139,7 @@
         ><button type="button" data-fw="36525" title="Forward fast">▶▶</button></span
       ><span id="fsDate"></span><button type="button" id="fsExit">✕ Exit hand control</button>
     </div>
+    <div id="voicePill" role="status" aria-live="polite" hidden><b id="voiceState">🎤</b><span id="voiceText"></span></div>
     <div id="handBox" hidden><video id="handVid" playsinline muted></video><canvas id="handCv"></canvas></div>
     <div class="panel">
       <div class="box">
@@ -2653,6 +2693,7 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
         uH: { value: null },
         uHsz: { value: new THREE.Vector2(1, 1) },
         uHasH: { value: 0 },
+        uBri: { value: 1 },
         uHk: { value: 0 },
         uHmin: { value: 0 },
         uHr: { value: 1 },
@@ -2674,12 +2715,12 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
     void main(){vUv=uv;vN=normalize(position);vec3 p=position;if(uHasH>.5)p*=1.+uHk*(uHmin+uHr*hgt(uv));vec4 mv=modelViewMatrix*vec4(p,1.);vV=normalize(mv.xyz);vVN=normalize(normalMatrix*vN);gl_Position=projectionMatrix*mv;}`,
       fragmentShader:
         GLSL_H +
-        `uniform sampler2D map,uNight,uClear;uniform vec3 uSunL;uniform float uSun,uAmb,uShade,uHasH,uHr,uRm,uNightOn,uNightSelf,uCloudOn,uRim;varying vec2 vUv;varying vec3 vN,vV,vVN;
+        `uniform sampler2D map,uNight,uClear;uniform vec3 uSunL;uniform float uBri,uSun,uAmb,uShade,uHasH,uHr,uRm,uNightOn,uNightSelf,uCloudOn,uRim;varying vec2 vUv;varying vec3 vN,vV,vVN;
     // city lights: a warm sodium glow with whiter cores where they're brightest
     vec3 glow(vec3 c,vec3 h){float l=dot(c,vec3(.3,.5,.2)),b=dot(h,vec3(.3,.5,.2));return vec3(1.,.79,.46)*pow(l,1.1)*2.4+vec3(1.,.96,.88)*pow(l,3.)*1.6+vec3(1.,.66,.3)*b*1.5;}   // core, white-hot centres, and a soft halo from a blurred copy
     void main(){vec3 col=texture2D(map,vUv).rgb;
       // the Night lights layer on its own: glowing cities over faintly moonlit continents
-      if(uNightSelf>.5){gl_FragColor=vec4(texture2D(uNight,vUv).rgb*vec3(.08,.11,.17)+glow(col,texture2D(map,vUv,3.5).rgb),1.);return;}
+      if(uNightSelf>.5){gl_FragColor=vec4((texture2D(uNight,vUv).rgb*vec3(.08,.11,.17)+glow(col,texture2D(map,vUv,3.5).rgb))*uBri,1.);return;}
       if(uSun>.5){vec3 n0=normalize(vN),n=n0;
         if(uHasH>.5){float cl=max(sqrt(1.-n0.y*n0.y),.05);vec2 du=vec2(1./uHsz.x,0.),dv=vec2(0.,1./uHsz.y);
           float sE=(hgt(vUv+du)-hgt(vUv-du))*uHr*uHsz.x/(2.*6.2831853*uRm*cl)*uShade;
@@ -2699,7 +2740,7 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
         else col*=uAmb+(1.-uAmb)*term*clamp(.12+1.05*dif,0.,1.2);}
       // a thin blue atmosphere at the edge, brighter on the day side
       if(uRim>0.){float r=1.-max(dot(-vV,normalize(vVN)),0.),sdl=uSun>.5?dot(normalize(vN),uSunL):1.;col+=vec3(.32,.58,1.)*pow(r,5.)*uRim*(.15+.85*smoothstep(-.25,.35,sdl));}
-      gl_FragColor=vec4(col,1.);}`,
+      gl_FragColor=vec4(col*uBri,1.);}`,
     });
     const globe = new THREE.Mesh(geom, mat);
     globe.frustumCulled = false;
@@ -6394,10 +6435,32 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
     }
     // hand control: step through this world's maps from the top bar
     const layerBtns = () => [...document.querySelectorAll('#layerSeg button')].filter((b) => !b.disabled);
+    // brightness of the globe, kept in this browser
+    let BRI = 100;
+    try {
+      BRI = +localStorage.getItem('atlasBright') || 100;
+    } catch (e) {}
+    function setBright(v) {
+      BRI = Math.round(Math.max(40, Math.min(250, +v || 100)) / 10) * 10;
+      mat.uniforms.uBri.value = BRI / 100;
+      $('briT').value = BRI;
+      $('briO').textContent = BRI + '%';
+      $('fsBri').textContent = '☀ ' + BRI + '%';
+      try {
+        localStorage.setItem('atlasBright', BRI);
+      } catch (e) {}
+      gPoke();
+      return BRI;
+    }
+    $('briT').addEventListener('input', (e) => setBright(e.target.value));
+    const BSTEPS = [100, 140, 180, 220, 60, 80];
+    $('fsBri').onclick = () => setBright(BSTEPS[(BSTEPS.indexOf(BRI) + 1) % BSTEPS.length] || 100);
+    setBright(BRI);
     function fsLayer() {
       const bs = layerBtns(),
         on = bs.find((b) => b.getAttribute('aria-pressed') === 'true');
       $('fsLyr').hidden = !FS || MODE !== 'globe' || bs.length < 2;
+      $('fsBri').hidden = !FS || MODE !== 'globe';
       $('fsLy').textContent = '🗺 ' + (on ? on.textContent : 'Map');
     }
     function stepLayer(d) {
@@ -8108,6 +8171,292 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
     window.atlasViews = VIEWS; // for checking hand-control state from the console   // lets you read any map value from the browser console
     boot();
 
+    // ---------- voice commands: say the wake word "Atlas", then a command ----------
+    // uses the browser's own speech recognition (Chrome, Edge, Safari); on-device when the browser offers it, otherwise the
+    // browser's speech service turns the audio into text. Nothing is recorded or kept by the atlas.
+    {
+      const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+      const WAKE = /\b(?:hey |ok |okay )?(?:atlas|at ?las|atlus|atlis|atlases)\b[,.!?]?/i;
+      let rec = null,
+        on = false,
+        armedUntil = 0,
+        fails = 0,
+        lastStart = 0,
+        local = false,
+        pillT = 0;
+      const pill = (state, html, cls, keep) => {
+        $('voicePill').hidden = false;
+        $('voicePill').className = cls || '';
+        $('voiceState').textContent = state;
+        $('voiceText').innerHTML = html;
+        clearTimeout(pillT);
+        if (!keep) pillT = setTimeout(idle, 6000);
+      };
+      const idle = () => {
+        if (on) pill('🎤', `Say <b>“Atlas”</b>, then a command. <b>“Atlas, help”</b> lists them.`, '', true);
+        else $('voicePill').hidden = true;
+      };
+      const HELP = `<b>Say “Atlas”, then:</b><ul>
+        <li>“show Mars”, “go to Titan”, “Solar System”</li>
+        <li>“next map”, “previous map”, “show gravity”, “show topography”</li>
+        <li>“zoom in”, “zoom out”, “brighter”, “darker”, “brightness 150”</li>
+        <li>“sunlight off”, “spin on”, “grid off”, “names on”, “asteroids off”, “flights on”, “satellites on”</li>
+        <li>“pause”, “play”, “faster”, “slower”, “today”</li>
+        <li>“hand control”, “stop listening”</li></ul>`;
+      const has = (t, ...w) => w.some((x) => new RegExp('\\b' + x + '\\b').test(t));
+      // which view a command is for: the full-screen view, the globe dived into the map, or whichever fills more of the screen
+      const area = (el) => {
+        const r = el.getBoundingClientRect();
+        return Math.max(0, Math.min(r.bottom, innerHeight) - Math.max(r.top, 0)) * Math.max(0, Math.min(r.right, innerWidth) - Math.max(r.left, 0));
+      };
+      const view = () => (FS ? MODE : DIVE ? 'globe' : area(stage) > area($('mapStage')) ? 'globe' : 'map');
+      function zoom(f) {
+        const V = VIEWS[view()];
+        if (!V) return;
+        const t = V.ctl.target,
+          d = V.cam.position.distanceTo(t),
+          nd = Math.max(V.floor || V.ctl.minDistance, Math.min(V.ctl.maxDistance, d * f));
+        V.cam.position.sub(t).setLength(nd).add(t);
+        V.ctl.update();
+        gPoke();
+      }
+      function toggle(t, el, label) {
+        const want = has(t, 'off', 'hide', 'disable', 'stop', 'no') ? false : has(t, 'on', 'show', 'enable', 'start') ? true : null;
+        if (el.type === 'checkbox') {
+          if (el.closest('[hidden]')) return `${label} isn't available on this world.`;
+          const v = want === null ? !el.checked : want;
+          if (el.checked !== v) el.click();
+          return `${label} ${v ? 'on' : 'off'}`;
+        }
+        const pressed = el.getAttribute('aria-pressed') === 'true',
+          v = want === null ? !pressed : want;
+        if (pressed !== v) el.click();
+        return `${label} ${v ? 'on' : 'off'}`;
+      }
+      const worlds = () =>
+        [...INDEX, ...custom]
+          .map((b) => ({ id: b.id, name: String(b.name || '').toLowerCase(), re: new RegExp('\\b' + String(b.name || '').toLowerCase().replace(/[^a-z0-9 ]+/g, ' ').trim().replace(/\s+/g, ' ') + '\\b') }))
+          .sort((a, b) => b.name.length - a.name.length);
+      function layerFor(t) {
+        const bs = [...document.querySelectorAll('#layerSeg button')];
+        let best = null,
+          bsc = 0;
+        bs.forEach((b) => {
+          const words = b.textContent
+            .toLowerCase()
+            .replace(/colour/g, 'color')
+            .split(/[^a-z]+/)
+            .filter((w) => w.length > 3);
+          const sc = words.filter((w) => t.includes(w)).length / Math.max(1, words.length);
+          if (sc > bsc) {
+            bsc = sc;
+            best = b;
+          }
+        });
+        return best;
+      }
+      // one spoken command; returns what was done, for the card
+      function run(raw) {
+        const t = raw
+          .toLowerCase()
+          .replace(/colour/g, 'color')
+          .replace(/[^a-z0-9%+ ]+/g, ' ')
+          .replace(/\s+/g, ' ')
+          .trim();
+        if (!t) return null;
+        if (has(t, 'stop listening', 'stop voice', 'voice off', 'goodbye', 'go to sleep')) {
+          stop();
+          return 'Stopped listening.';
+        }
+        if (has(t, 'help', 'what can i say', 'commands')) return { html: HELP, keep: 15000 };
+        if (has(t, 'solar system', 'map view', 'back to the map', 'go back', 'leave')) {
+          exitToMap();
+          return 'Back to the Solar System';
+        }
+        if (has(t, 'next map', 'next layer')) {
+          stepLayer(1);
+          return 'Map: ' + ($('cap').textContent || '');
+        }
+        if (has(t, 'previous map', 'previous layer', 'last map')) {
+          stepLayer(-1);
+          return 'Map: ' + ($('cap').textContent || '');
+        }
+        let m = t.match(/brightness (\d{2,3})/);
+        if (m) return 'Brightness ' + setBright(+m[1]) + '%';
+        if (has(t, 'normal brightness', 'reset brightness')) return 'Brightness ' + setBright(100) + '%';
+        if (has(t, 'brighter', 'more light', 'lighter')) return 'Brightness ' + setBright(BRI + 20) + '%';
+        if (has(t, 'darker', 'dimmer', 'less light')) return 'Brightness ' + setBright(BRI - 20) + '%';
+        if (has(t, 'zoom in', 'closer')) {
+          zoom(0.7);
+          return 'Zoomed in';
+        }
+        if (has(t, 'zoom out', 'further', 'farther')) {
+          zoom(1 / 0.7);
+          return 'Zoomed out';
+        }
+        const TG = [
+          [['grid'], 'gridT', 'Lat/lon grid'],
+          [['site names', 'all names'], 'namesT', 'All site names'],
+          [['names', 'labels', 'feature names'], 'featT', 'Feature names'],
+          [['sunlight', 'sun light', 'lighting'], 'sunT', 'Sunlight'],
+          [['spin', 'rotation', 'spinning'], 'spinT', 'Spin'],
+          [['flights', 'planes', 'aircraft'], 'liveFl', 'Live flights'],
+          [['satellites'], 'liveSat', 'Satellites'],
+          [['asteroids', 'asteroid belt'], 'mapBelt', 'Asteroids'],
+        ];
+        for (const [w, id, label] of TG) if (has(t, ...w) && $(id)) return toggle(t, $(id), label);
+        if (has(t, 'hand control', 'hands')) {
+          $(FS && MODE === 'map' ? 'mapHand' : 'handBtn').click();
+          return 'Hand control';
+        }
+        const WB = [...document.querySelectorAll('#warp button')],
+          wi = WB.findIndex((b) => b.getAttribute('aria-pressed') === 'true');
+        if (has(t, 'pause', 'freeze')) {
+          WB.find((b) => +b.dataset.w === 0).click();
+          return 'Paused';
+        }
+        if (has(t, 'play', 'resume', 'real time')) {
+          WB.find((b) => +b.dataset.w > 0 && +b.dataset.w < 0.001).click();
+          return 'Real time';
+        }
+        if (has(t, 'faster', 'speed up')) {
+          const b = WB[Math.min(WB.length - 1, Math.max(wi + 1, WB.findIndex((x) => +x.dataset.w > 0)))];
+          b.click();
+          return 'Time: ' + b.textContent.trim();
+        }
+        if (has(t, 'slower', 'slow down')) {
+          const b = WB[Math.max(0, wi - 1)];
+          b.click();
+          return 'Time: ' + b.textContent.trim();
+        }
+        if (has(t, 'today', 'right now')) {
+          $('mapNow').click();
+          return 'Today';
+        }
+        // a map layer of this world, by name ("show gravity"), before world names, so "show topography" isn't read as a world
+        const w = worlds().find((x) => x.name && x.re.test(t)),
+          lb = layerFor(t);
+        if (lb && (!w || w.id === current)) {
+          lb.click();
+          return 'Map: ' + ($('cap').textContent || lb.textContent);
+        }
+        if (w) {
+          if (view() === 'map' && !FS) enterGlobe(w.id);
+          else go(w.id);
+          return 'Going to ' + w.name.replace(/\b\w/g, (c) => c.toUpperCase());
+        }
+        return { html: `Didn’t catch a command in “${esc(raw.trim())}”. Say <b>“Atlas, help”</b> for the list.`, err: true };
+      }
+      function heard(text) {
+        let cmd = null;
+        const m = text.match(WAKE);
+        if (m) cmd = text.slice(m.index + m[0].length);
+        else if (performance.now() < armedUntil) cmd = text;
+        else return; // not for the atlas
+        armedUntil = 0;
+        if (!cmd.trim()) {
+          armedUntil = performance.now() + 7000;
+          pill('🎤', 'Listening…', 'armed', true);
+          return;
+        }
+        const r = run(cmd);
+        if (!r) return;
+        if (typeof r === 'string') pill('✓', esc(r));
+        else {
+          pill(r.err ? '?' : '🎤', r.html, r.err ? 'err' : '');
+          if (r.keep) {
+            clearTimeout(pillT);
+            pillT = setTimeout(idle, r.keep);
+          }
+        }
+      }
+      async function start() {
+        if (!SR) {
+          pill('🎤', 'Voice commands need Chrome, Edge or Safari.', 'err');
+          return;
+        }
+        rec = new SR();
+        rec.lang = 'en-US';
+        rec.continuous = true;
+        rec.interimResults = false;
+        rec.maxAlternatives = 1;
+        // prefer recognition on this device when the browser has it
+        local = false;
+        try {
+          if (SR.available && 'processLocally' in rec) {
+            const a = await SR.available({ langs: ['en-US'], processLocally: true });
+            if (a === 'available') local = rec.processLocally = true;
+            else if (a === 'downloadable' && SR.install) SR.install({ langs: ['en-US'], processLocally: true }).catch(() => {});
+          }
+        } catch (e) {}
+        rec.onresult = (e) => {
+          fails = 0;
+          for (let i = e.resultIndex; i < e.results.length; i++) if (e.results[i].isFinal) heard(e.results[i][0].transcript);
+        };
+        rec.onerror = (e) => {
+          if (e.error === 'not-allowed' || e.error === 'service-not-allowed') {
+            stop();
+            pill(
+              '🎤',
+              window.parent !== window
+                ? 'The microphone is blocked inside this preview. Open the atlas on its GitHub page to use voice commands.'
+                : 'The microphone is blocked. Allow it for this site in the browser’s address bar, then press 🎤 Voice again.',
+              'err',
+            );
+          } else if (e.error === 'network') pill('🎤', 'The browser’s speech service can’t be reached. Check the connection.', 'err');
+          else if (e.error === 'language-not-supported') {
+            stop();
+            pill('🎤', 'This browser can’t recognise English speech.', 'err');
+          }
+        };
+        rec.onend = () => {
+          if (!on) return;
+          // the browser stops listening after a pause; start again, unless it keeps failing straight away
+          if (performance.now() - lastStart < 1500 && ++fails > 4) {
+            stop();
+            pill('🎤', 'Voice commands keep stopping in this browser. Press 🎤 Voice to try again.', 'err');
+            return;
+          }
+          setTimeout(() => {
+            if (!on) return;
+            try {
+              lastStart = performance.now();
+              rec.start();
+            } catch (er) {}
+          }, 250);
+        };
+        on = true;
+        $('voiceBtn').setAttribute('aria-pressed', 'true');
+        $('voiceBtn').textContent = '🎤 Listening';
+        try {
+          lastStart = performance.now();
+          rec.start();
+        } catch (e) {}
+        pill(
+          '🎤',
+          `Say <b>“Atlas”</b>, then a command, e.g. <b>“Atlas, show Mars”</b> or <b>“Atlas, next map”</b>. ${local ? 'Speech is recognised on this device.' : 'Your browser’s speech service turns speech into text; the atlas keeps nothing.'}`,
+          '',
+          false,
+        );
+        clearTimeout(pillT);
+        pillT = setTimeout(idle, 9000);
+      }
+      function stop() {
+        on = false;
+        armedUntil = 0;
+        $('voiceBtn').setAttribute('aria-pressed', 'false');
+        $('voiceBtn').textContent = '🎤 Voice';
+        if (rec)
+          try {
+            rec.abort();
+          } catch (e) {}
+        rec = null;
+        $('voicePill').hidden = true;
+      }
+      $('voiceBtn').onclick = () => (on ? stop() : start());
+      window.atlasVoice = run; // for testing: run a command as if it was spoken after the wake word
+      window.atlasHeard = heard;
+    }
     // ---------- hand control (camera + MediaPipe hand tracking, all on this computer) ----------
     {
       let stream = null,
