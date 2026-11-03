@@ -1034,6 +1034,21 @@
     display: inline-flex;
     gap: 6px;
   }
+  /* the map stepper: a blue edge sets it apart from the time controls */
+  #fsLyr button {
+    border-color: rgba(127, 182, 230, 0.7);
+  }
+  #fsLyPrev,
+  #fsLyNext {
+    font-size: 1.6rem !important;
+    line-height: 1;
+  }
+  #fsLy {
+    max-width: 15em;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
   #fsDate {
     font-family: var(--mono);
     font-size: 1rem;
@@ -2070,6 +2085,10 @@
     <div id="handCur" hidden><i></i><span></span></div>
     <div id="fsBar" hidden role="toolbar" aria-label="Hand control">
       <button type="button" id="fsMap">↑ Solar System</button><button type="button" id="fsLand" hidden>Land</button
+      ><span class="fsTime" id="fsLyr" role="group" aria-label="Map layer" hidden
+        ><button type="button" id="fsLyPrev" title="Previous map" aria-label="Previous map">‹</button
+        ><button type="button" id="fsLy" title="Next map">🗺</button
+        ><button type="button" id="fsLyNext" title="Next map" aria-label="Next map">›</button></span
       ><span class="fsTime"
         ><button type="button" id="fsZin" title="Zoom in: pinch and hold">＋</button
         ><button type="button" id="fsZout" title="Zoom out: pinch and hold">−</button></span
@@ -3110,6 +3129,7 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
       document.querySelectorAll('#layerSeg button').forEach((b) =>
         b.setAttribute('aria-pressed', b.dataset.id === id || (b.dataset.id === 'minerals' && id.startsWith('min_'))),
       );
+      if (FS) fsLayer();
       $('minT').hidden = !id.startsWith('min_');
       if (P && $('readout')) buildReadout();
       $('blendT').hidden = id !== 'blend';
@@ -6370,7 +6390,25 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
     function updFs() {
       if (!FS) return;
       $('fsMap').hidden = MODE !== 'globe';
+      fsLayer();
     }
+    // hand control: step through this world's maps from the top bar
+    const layerBtns = () => [...document.querySelectorAll('#layerSeg button')].filter((b) => !b.disabled);
+    function fsLayer() {
+      const bs = layerBtns(),
+        on = bs.find((b) => b.getAttribute('aria-pressed') === 'true');
+      $('fsLyr').hidden = !FS || MODE !== 'globe' || bs.length < 2;
+      $('fsLy').textContent = '🗺 ' + (on ? on.textContent : 'Map');
+    }
+    function stepLayer(d) {
+      const bs = layerBtns();
+      if (bs.length < 2) return;
+      const i = bs.findIndex((b) => b.getAttribute('aria-pressed') === 'true');
+      bs[(((i < 0 ? 0 : i) + d) % bs.length + bs.length) % bs.length].click();
+    }
+    $('fsLyPrev').onclick = () => stepLayer(-1);
+    $('fsLy').onclick = () => stepLayer(1);
+    $('fsLyNext').onclick = () => stepLayer(1);
     function enterFS(k) {
       if (DIVE) undiveNow();
       FS = true;
@@ -8115,7 +8153,7 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
       }
       const showHelp = () => {
         hmsg(
-          `<b>Move your open hand</b> and the cursor follows; it snaps onto planets and buttons. <b>Pinch</b> (thumb to index finger) to press: the gold ring fills as your fingers close. ${V === VIEWS.map ? '<b>Pinch a planet or moon to land on it</b>, or pinch and hold on it for half a second. ' : '<b>↑ Solar System</b> at the top takes you back out. '}<b>Pinch on empty space and move</b> to turn the view. <b>To zoom</b>, hold a pinch on <b>＋ or −</b> at the top, or pinch with both hands and pull them apart or push them together. Hovering on a top button for a second also presses it. <button type='button' id='handHide' class='linkish'>Hide tips</button>`,
+          `<b>Move your open hand</b> and the cursor follows; it snaps onto planets and buttons. <b>Pinch</b> (thumb to index finger) to press: the gold ring fills as your fingers close. ${V === VIEWS.map ? '<b>Pinch a planet or moon to land on it</b>, or pinch and hold on it for half a second. ' : '<b>‹ 🗺 ›</b> at the top change the map; <b>↑ Solar System</b> takes you back out. '}<b>Pinch on empty space and move</b> to turn the view. <b>To zoom</b>, hold a pinch on <b>＋ or −</b> at the top, or pinch with both hands and pull them apart or push them together. Hovering on a top button for a second also presses it. <button type='button' id='handHide' class='linkish'>Hide tips</button>`,
         );
         const h = $('handHide');
         if (h) h.addEventListener('click', () => hmsg(''));
