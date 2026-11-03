@@ -3,7 +3,7 @@
 Runs on GitHub (see .github/workflows/atlas-bot.yml) and writes a report to the job summary:
   1. Planet packs: every file in index.json opens, its grids and images decode, sizes.
   2. The page: loads, lands on Mars and comes back (the globe fades in inside the Solar System box), opens Earth,
-     checks Earth's photo layers and live-data switches, the real-time clock, and that there are no script errors.
+     checks Earth's photo layers and live-data switches, the Moon's crater rings and a crater count, the real-time clock, and that there are no script errors.
   3. Live data: whether each source answers and whether it lets a web page read the answer (the CORS header).
      Report only; it never fails the run.
 Exit code 1 if part 1 or 2 finds a problem.
@@ -92,6 +92,16 @@ async def page_bot():
             step('Earth has its photo layers', all(x in lay for x in ('Visible colour', 'Visible colour with clouds', 'Night lights')))
             await pg.evaluate("document.querySelector('#layerSeg button[data-id=visc]').click()"); await pg.wait_for_timeout(2000)
             await (await pg.query_selector('#stage')).screenshot(path=str(OUT / 'earth-clouds.png'))
+            # craters: the Moon's catalog streams in, draws rings, and a count of Mare Crisium gives a mare-like age
+            await pg.evaluate('document.querySelector("#bodies button[data-id=moon]").click()')
+            await until('document.getElementById("bName").textContent==="Moon"&&document.getElementById("busy").hidden', 40)
+            await pg.wait_for_timeout(800)
+            await pg.click('#crOn'); t = await until('window.atlasCraters&&window.atlasCraters().rings>0', 90)
+            step('Moon craters stream in and draw', t is not None, f'({t} s)')
+            await pg.select_option('#crR', '200'); await pg.evaluate('window.CR_TAP(17,59)'); await pg.wait_for_timeout(1500)
+            c = await pg.evaluate('window.atlasCraters().last')
+            step('Crater count of Mare Crisium gives a mare age (3.2-3.8 Ga)', bool(c) and 3.2 < c['T'] < 3.8, f"({c and round(c['T'], 2)} Ga from {c and c['n']} craters)")
+            await (await pg.query_selector('#stage')).screenshot(path=str(OUT / 'moon-craters.png'))
             step('No script errors', not errs, '; '.join(errs[:3]))
             await b.close()
     finally:

@@ -1,10 +1,10 @@
-# Planetary Modeling Atlas · v15mk2.7
+# Planetary Modeling Atlas · v15mk2.8
 
 **This is not my data.** None of the maps, gravity models, images or coordinates in this repository were made by me, and I make no claim of ownership over them. They were produced by NASA, ESA, JPL, USGS, the IAU and the researchers and artists credited below. This repository holds reformatted copies of their published work, so that the Planetary Modeling Atlas (a personal, non-commercial viewer) can load it from the web.
 
 ## The atlas
 
-`index.html` is the Planetary Modeling Atlas, version **v15mk2.7**, built with Claude. It is v15 (the Solar System map and globes in one view, real lighting and spin, and hand control on a planet's globe) with these added:
+`index.html` is the Planetary Modeling Atlas, version **v15mk2.8**, built with Claude. It is v15 (the Solar System map and globes in one view, real lighting and spin, and hand control on a planet's globe) with these added:
 
 - Earth's photo layers: Visible colour, Visible colour with clouds, and Night lights.
 - Earth by night: a moonlit blue night side, warm city lights that dim under clouds, an orange band at dusk, and a thin atmosphere at the edge of the photo layers.
@@ -26,6 +26,7 @@ The live layers come straight from their providers in your browser, not from thi
 - **v15mk2.5**: cleaned-up code: dead code removed (the fist gesture, zoom-through paths hand control can no longer reach, leftovers of the old Fly view) and the code laid out readably; idle views redraw about 4 times a second instead of 60, so the page uses far less power when nothing moves.
 - **v15mk2.6**: works on phones: the page fits the screen; on a phone the globe sits right under the world list with its layer buttons below it, and the Solar System map is taller; double-tap a spot to look at it close up, pinch in on a world to land on it, tap a satellite for its card; site names no longer pile on top of each other, and names near the edge flip to the other side; maps are scaled down only on devices that cannot hold them.
 - **v15mk2.7**: the asteroid belt and Jupiter's Trojans on the Solar System map: 6,000 asteroids drawn from the real spread of orbits (with the Kirkwood gaps Jupiter clears), moving on their own Kepler orbits with the map's clock; the Trojans keep about 60° ahead of and behind Jupiter. An Asteroids button turns them off.
+- **v15mk2.8**: craters on the Moon and Mars. A Craters switch draws published crater catalogs on the globe as rings to scale (more appear as you zoom in), adds a crater-density layer, and counts the craters in a circle wherever you click or tap: a cumulative size-frequency plot with isochrons and a model age from the Neukum (Moon) or Neukum–Ivanov / Ivanov (Mars) chronologies. The Asteroids button now says on or off.
 
 ## The bots
 
@@ -89,3 +90,13 @@ If you are a rights holder and want something credited differently or removed, p
 ## Format
 
 `index.json` lists the worlds. Each `<id>.json` is one planet pack: gridded maps (int16, base64, rows 90°N→90°S, columns from 0°E), images (equirectangular, 180°W at the left), sites, feature names and sources. The full format is described in the atlas under "Planet pack format".
+
+## Crater catalogs (`craters/`)
+
+Packed for the atlas as int16 latitude×360, int16 longitude×180 and uint16 diameter×20 (base64), largest first; each file carries its citation.
+
+- `craters-mars-robbins2012.json`: Robbins & Hynek (2012), 384,343 craters ≥1 km, from the USGS Astrogeology OGC API (`mars/robbinsv1`).
+- `craters-moon-robbins2018.json`: Robbins (2019), 1,296,796 craters ≥1 km, from the USGS Moon Crater Database v1.
+- `craters-moon-povilaitis2018.json`: Povilaitis et al. (2018), 22,746 craters 5–20 km (4,425 marked questionable), read from the attribute tables of the six LROC shapefile ZIPs by `scripts/fetch_craters.py`, which runs as the "Fetch crater catalogs" GitHub job. Run it again from the Actions tab to refresh. It also tries Head et al. (2010) from Brown University, whose site was not answering on 3 Nov 2026.
+
+Production and chronology functions are as tabulated in [craterstats](https://github.com/ggmichael/craterstats) (G. Michael, BSD-3).
