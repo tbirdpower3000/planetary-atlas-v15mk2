@@ -19,6 +19,25 @@
     --chipon: #1e2429;
     --chiptx: #f8f9fa;
     --warn: #a4561d;
+    --graphite: #7a6f68;
+    --node: #b2362b;
+    --water: #2f6f9f;
+    --paleo: #7a3fb0;
+    --tl-volc: #c4622d;
+    --tl-imp: #5d5d5d;
+    --tl-bor: #1f7a6e;
+    --tl-aq: #2f5597;
+    --tl-phy: #4a7a3a;
+    --tl-sul: #e0a915;
+    --tl-mn: #6b3a9a;
+    --era-pre: #a8a8a8;
+    --era-noa: #b4c7e7;
+    --era-hes: #a9d18e;
+    --era-ama: #ed7d31;
+    --imp-pre: #5f5a57;
+    --imp-noa: #3a5fa8;
+    --imp-hes: #3f7f33;
+    --imp-ama: #b8541f;
     --sans: 'Instrument Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
     --mono: 'JetBrains Mono', ui-monospace, 'SFMono-Regular', Menlo, monospace;
   }
@@ -33,6 +52,25 @@
       --chipon: #e4e8eb;
       --chiptx: #1a1e22;
       --warn: #e6a061;
+      --graphite: #998a82;
+      --node: #f07a6e;
+      --water: #7fb6e6;
+      --paleo: #c39bf0;
+      --tl-volc: #e5845a;
+      --tl-imp: #b5b0ad;
+      --tl-bor: #5fc7b6;
+      --tl-aq: #6f95d6;
+      --tl-phy: #7fb86a;
+      --tl-sul: #f2c94c;
+      --tl-mn: #a77fd6;
+      --era-pre: #5f5c5a;
+      --era-noa: #3a4f73;
+      --era-hes: #3f5f34;
+      --era-ama: #8a4a22;
+      --imp-pre: #b9b2ad;
+      --imp-noa: #7fa4ec;
+      --imp-hes: #86c977;
+      --imp-ama: #f0915c;
       color-scheme: dark;
     }
   }
@@ -46,6 +84,25 @@
     --chipon: #e4e8eb;
     --chiptx: #1a1e22;
     --warn: #e6a061;
+    --graphite: #998a82;
+    --node: #f07a6e;
+    --water: #7fb6e6;
+    --paleo: #c39bf0;
+    --tl-volc: #e5845a;
+    --tl-imp: #b5b0ad;
+    --tl-bor: #5fc7b6;
+    --tl-aq: #6f95d6;
+    --tl-phy: #7fb86a;
+    --tl-sul: #f2c94c;
+    --tl-mn: #a77fd6;
+    --era-pre: #5f5c5a;
+    --era-noa: #3a4f73;
+    --era-hes: #3f5f34;
+    --era-ama: #8a4a22;
+    --imp-pre: #b9b2ad;
+    --imp-noa: #7fa4ec;
+    --imp-hes: #86c977;
+    --imp-ama: #f0915c;
     color-scheme: dark;
   }
   [hidden] {
@@ -1511,6 +1568,245 @@
       padding: 3px 7px;
     }
   }
+  /* Mars through time */
+  .mlab {
+    gap: 12px;
+  }
+  .mlhead h2 {
+    margin: 0;
+  }
+  .mlplay {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 10px;
+    align-items: center;
+  }
+  #mlPlay {
+    font-weight: 600;
+  }
+  #mlPlay[aria-pressed='true'] {
+    border-color: var(--tl-bor);
+    background: color-mix(in srgb, var(--tl-bor) 18%, transparent);
+  }
+  #mlPlayO {
+    font-family: var(--mono);
+    font-size: 0.86rem;
+  }
+  .mlplay select,
+  .mlfs select {
+    font: inherit;
+    font-size: 0.84rem;
+    padding: 4px 6px;
+    border: 1px solid var(--rule);
+    border-radius: 5px;
+    background: var(--bg);
+    color: var(--ink);
+    max-width: 100%;
+    min-width: 0;
+  }
+  .mlchart {
+    overflow-x: auto;
+    border: 1px solid var(--rule);
+    border-radius: 6px;
+    background: var(--sheet);
+    padding: 8px 10px;
+  }
+  #mlTl {
+    display: block;
+    width: 100%;
+    min-width: 640px;
+    height: auto;
+    cursor: crosshair;
+    touch-action: none;
+    user-select: none;
+  }
+  .mlctl {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    gap: 12px;
+    align-items: center;
+  }
+  .mlctl input {
+    width: 100%;
+  }
+  .mlctl output {
+    font-family: var(--mono);
+    white-space: nowrap;
+  }
+  .mlctl .era {
+    font-family: var(--sans);
+    font-weight: 600;
+  }
+  .mlnow {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+    gap: 10px;
+  }
+  .tlcat {
+    border: 1px solid var(--rule);
+    border-radius: 6px;
+    padding: 8px 10px;
+    display: grid;
+    gap: 4px;
+    align-content: start;
+    min-width: 0;
+  }
+  .tlcat h3 {
+    margin: 0;
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+  }
+  .tlcat ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: 3px;
+    font-size: 0.85rem;
+  }
+  .tlcat li {
+    display: grid;
+    grid-template-columns: 12px minmax(0, 1fr);
+    gap: 8px;
+    align-items: baseline;
+  }
+  .tlcat li i {
+    width: 10px;
+    height: 10px;
+    border-radius: 2px;
+    display: inline-block;
+  }
+  .tlcat li.dim {
+    color: var(--muted);
+  }
+  .tlcat li.dim i {
+    opacity: 0.3;
+  }
+  .tlcat li em {
+    font-style: normal;
+    font-size: 0.76rem;
+    color: var(--muted);
+    font-family: var(--mono);
+  }
+  .mlgrid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 21rem), 1fr));
+    gap: 12px;
+    align-items: start;
+  }
+  .mlfs {
+    border: 1px solid var(--rule);
+    border-radius: 6px;
+    margin: 0;
+    padding: 10px 12px;
+    display: grid;
+    gap: 8px;
+    min-width: 0;
+  }
+  .mlfs legend {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+    padding: 0 4px;
+  }
+  .mlrow {
+    display: grid;
+    grid-template-columns: 7rem minmax(0, 1fr) auto;
+    gap: 8px;
+    align-items: center;
+    font-size: 0.86rem;
+  }
+  .mlrow output {
+    font-family: var(--mono);
+    font-size: 0.8rem;
+  }
+  .mlchk {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    font-size: 0.86rem;
+    flex-wrap: wrap;
+  }
+  .mlkey {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 12px;
+  }
+  .mlkey .sw,
+  .mlimp .sw {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    display: inline-block;
+    margin-right: 6px;
+  }
+  .featlist {
+    display: grid;
+    gap: 6px;
+  }
+  .featlist button {
+    text-align: left;
+    display: grid;
+    grid-template-columns: 12px minmax(0, 1fr);
+    gap: 8px;
+    align-items: baseline;
+  }
+  .featlist button i {
+    width: 10px;
+    height: 10px;
+    border-radius: 2px;
+    display: inline-block;
+  }
+  .featlist button em {
+    font-style: normal;
+    font-size: 0.74rem;
+    color: var(--muted);
+    font-family: var(--mono);
+  }
+  .featlist button[aria-pressed='true'] {
+    border-color: var(--accent);
+  }
+  .mlimp {
+    max-height: 300px;
+  }
+  .mlimp td {
+    text-align: left;
+    white-space: normal;
+    vertical-align: top;
+    font-family: var(--sans);
+  }
+  .mlimp td:nth-child(2),
+  .mlimp td:nth-child(3) {
+    font-family: var(--mono);
+    white-space: nowrap;
+  }
+  .mlimp tr {
+    cursor: pointer;
+  }
+  .mlimp .sub {
+    display: block;
+    font-size: 0.72rem;
+    color: var(--muted);
+  }
+  #labels span.mlb {
+    border-width: 1.5px;
+    font-weight: 600;
+    background: color-mix(in srgb, #0e1012 80%, transparent);
+  }
+  #labels span.mlb.dashed {
+    border-style: dashed;
+  }
+  #labels span.mlb.imp {
+    font-weight: 500;
+  }
+  @media (max-width: 600px) {
+    .mlrow {
+      grid-template-columns: 1fr;
+    }
+  }
 </style>
 
 <div class="wrap">
@@ -1518,7 +1814,7 @@
     <div class="hrow">
       <h1>
         Planetary Modeling Atlas
-        <span class="ver" title="Version v15mk2.10, 3 Nov 2026: the globe and the map are drawn pixel for pixel, never stretched">v15mk2.10</span>
+        <span class="ver" title="Version v15mk2.11, 3 Nov 2026: Mars through time: the timeline, Ancient Mars, the northern ocean and the great impacts">v15mk2.11</span>
       </h1>
       <p id="howTo">
         Pick a world on the map or below. Drag to turn, scroll or pinch to zoom, click a site to fly to it. ✋ Hand control (on a
@@ -1527,7 +1823,7 @@
     </div>
     <p class="ainote" role="note">
       <b>Generated with AI.</b> Built with Claude from the published data listed under each world's sources. Not independently
-      reviewed, so check any number you rely on against the original source.
+      reviewed, so check any number you rely on against the original source. <a class="srclink" href="sources.html">All sources for the whole project →</a>
     </p>
     <section class="mapbox" aria-labelledby="mapH">
       <div class="maphead">
@@ -1762,6 +2058,122 @@
     </div>
   </div>
 
+  <section class="box mlab" id="mlab" aria-labelledby="mlabH" hidden>
+    <div class="mlhead">
+      <h2 id="mlabH">Mars through time</h2>
+      <p class="note">
+        From the Mars Planetary Modeling Atlas: the geologic timeline, Ancient Mars before Tharsis and the great basins, the
+        proposed northern ocean, and the major impacts. Everything here is drawn on the globe above.
+      </p>
+    </div>
+    <div class="mlplay">
+      <button id="mlPlay" type="button" aria-pressed="false">▶ Timeline</button
+      ><select id="mlSpeed" aria-label="Timeline speed">
+        <option value="0.5">Slow</option>
+        <option value="1" selected>Normal</option>
+        <option value="2">Fast</option></select
+      ><button id="mlReset" type="button" title="Back to 4.5 billion years ago" aria-label="Back to the start">↺</button>
+      <output id="mlPlayO" aria-live="polite"></output>
+    </div>
+    <div class="mlchart"><svg id="mlTl" viewBox="0 0 1000 420" role="img" aria-label="Timeline of Martian geologic events from 4.5 billion years ago to today"></svg></div>
+    <div class="mlctl">
+      <label for="mlT">Time</label
+      ><input id="mlT" type="range" min="0" max="4.5" step="0.001" value="3.8" dir="rtl" /><output id="mlTO"></output>
+    </div>
+    <div class="mlnow" id="mlNow"></div>
+    <p class="note">
+      Bars are read off Fig. 1a of Wordsworth et al. (2021); era boundaries are about 4.1, 3.5 and 3.0 billion years ago. Solid colour
+      means a process was in full swing, fading colour that it was starting or dying away, and a question mark that its start is
+      uncertain. *The Borealis basin is not in Fig. 1a: the diamond at 4.4 Ga is Melosh's (2008) date, the dashed bar the looser
+      bound of Andrews-Hanna, Zuber &amp; Banerdt (2008).
+    </p>
+    <div class="mlgrid">
+      <fieldset class="mlfs">
+        <legend>Ancient Mars · areoid</legend>
+        <label class="mlrow">Show
+          <select id="mlAnc">
+            <option value="now">Today, against the rotational bulge</option>
+            <option value="pre" selected>Before Tharsis, Hellas and Argyre</option>
+            <option value="tl">Follow the timeline</option>
+          </select></label
+        >
+        <div class="btns"><button id="mlAncGo" type="button">Show Ancient Mars on the globe</button></div>
+        <label class="mlchk"><input type="checkbox" id="mlPaleo" checked /> Ancient spin axis and equator</label>
+        <label class="mlrow">Spin axis from
+          <select id="mlPaleoSrc">
+            <option value="model">The Mars atlas's model (79.7° N, 198.2° E)</option>
+            <option value="bouley">Bouley et al. 2016, about 20° toward Tharsis</option>
+          </select></label
+        >
+        <p class="note" id="mlAncNote"></p>
+        <details>
+          <summary>How Ancient Mars is calculated</summary>
+          <p class="note">
+            Rotation alone would flatten Mars into a smooth bulge; everything else in the areoid comes from lumps of extra or
+            missing mass, so Ancient Mars is measured against that bulge (from the moment of inertia 0.3644, a rotational J2 of
+            1.820×10⁻³ against the measured 1.957×10⁻³). Tharsis is removed by turning the GMM-3 field into an equivalent surface
+            mass layer, zeroing it inside a cap 50° in radius around the rise (5° N, 250° E) and recomputing the areoid; Hellas and
+            Argyre are removed the same way, following Andrews-Hanna, Zuber &amp; Banerdt (2008). The ancient spin axis is the axis
+            of greatest moment of inertia of the Tharsis-free field, 79.7° N, 198.2° E, a tilt of about 10°, smaller than the 20–25°
+            of Bouley et al. (2016), whose estimate is the second option. Following the timeline, Tharsis's share grows in a straight
+            line from 4.33 to 3.52 Ga and the axis moves with it; Hellas and Argyre switch on at their impact dates. The in-between
+            states are an interpolation, not a measurement.
+          </p>
+        </details>
+      </fieldset>
+      <fieldset class="mlfs">
+        <legend>Water · ancient ocean</legend>
+        <label class="mlchk"><input type="checkbox" id="mlWater" /> Show the northern ocean</label>
+        <label class="mlchk"><input type="checkbox" id="mlFix" checked /> Correct for Tharsis (Citron et al. 2018)</label>
+        <label class="mlchk"
+          ><input type="checkbox" id="mlShore" /> Mapped shorelines <span style="color: #e0883a">● Arabia</span>
+          <span style="color: #d4a82a">● Deuteronilus</span></label
+        >
+        <label class="mlrow">Level
+          <select id="mlWMode">
+            <option value="tl">Follow the timeline</option>
+            <option value="arabia">Arabia shoreline (≥ 4 Ga)</option>
+            <option value="deut">Deuteronilus shoreline (~3.6 Ga)</option>
+            <option value="custom">Set it yourself</option>
+          </select></label
+        >
+        <label class="mlrow">Sea level <input id="mlWLvl" type="range" min="-5500" max="-1000" step="10" value="-2290" /><output id="mlWLvlO"></output></label>
+        <p class="note" id="mlWNote"></p>
+        <p class="note">
+          Water fills today's MOLA terrain from the lowest point of the northern plains, spilling only where it connects, so Hellas
+          and Argyre stay dry unless the sea reaches their rims. Levels are the mean heights of Carr &amp; Head's (2003) Arabia
+          (−2,287 m) and Deuteronilus (−3,798 m) contacts as compiled by Sholes et al. (2021). With the Tharsis correction the
+          terrain is first restored to before Tharsis loaded the crust (Citron et al. 2018), and the contacts then average −2,611
+          and −3,706 m. The timeline is schematic: Arabia at or before 4 Ga, Deuteronilus about 3.6 Ga, dry by about 3 Ga
+          (Scheller et al. 2021). Whether these oceans existed is still debated.
+        </p>
+      </fieldset>
+      <fieldset class="mlfs">
+        <legend>Basins and major impacts</legend>
+        <label class="mlchk"><input type="checkbox" id="mlFeat" checked /> Tharsis, Hellas, Argyre and Borealis</label>
+        <label class="mlchk"><input type="checkbox" id="mlImp" checked /> Major impacts</label>
+        <label class="mlchk"><input type="checkbox" id="mlFollow" checked /> Follow the timeline</label>
+        <div class="mlkey" id="mlKey"></div>
+        <div class="featlist" id="mlFeatList"></div>
+        <div class="tablewrap mlimp">
+          <table>
+            <thead>
+              <tr><th>Impact</th><th>Size</th><th>Age</th></tr>
+            </thead>
+            <tbody id="mlImpTb"></tbody>
+          </table>
+        </div>
+        <p class="note">
+          Rings are drawn at true size and coloured by era; a dashed ring means the impact happened somewhere in a range of dates
+          and the slider is inside it. Basin ages are the isochron ages of Robbins, Hynek, Lillis &amp; Bottke (2013), spanning the
+          Hartmann and Neukum chronologies; Utopia's is from Frey (2004) and Bottke &amp; Andrews-Hanna (2017). Hellas is the
+          ellipse measured on MOLA (2,414 × 1,820 km, long axis N85°E); Borealis is the best-fit ellipse of Andrews-Hanna et al.
+          (2008), 10,600 × 8,500 km, with their two alternative fits dashed.
+        </p>
+      </fieldset>
+    </div>
+  </section>
+
   <section class="box" aria-labelledby="sitesH">
     <h2 id="sitesH">Sites with local values</h2>
     <p class="note" id="sitesNote"></p>
@@ -1905,6 +2317,7 @@
     <div class="box">
       <h2>Sources</h2>
       <ul id="sources"></ul>
+      <p class="note"><a class="srclink" href="sources.html">All sources for the whole project →</a></p>
     </div>
   </section>
 </div>
@@ -2055,6 +2468,7 @@
     function cmapFor(d) {
       const lo = d.min,
         hi = d.max;
+      if (d.ramp === 'bands') return (v) => d.bands[Math.max(0, Math.min(d.bands.length - 1, Math.floor((v - d.bandLo) / d.bandStep)))];
       if (d.ramp === 'earth') return (v) => (v < 0 ? R_SEA((v - lo) / (0 - lo || 1)) : R_LAND(v / (hi || 1)));
       if (d.ramp === 'div' || d.ramp === 'bou') {
         if (lo < 0 && hi > 0) return (v) => R_DIV(v < 0 ? (0.5 * (v - lo)) / -lo : 0.5 + (0.5 * v) / hi);
@@ -3274,6 +3688,7 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
       $('exag').disabled = !ELEV;
       buildSites();
       if (window.CR_WORLD) window.CR_WORLD();
+      if (window.ML_WORLD) window.ML_WORLD();
       buildPoints();
       displace();
       buildRings();
@@ -4509,6 +4924,876 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
     new ResizeObserver(() => CR.last && crPlot()).observe($('crPlot'));
     window.atlasCraters = () => ({ on: CR.on, world: CR.world, cat: CR.cat && CR.cat.id, last: CR.last && { n: CR.last.n, total: CR.last.sel.length, area: CR.last.area, n1: CR.last.n1, T: CR.last.T, lo: CR.last.Tlo, hi: CR.last.Thi }, rings: CR.grp.children.length ? CR.grp.children[0].geometry.attributes.position.count / 2 : 0 });
     window.CR_DIRTY = () => (CR.dirty = true);
+    // ---------- Mars through time (from the Mars Planetary Modeling Atlas) ----------
+    // The geologic timeline (Wordsworth et al. 2021), Ancient Mars (the areoid without Tharsis, Hellas and Argyre, and the spin
+    // axis that goes with it), the proposed northern ocean, and the big basins and impacts, all drawn on this globe when Mars is open.
+    const ML = { data: null, loading: null, grp: new THREE.Group(), lbl: [], water: null, arr: {}, dh: null, on: false, sig: '', tl: 3.8 };
+    world.add(ML.grp);
+    const MD = Math.PI / 180,
+      MARS_KM = 3389.5;
+    const fmtGa = (t) => (t >= 1 ? `${t.toFixed(2)} Ga` : t > 0 ? `${Math.round(t * 1000)} Ma` : 'today');
+    const fmtM = (n) => `${n >= 0 ? '+' : '−'}${Math.abs(n).toLocaleString('en-US', { maximumFractionDigits: 0 })} m`;
+    const cssv = (n) => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+    // the globe is always on black, so its overlays use the bright (dark-theme) colours whatever the page theme
+    const ML_GLOBE = {"--graphite": "#998a82", "--node": "#f07a6e", "--water": "#7fb6e6", "--paleo": "#c39bf0", "--tl-volc": "#e5845a", "--tl-imp": "#b5b0ad", "--tl-bor": "#5fc7b6", "--tl-aq": "#6f95d6", "--tl-phy": "#7fb86a", "--tl-sul": "#f2c94c", "--tl-mn": "#a77fd6", "--era-pre": "#5f5c5a", "--era-noa": "#3a4f73", "--era-hes": "#3f5f34", "--era-ama": "#8a4a22", "--imp-pre": "#b9b2ad", "--imp-noa": "#7fa4ec", "--imp-hes": "#86c977", "--imp-ama": "#f0915c"};
+    const TL_ERAS = [
+      ['Pre-Noachian', 4.5, 4.1, '--era-pre'],
+      ['Noachian', 4.1, 3.5, '--era-noa'],
+      ['Hesperian', 3.5, 3.0, '--era-hes'],
+      ['Amazonian', 3.0, 0, '--era-ama'],
+    ];
+    // Fig. 1a, Wordsworth et al. 2021. Bars: [start, full strength from, full strength until, end] in Ga; q = uncertain start.
+    const TL = [
+      { cat: 'Volcanism', rows: [
+        { n: 'Crust formation', c: '--tl-volc', seg: [[4.5, 4.5, 4.32, 4.07]] },
+        { n: 'Tharsis formation', c: '--tl-volc', q: true, qEnd: true, seg: [[4.33, 4.27, 4.12, 3.52]] },
+        { n: 'Hesperian ridged plains', c: '--tl-volc', seg: [[3.44, 3.42, 3.37, 3.08]] } ] },
+      { cat: 'Bolide impacts', rows: [
+        { n: 'Hellas basin', c: '--tl-imp', at: 4.16 },
+        { n: 'Argyre basin', c: '--tl-imp', at: 3.98 },
+        { n: 'Borealis basin (dichotomy)*', c: '--tl-bor', early: [4.5, 4.1], at: 4.4 },
+        { n: 'Smaller impactors', c: '--tl-imp', q: true, seg: [[4.05, 4.03, 3.94, 3.01]] } ] },
+      { cat: 'Aqueous geomorphology', rows: [
+        { n: 'Valley networks', c: '--tl-aq', q: true, seg: [[3.89, 3.86, 3.49, 3.19], [3.04, 2.98, 2.98, 2.91], [2.73, 2.67, 2.67, 2.58]] },
+        { n: 'Crater degradation and basin lake formation', c: '--tl-aq', q: true, seg: [[4.21, 4.19, 3.47, 3.21]] } ] },
+      { cat: 'Aqueous geochemistry', rows: [
+        { n: 'Phyllosilicates (clays)', c: '--tl-phy', q: true, seg: [[4.12, 4.08, 3.52, 3.4]] },
+        { n: 'Sulfates and evaporites', c: '--tl-sul', seg: [[3.72, 3.57, 3.21, 3.04]] },
+        { n: 'Manganese oxides', c: '--tl-mn', seg: [[3.72, 3.53, 3.17, 3.04]] } ] },
+    ];
+    function tlStatus(r, t) {
+      if (r.early) return t > r.at ? ['dim', 'not yet (about 4.4 Ga)'] : r.at - t <= 0.1 ? ['on', 'just formed, about 4.4 Ga'] : ['past', `formed about 4.4 Ga, ${Math.round((r.at - t) * 1000)} Myr earlier`];
+      if (r.at != null) return t > r.at ? ['dim', `not yet (${r.at.toFixed(2)} Ga)`] : ['past', `formed ${fmtGa(r.at)}, ${Math.round((r.at - t) * 1000)} Myr earlier`];
+      for (const [a, b, c, d] of r.seg) {
+        if (t <= b && t >= c) return ['on', 'in full swing'];
+        if (t <= a && t > b) return ['on', r.q ? 'starting (start uncertain)' : 'starting up'];
+        if (t < c && t >= d) return ['on', 'waning'];
+      }
+      const last = r.seg[r.seg.length - 1][3];
+      return t > r.seg[0][0] ? ['dim', 'not yet'] : t < last ? ['dim', 'over'] : ['dim', 'quiet between pulses'];
+    }
+    // basins on the timeline: lat, lon (east), diameter km; Hellas and Borealis are ellipses (d × d2, long axis az° east of north)
+    const ML_FEATS = [
+      { n: 'Tharsis', tl: 'Tharsis formation', lat: 1.57, lon: -112.58, d: 5000, c: '--tl-volc', dash: true },
+      { n: 'Hellas basin', tl: 'Hellas basin', lat: -41.4, lon: 71.1, d: 2414, d2: 1820, az: 85, c: '--tl-imp' },
+      { n: 'Argyre basin', tl: 'Argyre basin', lat: -49.7, lon: -44.0, d: 1315, c: '--tl-imp' },
+      { n: 'Borealis basin', tl: 'Borealis basin (dichotomy)*', lat: 67, lon: -152, d: 10600, d2: 8500, az: 76, c: '--tl-bor', alt: [[10600, 8100], [10900, 8800]], ring: { k: 1.57, lat: 21, lon: 6, half: 27 }, view: [18, -150], fill: true },
+    ];
+    // [name, lat, lon (E), diameter km, best age Ga or null, [oldest, youngest] Ga, how dated]
+    const ML_IMP = [
+      ['Utopia basin', 46.7, 117.5, 3300, 4.2, [4.4, 4.1], 'Lowland basin; model age 4.04–4.20 Ga (Frey 2004) and the 4.1–4.4 Ga window (Bottke & Andrews-Hanna 2017)'],
+      ['Ladon basin', -18, -28, 470, 4.12, [4.18, 4.07], 'Isochron age 4.07 Ga (Hartmann) and 4.18 Ga (Neukum), Robbins et al. 2013; size is the central depression'],
+      ['Prometheus basin', null, null, 850, 4.05, [4.07, 4.03], 'Isochron age 4.03–4.07 Ga, Robbins et al. 2013; under the south polar deposits, centre not given, so not drawn'],
+      ['Hellas basin', null, null, 2414, 4.02, [4.06, 3.97], 'Isochron age 3.97–4.06 Ga, Robbins et al. 2013; drawn with the basins at 4.16 Ga, from Wordsworth et al. Fig. 1a'],
+      ['Isidis basin', 12.9, 87.0, 1900, 3.97, [3.99, 3.95], 'Isochron age 3.95 Ga (Hartmann) and 3.99 Ga (Neukum), Robbins et al. 2013'],
+      ['Argyre basin', null, null, 1315, 3.93, [3.96, 3.89], 'Isochron age 3.89–3.96 Ga, Robbins et al. 2013; drawn with the basins at 3.98 Ga, from Wordsworth et al. Fig. 1a'],
+      ['Huygens', -14.3, 55.4, 470, null, [4.06, 3.5], 'Noachian; on Hellas’s rim, so younger than Hellas'],
+      ['Schiaparelli', -2.7, 16.7, 471, null, [4.1, 3.5], 'Noachian, from the highland crust it sits on'],
+      ['Cassini', 23.8, 31.8, 412, null, [4.1, 3.5], 'Noachian, from the highland crust it sits on'],
+      ['Antoniadi', 21.5, 60.8, 394, null, [4.1, 3.5], 'Noachian; about 300 Myr younger than the crater beneath it'],
+      ['Herschel', -14.9, 129.7, 304.5, null, [4.1, 3.5], 'Noachian, from the highland crust it sits on'],
+      ['Newton', -40.8, -158.1, 298, null, [4.1, 3.5], 'Noachian, from the highland crust it sits on'],
+      ['Copernicus', -49.2, -169.2, 294, null, [4.1, 3.5], 'Noachian; overlies an older crater by 60–120 Myr'],
+      ['Holden', -26.4, -34.0, 153.8, null, [3.83, 3.42], '350–650 Myr younger than Ladon, which it overlies'],
+      ['Gale', -5.5, 137.7, 155.3, 3.78, [3.89, 3.68], 'Isochron age 3.68–3.89 Ga, Robbins et al. 2013; Curiosity’s landing site'],
+      ['Lyot', 50.8, 29.3, 236, null, [3.2, 2.7], 'Late Hesperian or Early Amazonian, depending on the crater-count scheme'],
+    ];
+    const ERA_OF = (t) => (t > 4.1 ? ['Pre-Noachian', '--imp-pre'] : t > 3.5 ? ['Noachian', '--imp-noa'] : t > 3.0 ? ['Hesperian', '--imp-hes'] : ['Amazonian', '--imp-ama']);
+    const impMid = (r) => (r[4] != null ? r[4] : (r[5][0] + r[5][1]) / 2);
+    const impAge = (r) => (r[4] != null ? `${r[4].toFixed(2)} Ga` : `${r[5][0].toFixed(1)}–${r[5][1].toFixed(1)} Ga`);
+    const tlRow = (name) => TL.flatMap((g) => g.rows).find((r) => r.n === name);
+    const mlT = () => +$('mlT').value;
+    function featState(f, t) {
+      if (!$('mlFollow').checked) return 'shown';
+      const r = tlRow(f.tl);
+      if (r.early || r.at != null) return t > r.at ? 'hidden' : r.at - t <= 0.1 ? 'lit' : 'past';
+      const [a, , , d] = r.seg[0];
+      return t > a ? 'hidden' : t >= d ? 'lit' : 'past';
+    }
+    function impState(r, t) {
+      if (!$('mlFollow').checked) return 'shown';
+      const [o, y] = r[5];
+      if (t > o) return 'hidden';
+      if (r[4] != null && o - y <= 0.15) return r[4] - t <= 0.1 && t <= r[4] ? 'lit' : t > r[4] ? 'unsure' : 'past';
+      return t >= y ? 'unsure' : 'past';
+    }
+    // ---- data: the ancient-areoid pieces, Tharsis's deformation and the mapped shorelines stream in when Mars opens ----
+    const mlDec = (b) => {
+      const s = atob(b),
+        u = new Uint8Array(s.length);
+      for (let i = 0; i < s.length; i++) u[i] = s.charCodeAt(i);
+      return Float32Array.from(new Int16Array(u.buffer));
+    };
+    function mlLoad() {
+      if (ML.data) return Promise.resolve(ML.data);
+      if (ML.loading) return ML.loading;
+      return (ML.loading = (async () => {
+        const el = embedded('extra-mars-lab');
+        let j;
+        if (el) j = JSON.parse(el.textContent);
+        else {
+          const r = await fetch(packUrl('packs/mars-lab.json'));
+          if (!r.ok) throw new Error('HTTP ' + r.status);
+          j = await r.json();
+        }
+        return (ML.data = { NP: mlDec(j.anc.present), NT: mlDec(j.anc.T), NH: mlDec(j.anc.H), NA: mlDec(j.anc.A), pole: j.anc.pole, DH: mlDec(j.tharsisDH), shore: j.shorelines });
+      })().catch((e) => {
+        ML.loading = null;
+        throw e;
+      }));
+    }
+    // ---- Ancient Mars: a grid layer on the globe, today's areoid minus the chosen share of Tharsis, Hellas and Argyre ----
+    const TH_A = 4.33,
+      TH_D = 3.52,
+      HEL = 4.16,
+      ARG = 3.98;
+    const ANC_BANDS = ['#2c4f8a', '#5b86bf', '#a3c4e0', '#fff2b3', '#fdd480', '#f9a65a', '#ec7040', '#d1402c', '#a51f26', '#6b0f1f'].map((h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16)));
+    function mlWeights() {
+      const m = $('mlAnc').value,
+        t = mlT();
+      if (m === 'now') return [1, 1, 1];
+      if (m === 'pre') return [0, 0, 0];
+      return [Math.round(Math.max(0, Math.min(1, (TH_A - t) / (TH_A - TH_D))) * 50) / 50, t <= HEL ? 1 : 0, t <= ARG ? 1 : 0];
+    }
+    const slerpPole = (p0, p1, f) => {
+      const v = (la, lo) => [Math.cos(la * MD) * Math.cos(lo * MD), Math.cos(la * MD) * Math.sin(lo * MD), Math.sin(la * MD)],
+        a = v(...p0),
+        b = v(...p1),
+        om = Math.acos(Math.max(-1, Math.min(1, a[0] * b[0] + a[1] * b[1] + a[2] * b[2])));
+      if (om < 1e-9) return p1.slice();
+      const s0 = Math.sin((1 - f) * om) / Math.sin(om),
+        s1 = Math.sin(f * om) / Math.sin(om),
+        c = a.map((x, i) => s0 * x + s1 * b[i]);
+      return [Math.asin(c[2]) / MD, ((Math.atan2(c[1], c[0]) / MD) + 360) % 360];
+    };
+    const mlPaleo = () => ($('mlPaleoSrc').value === 'model' ? ML.data.pole : [70.0, 247.42]);
+    let ancKey = '';
+    function mlAncLayer() {
+      if (!ML.data || !P || P.id !== 'mars') return;
+      const w = mlWeights(),
+        key = w.join('|');
+      if (key === ancKey && P.grids.some((g) => g.id === 'anc')) return;
+      ancKey = key;
+      const { NP, NT, NH, NA } = ML.data,
+        out = new Float32Array(NP.length);
+      for (let i = 0; i < out.length; i++) out[i] = NP[i] - (1 - w[0]) * NT[i] - (1 - w[1]) * NH[i] - (1 - w[2]) * NA[i];
+      const m = $('mlAnc').value,
+        def = {
+          id: 'anc',
+          label: 'Ancient Mars',
+          unit: 'm',
+          rows: 181,
+          cols: 360,
+          data: out,
+          ramp: 'bands',
+          bands: ANC_BANDS,
+          bandLo: -750,
+          bandStep: 250,
+          min: -750,
+          max: 1750,
+          ticks: [-750, 0, 500, 1000, 1750],
+          transient: true,
+          note:
+            m === 'now'
+              ? 'Today’s areoid measured against the rotational bulge alone, so every lump is extra or missing mass. Tharsis stands out at nearly +2 km. Each colour is one 250 m band.'
+              : m === 'pre'
+                ? 'The areoid with Tharsis, Hellas and Argyre removed, measured against the rotational bulge. What’s left ranges from about −460 to +530 m, highest over Isidis. Each colour is one 250 m band.'
+                : `The areoid as the timeline goes: Tharsis ${Math.round(w[0] * 100)}% built, Hellas ${w[1] ? 'formed' : 'not yet'}, Argyre ${w[2] ? 'formed' : 'not yet'}. Each colour is one 250 m band.`,
+        };
+      const had = P.grids.some((g) => g.id === 'anc');
+      P.grids = P.grids.filter((g) => g.id !== 'anc');
+      P.grids.push(def);
+      G.anc = mkGrid(def);
+      [...PCACHE.keys()].forEach((k) => k.startsWith(P.id + '|anc') && PCACHE.delete(k));
+      if (!had) buildLayerSeg();
+      crMarkLayer();
+      if (layer === 'anc') setLayer('anc');
+    }
+    // ---- the northern ocean: a priority flood from the lowest northern point gives the level at which each cell joins the sea ----
+    function mlTopo() {
+      return G.topo && G.topo.def.rows === 721 && G.topo.def.cols === 1440 ? G.topo : null;
+    }
+    function mlDH() {
+      if (ML.dh) return ML.dh;
+      const g = ML.data.DH,
+        W = 1440,
+        H = 721,
+        D = new Float32Array(W * H);
+      for (let r = 0; r < H; r++) {
+        const y = r / 4,
+          j = Math.min(179, Math.floor(y)),
+          fy = y - j;
+        for (let c = 0; c < W; c++) {
+          const x = c / 4,
+            i = Math.floor(x) % 360,
+            fx = x - Math.floor(x),
+            i2 = (i + 1) % 360;
+          D[r * W + c] = (g[j * 360 + i] * (1 - fx) + g[j * 360 + i2] * fx) * (1 - fy) + (g[(j + 1) * 360 + i] * (1 - fx) + g[(j + 1) * 360 + i2] * fx) * fy;
+        }
+      }
+      return (ML.dh = D);
+    }
+    function mlArrival(f) {
+      const key = f.toFixed(2);
+      if (ML.arr[key]) return ML.arr[key];
+      const tg = mlTopo(),
+        W = 1440,
+        H = 721,
+        N = W * H,
+        dh = mlDH(),
+        T = new Float32Array(N);
+      for (let i = 0; i < N; i++) T[i] = tg.a[i] * tg.k - f * dh[i];
+      const arr = new Float32Array(N).fill(Infinity),
+        done = new Uint8Array(N);
+      let seed = 0,
+        mn = 1e9;
+      for (let r = 0; r < 200; r++)
+        for (let c = 0; c < W; c++) {
+          const v = T[r * W + c];
+          if (v < mn) {
+            mn = v;
+            seed = r * W + c;
+          }
+        } // lowest point north of 40°N
+      const hk = new Float32Array(N + 1),
+        hv = new Int32Array(N + 1);
+      let n = 0;
+      const push = (k, v) => {
+        let i = ++n;
+        while (i > 1 && hk[i >> 1] > k) {
+          hk[i] = hk[i >> 1];
+          hv[i] = hv[i >> 1];
+          i >>= 1;
+        }
+        hk[i] = k;
+        hv[i] = v;
+      };
+      const pop = () => {
+        const v = hv[1],
+          k = hk[n],
+          x = hv[n--];
+        let i = 1;
+        for (;;) {
+          let c = i * 2;
+          if (c > n) break;
+          if (c < n && hk[c + 1] < hk[c]) c++;
+          if (hk[c] >= k) break;
+          hk[i] = hk[c];
+          hv[i] = hv[c];
+          i = c;
+        }
+        hk[i] = k;
+        hv[i] = x;
+        return v;
+      };
+      arr[seed] = T[seed];
+      push(arr[seed], seed);
+      while (n) {
+        const c = pop();
+        if (done[c]) continue;
+        done[c] = 1;
+        const r = (c / W) | 0,
+          q = c - r * W,
+          a = arr[c];
+        const nb = [r > 0 ? c - W : -1, r < H - 1 ? c + W : -1, r * W + ((q + 1) % W), r * W + ((q + W - 1) % W)];
+        for (const m of nb) {
+          if (m < 0 || done[m]) continue;
+          const v = Math.max(a, T[m]);
+          if (v < arr[m]) {
+            arr[m] = v;
+            push(v, m);
+          }
+        }
+      }
+      return (ML.arr[key] = arr);
+    }
+    const AR_LVL = () => ($('mlFix').checked ? -2611 : -2290),
+      DE_LVL = () => ($('mlFix').checked ? -3706 : -3800);
+    function waterState() {
+      const m = $('mlWMode').value,
+        fix = $('mlFix').checked;
+      if (m === 'custom') return { L: +$('mlWLvl').value, f: fix ? 1 : 0 };
+      if (m === 'arabia') return { L: AR_LVL(), f: fix ? 1 : 0 };
+      if (m === 'deut') return { L: DE_LVL(), f: fix ? 0.17 : 0 };
+      const t = mlT(); // schematic timeline after Citron et al. 2018 and Scheller et al. 2021
+      if (t >= 3.9) return { L: AR_LVL(), f: fix ? 1 : 0 };
+      if (t >= 3.6) return { L: AR_LVL() + ((3.9 - t) / 0.3) * (DE_LVL() - AR_LVL()), f: fix ? (t >= 3.75 ? 1 : 0.17) : 0 };
+      if (t >= 3.0) return { L: DE_LVL() + ((3.6 - t) / 0.6) * (-5000 - DE_LVL()), f: fix ? 0.17 : 0 };
+      return { L: -1e9, f: 0 };
+    }
+    function mlWaterMesh() {
+      if (ML.water) return ML.water;
+      const tg = mlTopo(),
+        W = 1440,
+        H = 721,
+        d = new Float32Array(W * H * 4),
+        dh = mlDH();
+      for (let i = 0; i < W * H; i++) {
+        d[i * 4 + 1] = tg.a[i] * tg.k;
+        d[i * 4 + 2] = dh[i];
+      }
+      const tx = new THREE.DataTexture(d, W, H, THREE.RGBAFormat, THREE.FloatType);
+      tx.magFilter = tx.minFilter = THREE.NearestFilter;
+      tx.generateMipmaps = false;
+      const GL = `uniform sampler2D uT;uniform float uL,uF,uEx,uA;uniform vec3 uS,uD;
+        vec4 at(vec3 p){vec3 d=normalize(p);float lat=degrees(asin(clamp(d.y,-1.,1.))),lon=degrees(atan(-d.z,d.x));
+          return texture2D(uT,vec2((floor(mod(lon,360.)*4.)+.5)/1440.,(floor((90.-lat)*4.)+.5)/721.));}`;
+      const mat = new THREE.ShaderMaterial({
+        uniforms: { uT: { value: tx }, uL: { value: -2290 }, uF: { value: 0 }, uEx: { value: 0 }, uA: { value: 0.9 }, uS: { value: new THREE.Color('#4fb4ff') }, uD: { value: new THREE.Color('#0a2a66') } },
+        transparent: true,
+        depthWrite: false,
+        vertexShader: GL + 'varying vec3 vP;void main(){vP=position;float h=uL+uF*at(position).z;gl_Position=projectionMatrix*modelViewMatrix*vec4(position*(1.+uEx*h+.0004),1.);}',
+        fragmentShader:
+          GL +
+          `varying vec3 vP;void main(){vec4 v=at(vP);if(v.x>uL)discard;float dep=uL-(v.y-uF*v.z);
+            vec3 c=mix(uS,uD,smoothstep(0.,1500.,dep));c=mix(vec3(1.),c,smoothstep(0.,45.,dep));gl_FragColor=vec4(c,uA);}`,
+      });
+      ML.water = new THREE.Mesh(new THREE.SphereGeometry(1, 256, 128), mat);
+      ML.water.renderOrder = 2;
+      ML.water.fkey = null;
+      return ML.water;
+    }
+    function mlWaterUpdate() {
+      const st = waterState(),
+        L = st.L,
+        t = mlT();
+      $('mlWLvlO').textContent = L > -1e8 ? fmtM(L) : 'dry';
+      if ($('mlWMode').value !== 'custom' && L > -1e8) $('mlWLvl').value = Math.round(L);
+      $('mlWNote').textContent =
+        ($('mlWMode').value === 'tl' ? (L > -1e8 ? `At ${fmtGa(t)} the sea stands at ${fmtM(L)}` : `At ${fmtGa(t)} the northern ocean has dried up`) : `Sea level ${fmtM(L)}`) +
+        (L > -1e8 && st.f ? `, on terrain with ${Math.round(st.f * 100)}% of Tharsis’s deformation removed.` : L > -1e8 ? ', on today’s terrain.' : '.');
+      const on = ML.on && $('mlWater').checked && mlTopo();
+      if (!on) {
+        if (ML.water && ML.water.parent) world.remove(ML.water);
+        return;
+      }
+      const m = mlWaterMesh();
+      if (!m.parent) world.add(m);
+      const u = m.material.uniforms;
+      m.visible = L > -1e8;
+      u.uL.value = L;
+      u.uF.value = st.f;
+      u.uEx.value = exag / (P.radiusKm * 1000);
+      if (layer === 'topo') {
+        u.uS.value.set('#5feaff');
+        u.uD.value.set('#0790b8');
+        u.uA.value = 0.94;
+      } else {
+        u.uS.value.set('#4fb4ff');
+        u.uD.value.set('#0a2a66');
+        u.uA.value = 0.9;
+      }
+      const key = st.f.toFixed(2);
+      if (m.fkey !== key) {
+        const arr = mlArrival(st.f),
+          d = u.uT.value.image.data;
+        for (let i = 0; i < arr.length; i++) d[i * 4] = arr[i];
+        u.uT.value.needsUpdate = true;
+        m.fkey = key;
+      }
+      gPoke();
+    }
+    // ---- overlays: basins, impacts, shorelines and the ancient spin axis ----
+    function mlClear() {
+      while (ML.grp.children.length) {
+        const o = ML.grp.children.pop();
+        o.traverse((x) => {
+          if (x.geometry) x.geometry.dispose();
+          if (x.material) x.material.dispose();
+        });
+      }
+      ML.lbl.forEach((o) => o.el.remove());
+      ML.lbl = [];
+    }
+    const mlSurf = (la, lo, lift) => toVec(la, lo, radius(la, lo) + lift);
+    function mlDest(lat, lon, az, dist) {
+      const p1 = lat * MD,
+        l1 = lon * MD,
+        a = az * MD,
+        p2 = Math.asin(Math.sin(p1) * Math.cos(dist) + Math.cos(p1) * Math.sin(dist) * Math.cos(a)),
+        l2 = l1 + Math.atan2(Math.sin(a) * Math.sin(dist) * Math.cos(p1), Math.cos(dist) - Math.sin(p1) * Math.sin(p2));
+      return [p2 / MD, l2 / MD];
+    }
+    const mlBearing = (la1, lo1, la2, lo2) => {
+      const p1 = la1 * MD,
+        p2 = la2 * MD,
+        dl = (lo2 - lo1) * MD;
+      return ((Math.atan2(Math.sin(dl) * Math.cos(p2), Math.cos(p1) * Math.sin(p2) - Math.sin(p1) * Math.cos(p2) * Math.cos(dl)) / MD) + 360) % 360;
+    };
+    const ellR = (A, B, az, phi) => {
+      const t = (az - phi) * MD;
+      return (A * B) / Math.hypot(B * Math.cos(t), A * Math.sin(t));
+    };
+    function ellPts(f, A, B, k, a0 = 0, a1 = 360, n = 240) {
+      const pts = [];
+      for (let i = 0; i <= n; i++) {
+        const az = a0 + ((a1 - a0) * i) / n;
+        pts.push(mlDest(f.lat, f.lon, az, (k * ellR(A, B, az, f.az || 0)) / MARS_KM));
+      }
+      return pts;
+    }
+    function mlLine(ll, col, op, dash, lift = 0.006) {
+      const g = new THREE.BufferGeometry().setFromPoints(ll.map(([la, lo]) => mlSurf(la, lo, lift)));
+      const m = dash
+        ? new THREE.LineDashedMaterial({ color: col, dashSize: dash[0], gapSize: dash[1], transparent: true, opacity: op })
+        : new THREE.LineBasicMaterial({ color: col, transparent: op < 1, opacity: op });
+      const ln = new THREE.Line(g, m);
+      if (dash) ln.computeLineDistances();
+      ML.grp.add(ln);
+      return ln;
+    }
+    function mlLabel(text, la, lo, cls, colVar, lit, title, onclick) {
+      const el = document.createElement('span');
+      el.textContent = text;
+      el.className = 'pt mlb ' + (cls || '');
+      const col = ML_GLOBE[colVar] || `var(${colVar})`;
+      el.style.borderColor = col;
+      if (lit) {
+        el.style.background = col;
+        el.style.color = '#111';
+      } else el.style.color = col;
+      if (title) el.title = title;
+      if (onclick) {
+        el.style.pointerEvents = 'auto';
+        el.style.cursor = 'pointer';
+        el.onclick = onclick;
+      }
+      labels.appendChild(el);
+      ML.lbl.push({ el, pos: mlSurf(la, lo, 0.008) });
+    }
+    const mlCircle = (la, lo, dKm) => {
+      const pts = [];
+      for (let i = 0; i <= 120; i++) pts.push(mlDest(la, lo, i * 3, dKm / 2 / MARS_KM));
+      return pts;
+    };
+    function mlGoto(name) {
+      const f = ML_FEATS.find((x) => x.n === name),
+        r = ML_IMP.find((x) => x[0] === name && x[1] != null);
+      const at = f ? f.view || [f.lat, f.lon] : r ? [r[1], r[2]] : null;
+      if (!at) return;
+      if (window.UNFOCUS) window.UNFOCUS(true);
+      flyTo(Math.max(-60, Math.min(60, at[0] * 0.8 + 8)), at[1], f && f.d > 4000 ? 3.6 : 3.0);
+      document.querySelectorAll('#mlFeatList button').forEach((b) => b.setAttribute('aria-pressed', b.dataset.f === name));
+      if (!PL.on) $('stage').scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'center' });
+    }
+    function mlDraw() {
+      mlClear();
+      if (!ML.on || !ML.data) return;
+      const t = mlT(),
+        C = (v) => new THREE.Color(ML_GLOBE[v] || cssv(v) || '#888');
+      if ($('mlFeat').checked)
+        ML_FEATS.forEach((f) => {
+          const st = featState(f, t);
+          if (st === 'hidden') return;
+          const col = C(f.c),
+            op = st === 'past' ? 0.75 : 1,
+            r = tlRow(f.tl),
+            when = r.early ? 'impact about 4.4 Ga' : r.at != null ? `impact about ${r.at.toFixed(2)} Ga` : `built about ${r.seg[0][0].toFixed(2)}–${r.seg[0][3].toFixed(2)} Ga`;
+          if (f.d2) {
+            mlLine(ellPts(f, f.d / 2, f.d2 / 2, 1), col, op);
+            if (st === 'lit') [0.97, 0.94].forEach((k) => mlLine(ellPts(f, f.d / 2, f.d2 / 2, k), col, 0.55));
+            (f.alt || []).forEach(([a, b]) => mlLine(ellPts(f, a / 2, b / 2, 1), col, op * 0.6, [0.02, 0.02]));
+            if (f.ring) {
+              const az0 = mlBearing(f.lat, f.lon, f.ring.lat, f.ring.lon),
+                arc = ellPts(f, f.d / 2, f.d2 / 2, f.ring.k, az0 - f.ring.half, az0 + f.ring.half, 80);
+              mlLine(arc, col, op, [0.035, 0.025]);
+              mlLabel('Possible outer ring (Arabia Terra)', arc[40][0], arc[40][1], 'dashed', f.c, false, 'A possible outer ring of the Borealis basin, at 1.57 times the ellipse radius (Andrews-Hanna et al. 2008).');
+            }
+          } else {
+            const pts = mlCircle(f.lat, f.lon, f.d);
+            mlLine(pts, col, op, f.dash ? [0.03, 0.02] : null);
+            if (st === 'lit') [0.96, 0.92].forEach((k) => mlLine(mlCircle(f.lat, f.lon, f.d * k), col, 0.6));
+          }
+          mlLabel(f.n, f.lat, f.lon, '', f.c, st === 'lit', `${f.n}: ${when}. Click to turn to it.`, () => mlGoto(f.n));
+        });
+      if ($('mlImp').checked)
+        ML_IMP.forEach((r) => {
+          const [n, la, lo, d] = r,
+            st = impState(r, t);
+          if (st === 'hidden' || la == null) return;
+          const cv = ERA_OF(impMid(r))[1],
+            op = st === 'past' ? 0.75 : st === 'unsure' ? 0.55 : 1;
+          mlLine(mlCircle(la, lo, d), C(cv), op, st === 'unsure' ? [0.012, 0.01] : null);
+          mlLabel(n, la, lo, 'imp' + (st === 'unsure' ? ' dashed' : ''), cv, st === 'lit', `${n}: ${d.toLocaleString('en-US')} km, ${impAge(r)}. ${r[6]}.`, () => mlGoto(n));
+        });
+      if ($('mlShore').checked)
+        [['arabia', '#e0883a'], ['deuteronilus', '#f2cf4a']].forEach(([k, col]) => {
+          const g = new THREE.BufferGeometry().setFromPoints(ML.data.shore[k].map(([lo, la]) => mlSurf(la, lo, 0.004)));
+          ML.grp.add(new THREE.Points(g, new THREE.PointsMaterial({ color: col, size: 3 * Math.min(2, window.devicePixelRatio || 1), sizeAttenuation: false })));
+        });
+      // the ancient spin axis and its equator, with Ancient Mars showing
+      const am = $('mlAnc').value;
+      if ($('mlPaleo').checked && layer === 'anc' && am !== 'now') {
+        const w = mlWeights(),
+          p = slerpPole(mlPaleo(), [90, 0], w[0]);
+        if (p[0] < 89.9) {
+          const col = C('--paleo'),
+            grp = new THREE.Group(),
+            R = 1.012;
+          const eq = [];
+          for (let i = 0; i <= 180; i++) {
+            const a = (2 * Math.PI * i) / 180;
+            eq.push(new THREE.Vector3(Math.cos(a) * R, 0, Math.sin(a) * R));
+          }
+          grp.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(eq), new THREE.LineBasicMaterial({ color: col, transparent: true, opacity: 0.95 })));
+          grp.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0, -1.3, 0), new THREE.Vector3(0, 1.3, 0)]), new THREE.LineBasicMaterial({ color: col })));
+          grp.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), toVec(p[0], p[1] > 180 ? p[1] - 360 : p[1], 1).normalize());
+          ML.grp.add(grp);
+          [1, -1].forEach((sg) => {
+            const la = sg * p[0],
+              lo = ((p[1] + (sg < 0 ? 180 : 0)) % 360 + 360) % 360;
+            mlLabel(`Ancient ${sg > 0 ? 'N' : 'S'} pole ${Math.abs(la).toFixed(1)}°${la >= 0 ? 'N' : 'S'} ${lo.toFixed(1)}°E`, la, lo > 180 ? lo - 360 : lo, '', '--paleo', false);
+          });
+        }
+      }
+      gPoke();
+    }
+    function mlNotes() {
+      const m = $('mlAnc').value,
+        t = mlT(),
+        w = mlWeights();
+      if (!ML.data) return;
+      const p = slerpPole(mlPaleo(), [90, 0], w[0]);
+      $('mlAncNote').textContent =
+        m === 'now'
+          ? 'Today’s areoid against the rotational bulge alone: every lump is extra or missing mass. Tharsis stands out at nearly +2 km.'
+          : m === 'pre'
+            ? `Tharsis, Hellas and Argyre removed. What’s left ranges from about −460 m to +530 m, highest over Isidis. The spin axis then sat near ${Math.abs(p[0]).toFixed(1)}° N, ${p[1].toFixed(1)}° E.`
+            : `At ${fmtGa(t)}: Tharsis ${Math.round(w[0] * 100)}% built, Hellas ${t <= HEL ? 'formed' : 'not yet formed'}, Argyre ${t <= ARG ? 'formed' : 'not yet formed'}. Spin axis near ${p[0].toFixed(1)}° N, ${p[1].toFixed(1)}° E.`;
+    }
+    // what the globe overlays depend on; redrawn only when this changes
+    function mlSig() {
+      const t = mlT(),
+        w = mlWeights();
+      return [
+        $('mlFeat').checked,
+        $('mlImp').checked,
+        $('mlFollow').checked,
+        $('mlShore').checked,
+        $('mlPaleo').checked,
+        $('mlPaleoSrc').value,
+        $('mlAnc').value,
+        layer === 'anc',
+        exag,
+        w.join(','),
+        ML_FEATS.map((f) => featState(f, t)).join(''),
+        ML_IMP.map((r) => impState(r, t)).join(''),
+      ].join('|');
+    }
+    let mlAncAt = 0;
+    function mlUpdate(force) {
+      if (!ML.on) return;
+      const s = mlSig();
+      if (force || s !== ML.sig) {
+        ML.sig = s;
+        mlDraw();
+      }
+      const now = performance.now();
+      if (force || now - mlAncAt > 250) {
+        mlAncAt = now;
+        mlAncLayer();
+      }
+      mlNotes();
+      mlWaterUpdate();
+    }
+    // ---- the timeline chart ----
+    function mlChart() {
+      const svg = $('mlTl'),
+        NS = 'http://www.w3.org/2000/svg',
+        X0 = 24,
+        X1 = 976,
+        x = (t) => X0 + ((4.5 - t) * (X1 - X0)) / 4.5,
+        mk = (tag, a, p = svg) => {
+          const e = document.createElementNS(NS, tag);
+          for (const k in a) e.setAttribute(k, a[k]);
+          p.appendChild(e);
+          return e;
+        },
+        t = mlT(),
+        v = cssv,
+        era = TL_ERAS.find((e) => t <= e[1] && t >= e[2]) || TL_ERAS[3];
+      $('mlTO').innerHTML = `${fmtGa(t)} · <span class="era">${era[0]}</span>`;
+      const kinds = TL.map((g) => g.rows.map((r) => tlStatus(r, t)[0]).join('')).join('|') + era[0];
+      if (kinds === mlChart.sig && mlChart.cur) {
+        mlChart.cur.setAttribute('x1', x(t));
+        mlChart.cur.setAttribute('x2', x(t));
+        mlChart.dot.setAttribute('cx', x(t));
+        mlCards(t);
+        return;
+      }
+      mlChart.sig = kinds;
+      svg.replaceChildren();
+      const defs = mk('defs', {});
+      TL_ERAS.forEach(([n, a, b, c]) => {
+        mk('rect', { x: x(a), y: 22, width: x(b) - x(a), height: 36, fill: v(c), stroke: v('--ink'), 'stroke-width': 1 });
+        const w = x(b) - x(a);
+        mk('text', { x: (x(a) + x(b)) / 2, y: 45, 'text-anchor': 'middle', 'font-size': w < 70 ? 11 : w < 120 ? 12 : 14, fill: v('--ink'), 'font-family': 'Instrument Sans, sans-serif', 'font-weight': n === era[0] ? 600 : 400 }).textContent = n;
+      });
+      [[4.1, '~4.1 Ga'], [3.5, '~3.5 Ga'], [3.0, '~3.0 Ga']].forEach(([a, l]) => (mk('text', { x: x(a), y: 15, 'text-anchor': 'middle', 'font-size': 12, fill: v('--muted'), 'font-family': 'JetBrains Mono, monospace' }).textContent = l));
+      let y = 72,
+        gid = 0;
+      TL.forEach((g) => {
+        const top = y;
+        y += 10;
+        g.rows.forEach((r) => {
+          const col = v(r.c),
+            st = tlStatus(r, t)[0];
+          if (r.early) {
+            const [a, b] = r.early;
+            mk('rect', { x: x(a), y, width: x(b) - x(a), height: 14, fill: col, 'fill-opacity': 0.18, stroke: col, 'stroke-width': 1.5, 'stroke-dasharray': '5 3' });
+            mk('rect', { x: x(r.at) - 4, y: y + 3, width: 8, height: 8, fill: col, transform: `rotate(45 ${x(r.at)} ${y + 7})` });
+            mk('text', { x: x(b) + 8, y: y + 12, 'font-size': 13, fill: v('--ink'), 'font-family': 'Instrument Sans, sans-serif', 'font-weight': st === 'on' ? 600 : 400 }).textContent = r.n;
+          } else if (r.at != null) {
+            mk('rect', { x: x(r.at) - 4, y: y + 3, width: 8, height: 8, fill: v('--ink') });
+            mk('text', { x: x(r.at) + 10, y: y + 12, 'font-size': 13, fill: v('--ink'), 'font-family': 'Instrument Sans, sans-serif' }).textContent = r.n;
+          } else {
+            let endX = 0;
+            r.seg.forEach(([a, b, c, d]) => {
+              const id = 'mltg' + gid++,
+                Gr = mk('linearGradient', { id, x1: x(a), x2: x(d), y1: 0, y2: 0, gradientUnits: 'userSpaceOnUse' }, defs),
+                span = x(d) - x(a) || 1,
+                off = (p) => Math.max(0, Math.min(1, (x(p) - x(a)) / span));
+              [[0, a === b ? 1 : 0], [off(b), 1], [off(c), 1], [1, 0]].forEach(([o, opc]) => mk('stop', { offset: o, 'stop-color': col, 'stop-opacity': opc }, Gr));
+              mk('rect', { x: x(a), y, width: Math.max(2, x(d) - x(a)), height: 14, fill: `url(#${id})` });
+              endX = Math.max(endX, x(d));
+            });
+            if (r.q) mk('text', { x: x(r.seg[0][0]) - 6, y: y + 12, 'text-anchor': 'end', 'font-size': 13, fill: v('--ink'), 'font-family': 'Instrument Sans, sans-serif' }).textContent = '?';
+            mk('text', { x: endX + 8, y: y + 12, 'font-size': 13, fill: v('--ink'), 'font-family': 'Instrument Sans, sans-serif', 'font-weight': st === 'on' ? 600 : 400 }).textContent = (r.qEnd ? '? ' : '') + r.n;
+          }
+          y += 22;
+        });
+        y += 6;
+        mk('rect', { x: X0, y: top, width: X1 - X0, height: y - top, fill: 'none', stroke: v('--ink'), 'stroke-width': 1 });
+        mk('text', { x: X1 - 10, y: (top + y) / 2 + 5, 'text-anchor': 'end', 'font-size': 13, fill: v('--muted'), 'font-family': 'Instrument Sans, sans-serif' }).textContent = g.cat;
+        y += 8;
+      });
+      for (let a = 4.5; a >= -1e-9; a -= 0.5) {
+        const X = x(a);
+        mk('line', { x1: X, x2: X, y1: y, y2: y + 6, stroke: v('--graphite') });
+        mk('text', { x: X, y: y + 20, 'text-anchor': 'middle', 'font-size': 12, fill: v('--muted'), 'font-family': 'JetBrains Mono, monospace' }).textContent = a.toFixed(1);
+      }
+      mk('text', { x: (X0 + X1) / 2, y: y + 38, 'text-anchor': 'middle', 'font-size': 12, fill: v('--muted'), 'font-family': 'Instrument Sans, sans-serif' }).textContent = 'Billions of years ago (Ga)';
+      svg.setAttribute('viewBox', `0 0 1000 ${y + 46}`);
+      mlChart.cur = mk('line', { x1: x(t), x2: x(t), y1: 18, y2: y, stroke: v('--node'), 'stroke-width': 2 });
+      mlChart.dot = mk('circle', { cx: x(t), cy: y, r: 5, fill: v('--node') });
+      mlCards(t);
+    }
+    let cardAt = 0;
+    function mlCards(t) {
+      const now = performance.now();
+      if (now - cardAt < 150) return;
+      cardAt = now;
+      $('mlNow').innerHTML = TL.map(
+        (g) =>
+          `<div class="tlcat"><h3>${g.cat}</h3><ul>${g.rows
+            .map((r) => {
+              const [k, txt] = tlStatus(r, t);
+              return `<li class="${k === 'dim' ? 'dim' : ''}"><i style="background:var(${r.c})"></i><span>${esc(r.n)} <em>${txt}</em></span></li>`;
+            })
+            .join('')}</ul></div>`,
+      ).join('');
+    }
+    function mlTime() {
+      mlChart();
+      mlUpdate();
+    }
+    $('mlT').addEventListener('input', mlTime);
+    {
+      let drag = false;
+      const svg = $('mlTl'),
+        setFrom = (e) => {
+          const r = svg.getBoundingClientRect(),
+            vb = svg.viewBox.baseVal,
+            px = ((e.clientX - r.left) / r.width) * vb.width;
+          $('mlT').value = Math.max(0, Math.min(4.5, 4.5 - ((px - 24) * 4.5) / 952)).toFixed(2);
+          mlTime();
+        };
+      svg.addEventListener('pointerdown', (e) => {
+        drag = true;
+        svg.setPointerCapture(e.pointerId);
+        mlStop(false);
+        setFrom(e);
+      });
+      svg.addEventListener('pointermove', (e) => drag && setFrom(e));
+      svg.addEventListener('pointerup', () => (drag = false));
+      svg.addEventListener('pointercancel', () => (drag = false));
+    }
+    // ---- the player: cruises through the eons, braking into each event and turning the globe to it ----
+    const ML_EVENTS = [
+      [4.4, 'Borealis basin', 'The Borealis impact strikes the north'],
+      [4.33, 'Tharsis', 'Tharsis starts to build'],
+      [4.2, 'Utopia basin', 'The Utopia impact'],
+      [4.16, 'Hellas basin', 'The Hellas impact'],
+      [4.12, 'Ladon basin', 'The Ladon impact'],
+      [3.98, 'Argyre basin', 'The Argyre impact'],
+      [3.97, 'Isidis basin', 'The Isidis impact'],
+      [3.78, 'Gale', 'Gale crater forms'],
+      [3.52, 'Tharsis', 'Tharsis is complete'],
+    ];
+    const PL = { on: false, cur: 3.8, vel: 0, hold: 0, last: 0, cap: '', capT: 9, touched: false, prev: null };
+    const mlEra = (t) => (TL_ERAS.find((e) => t <= e[1] && t > e[2] - 1e-9) || TL_ERAS[3])[0];
+    const plShow = (t) => ($('mlPlayO').innerHTML = `${fmtGa(t)} · <b>${mlEra(t)}</b>${PL.cap ? ` · ${esc(PL.cap)}` : ''}`);
+    const plSet = (t) => {
+      $('mlT').value = Math.max(0, t).toFixed(3);
+      mlTime();
+    };
+    function mlStop(done) {
+      if (!PL.on && !done) return;
+      PL.on = false;
+      PL.touched = !done;
+      $('mlPlay').setAttribute('aria-pressed', 'false');
+      $('mlPlay').textContent = done ? '▶ Timeline again' : '▶ Timeline';
+    }
+    function mlStart() {
+      PL.cur = mlT();
+      if (PL.cur <= 0.001 || !PL.touched) {
+        PL.cur = 4.5;
+        plSet(4.5);
+        PL.cap = '';
+      }
+      $('mlFeat').checked = $('mlImp').checked = $('mlFollow').checked = true;
+      $('mlAnc').value = 'tl';
+      if (layer !== 'anc') setLayer('anc');
+      mlUpdate(true);
+      PL.on = true;
+      PL.last = performance.now();
+      PL.hold = 0;
+      PL.vel = 0;
+      $('mlPlay').setAttribute('aria-pressed', 'true');
+      $('mlPlay').textContent = '❚❚ Pause';
+      plShow(PL.cur);
+      requestAnimationFrame(mlStep);
+    }
+    const sstep = (a, b, x) => {
+      const u = Math.max(0, Math.min(1, (a - x) / (a - b)));
+      return u * u * (3 - 2 * u);
+    };
+    function mlStep(now) {
+      if (!PL.on) return;
+      const dt = Math.min(0.05, (now - PL.last) / 1000) * +$('mlSpeed').value;
+      PL.last = now;
+      if (PL.hold > 0) {
+        PL.hold -= dt;
+        PL.vel = 0;
+        requestAnimationFrame(mlStep);
+        return;
+      }
+      const cruise = 0.05 + 0.35 * sstep(3.25, 2.75, PL.cur),
+        ev = ML_EVENTS.find((e) => e[0] < PL.cur - 1e-6),
+        gap = ev ? PL.cur - ev[0] : Infinity,
+        target = cruise * Math.max(0.18, Math.min(1, gap / (cruise * 1.2)));
+      PL.vel += (target - PL.vel) * (1 - Math.exp(-dt * 2.5));
+      const nt = Math.max(0, PL.cur - PL.vel * dt);
+      if (ev && nt <= ev[0]) {
+        PL.cur = ev[0];
+        plSet(PL.cur);
+        PL.cap = ev[2];
+        PL.capT = PL.cur;
+        mlGoto(ev[1]);
+        PL.hold = 1.5;
+      } else {
+        PL.cur = nt;
+        plSet(PL.cur);
+        if (PL.cap && PL.cur < PL.capT - 0.08) PL.cap = '';
+      }
+      plShow(PL.cur);
+      if (PL.cur <= 0) {
+        PL.cap = 'Today';
+        plShow(0);
+        mlStop(true);
+        return;
+      }
+      requestAnimationFrame(mlStep);
+    }
+    $('mlPlay').onclick = () => (PL.on ? mlStop(false) : mlStart());
+    $('mlReset').onclick = () => {
+      mlStop(false);
+      PL.cap = '';
+      PL.touched = false;
+      plSet(4.5);
+      plShow(4.5);
+    };
+    $('mlT').addEventListener('input', (e) => {
+      if (e.isTrusted) {
+        PL.touched = true;
+        mlStop(false);
+        plShow(mlT());
+      }
+    });
+    // ---- the lists and switches ----
+    {
+      $('mlKey').innerHTML = [['Pre-Noachian', '--imp-pre'], ['Noachian', '--imp-noa'], ['Hesperian', '--imp-hes'], ['Amazonian', '--imp-ama']]
+        .map(([n, c]) => `<span class="note"><span class="sw" style="background:var(${c})"></span> ${n}</span>`)
+        .join('');
+      $('mlFeatList').innerHTML = ML_FEATS.map(
+        (f) => `<button type="button" data-f="${esc(f.n)}" aria-pressed="false"><i style="background:var(${f.c})"></i><span>${esc(f.n)} <em>${fmtLat(f.lat)} ${fmtLon(f.lon)} · ${f.d.toLocaleString('en-US')}${f.d2 ? ' × ' + f.d2.toLocaleString('en-US') : ''} km</em></span></button>`,
+      ).join('');
+      $('mlFeatList').querySelectorAll('button').forEach((b) => (b.onclick = () => mlGoto(b.dataset.f)));
+      $('mlImpTb').innerHTML = ML_IMP.slice()
+        .sort((a, b) => impMid(b) - impMid(a))
+        .map((r) => {
+          const [n, la, lo, d] = r,
+            [era, c] = ERA_OF(impMid(r));
+          return `<tr data-n="${esc(n)}"${la != null || ML_FEATS.some((f) => f.n === n) ? ' tabindex="0"' : ''}><td><span class="sw" style="background:var(${c})"></span>${esc(n)}<span class="sub">${la != null ? fmtLat(la) + ' ' + fmtLon(lo) + ' · ' : ''}${esc(r[6])}</span></td><td>${d.toLocaleString('en-US')} km</td><td>${impAge(r)}<span class="sub">${era}</span></td></tr>`;
+        })
+        .join('');
+      $('mlImpTb').querySelectorAll('tr').forEach((tr) => {
+        tr.onclick = () => mlGoto(tr.dataset.n);
+        tr.onkeydown = (e) => (e.key === 'Enter' || e.key === ' ') && (e.preventDefault(), mlGoto(tr.dataset.n));
+      });
+    }
+    ['mlFeat', 'mlImp', 'mlFollow', 'mlShore', 'mlPaleo', 'mlPaleoSrc', 'mlWater', 'mlFix', 'mlWMode'].forEach((id) => $(id).addEventListener('change', () => mlUpdate(true)));
+    $('mlWLvl').addEventListener('input', () => {
+      $('mlWMode').value = 'custom';
+      mlUpdate();
+    });
+    $('mlAnc').addEventListener('change', () => {
+      ancKey = '';
+      mlUpdate(true);
+      if (layer !== 'anc') setLayer('anc');
+    });
+    $('mlAncGo').onclick = () => {
+      ancKey = '';
+      mlAncLayer();
+      setLayer('anc');
+      mlUpdate(true);
+      $('stage').scrollIntoView({ behavior: 'smooth', block: 'center' });
+    };
+    // a new world: show the section and its overlays on Mars only
+    window.ML_WORLD = () => {
+      const on = !!(P && P.id === 'mars');
+      $('mlab').hidden = !on;
+      if (!on) {
+        mlStop(false);
+        ML.on = false;
+        mlClear();
+        if (ML.water && ML.water.parent) world.remove(ML.water);
+        return;
+      }
+      ancKey = '';
+      ML.sig = '';
+      mlChart();
+      plShow(mlT());
+      mlLoad()
+        .then(() => {
+          if (!P || P.id !== 'mars') return;
+          ML.on = true;
+          mlUpdate(true);
+        })
+        .catch((e) => ($('mlAncNote').textContent = `Ancient Mars could not be loaded (${e.message}).`));
+    };
+    // each frame: place the overlay labels; a layer or relief change redraws what depends on it
+    window.ML_TICK = () => {
+      if (!ML.on) return;
+      ML.lbl.forEach((o) => project(o.pos, o.el, true));
+      const s = layer + '|' + exag;
+      if (s !== ML.lastLE) {
+        ML.lastLE = s;
+        mlUpdate();
+      }
+    };
+    window.ML_LBL = () => ML.lbl;
+    window.atlasMars = () => ({ on: ML.on, loaded: !!ML.data, t: mlT(), overlays: ML.grp.children.length, labels: ML.lbl.filter((o) => !o.el.hidden).length, water: !!(ML.water && ML.water.parent && ML.water.visible), level: ML.water ? ML.water.material.uniforms.uL.value : null, anc: P && P.grids.some((g) => g.id === 'anc'), layer, playing: PL.on });
     // ---------- frame loop ----------
     const v3 = new THREE.Vector3();
     function project(p, el, cond) {
@@ -4600,6 +5885,7 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
       });
       FEAT.forEach((f) => project(f.pos, f.el, showFeat));
       PTS.forEach((o) => o.labels.forEach((el, i) => project(o.items[i].pos, el, o.grp.visible && dist < 2.6)));
+      if (window.ML_TICK) window.ML_TICK();
       declutter();
     }
     const LBOX = [],
@@ -4608,6 +5894,7 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
       LBOX.length = LPRI.length = 0;
       SITES.forEach((s) => s.label.hidden || LPRI.push([s === selected || s === hoverSite ? 0 : 1, s.label]));
       PTS.forEach((o) => o.labels.forEach((el) => el.hidden || LPRI.push([2, el])));
+      if (window.ML_LBL) window.ML_LBL().forEach((o) => o.el.hidden || LPRI.push([2, o.el]));
       FEAT.forEach((f) => f.el.hidden || LPRI.push([3, f.el]));
       LPRI.sort((a, b) => a[0] - b[0]);
       const W = stage.clientWidth;
