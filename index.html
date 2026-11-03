@@ -202,6 +202,7 @@ pre.schema{margin:0;font-family:var(--mono);font-size:.74rem;line-height:1.45;ba
 #handCv{position:absolute;inset:0;width:100%;height:100%;transform:scaleX(-1)}
 #toMap{position:absolute;top:10px;right:10px;z-index:3;background:rgba(14,16,18,.78);color:#e9ecef;border-color:rgba(255,255,255,.25);font-size:.8rem}
 #toMap:hover{border-color:#e9ecef}
+#unfocusBtn{position:absolute;left:10px;bottom:10px;z-index:3;background:rgba(14,16,18,.78);color:#e9ecef;border-color:rgba(255,255,255,.25);font-size:.8rem}#unfocusBtn:hover{border-color:#e9ecef}
 /* hand cursor, after Kinect's hand pointer: a ring that follows your palm and shows what a pinch will do */
 #handCur{position:fixed;left:0;top:0;z-index:80;pointer-events:none;transform:translate(-50%,-50%);display:grid;justify-items:center;gap:4px}
 #handCur i{position:relative;display:block;width:34px;height:34px;border-radius:50%;border:3px solid #fff;box-shadow:0 0 0 2px rgba(0,0,0,.55),0 2px 8px rgba(0,0,0,.4);transition:width .12s,height .12s,background .12s,border-color .12s}
@@ -251,7 +252,7 @@ pre.schema{margin:0;font-family:var(--mono);font-size:.74rem;line-height:1.45;ba
 </header>
 
 <div class="grid">
-  <div class="stage" id="stage"><div id="globe"></div><div id="labels"></div><button type="button" id="toMap" title="Back up to the Solar System map">↑ Solar System</button><div class="cap" id="cap"></div><div id="satCard" hidden></div><div id="busy" hidden>Loading…</div><div id="handMsg" role="status" hidden></div></div>
+  <div class="stage" id="stage"><div id="globe"></div><div id="labels"></div><button type="button" id="toMap" title="Back up to the Solar System map">↑ Solar System</button><button type="button" id="unfocusBtn" hidden title="Back to the whole planet">← Whole planet</button><div class="cap" id="cap"></div><div id="satCard" hidden></div><div id="busy" hidden>Loading…</div><div id="handMsg" role="status" hidden></div></div>
   <div id="handCur" hidden><i></i><span></span></div>
   <div id="fsBar" hidden role="toolbar" aria-label="Hand control"><button type="button" id="fsMap">↑ Solar System</button><button type="button" id="fsLand" hidden>Land</button><span class="fsTime"><button type="button" id="fsZin" title="Zoom in: pinch and hold">＋</button><button type="button" id="fsZout" title="Zoom out: pinch and hold">−</button></span><span class="fsTime"><button type="button" data-fw="-36525" title="Backward fast">◀◀</button><button type="button" data-fw="-365.25" title="Backward">◀</button><button type="button" data-fw="0" title="Pause">⏸</button><button type="button" data-fw="1" title="Forward, 1 day a second">▶</button><button type="button" data-fw="36525" title="Forward fast">▶▶</button></span><span id="fsDate"></span><button type="button" id="fsExit">✕ Exit hand control</button></div>
   <div id="handBox" hidden><video id="handVid" playsinline muted></video><canvas id="handCv"></canvas></div>
@@ -582,16 +583,18 @@ function pick(ev){const r=renderer.domElement.getBoundingClientRect();mouse.x=(e
   const g=ray.intersectObject(globe);let ll=null;if(g.length){const p=world.worldToLocal(g[0].point.clone());p.y/=(1-FLAT);p.normalize();ll=[Math.asin(p.y)*180/Math.PI,Math.atan2(-p.z,p.x)*180/Math.PI];}return {site,ll};}
 renderer.domElement.addEventListener('pointermove',ev=>{if(!P)return;const {site,ll}=pick(ev);hoverSite=site;renderer.domElement.style.cursor=site?'pointer':'grab';if(ll)readout(ll[0],ll[1]);});
 renderer.domElement.addEventListener('pointerdown',ev=>downAt=[ev.clientX,ev.clientY]);
+renderer.domElement.addEventListener('dblclick',ev=>{if(!P)return;const {ll}=pick(ev);if(ll)focusOn(ll[0],ll[1]);});   // double-click any spot to look at it close up
+$('unfocusBtn').onclick=()=>unfocus(false);
 renderer.domElement.addEventListener('pointerup',ev=>{if(!P||!downAt||Math.hypot(ev.clientX-downAt[0],ev.clientY-downAt[1])>5)return;const {site}=pick(ev);if(site)select(site,true);});
 // ---------- camera flights ----------
 let fly=null;
-controls.addEventListener('start',()=>{fly=null;});   // your scroll or drag always wins over a flight
+controls.addEventListener('start',()=>{fly=null;if(ftw&&window.FOCUS_SNAP)window.FOCUS_SNAP();});   // your scroll or drag always wins over a flight
 function flyTo(lat,lon,dist,dur){const from=camera.position.clone(),d=dist||Math.max(2.2,Math.min(from.length(),3.9));fly={from,to:toWorld(toVec(lat,lon,d)),t0:performance.now(),dur:matchMedia('(prefers-reduced-motion: reduce)').matches?1:(dur||900)};}
 // ---------- selection + table ----------
 function siteVals(s){return (P.grids||[]).slice(0,4).map(d=>samp(G[d.id],s.lat,s.lon));}
 function select(s,go){selected=s;document.querySelectorAll('#siteTb tbody tr').forEach(tr=>tr.classList.toggle('sel',+tr.dataset.i===s.i));const c=catOf(s.cat),v=siteVals(s);
   $('selCard').innerHTML=`<b style="color:var(--ink)">${esc(s.name)}</b>${s.who?' · '+esc(s.who):''}${s.date?' · '+esc(s.date):''}<br>${esc(c.label)} at ${fmtLat(s.lat)} ${fmtLon(s.lon)}<br>${esc(s.note||'')}${v.length?`<br><span style="font-family:var(--mono);font-size:.78rem">${(P.grids||[]).slice(0,4).map((d,i)=>esc(d.label)+' '+fmt(v[i],d.unit)).join(' · ')}</span>`:''}`;
-  readout(s.lat,s.lon);if(go)flyTo(s.lat,s.lon,2.2);}
+  readout(s.lat,s.lon);if(go)focusOn(s.lat,s.lon);}
 let sortK='date',sortD=1;
 function drawTable(){const gs=(P.grids||[]).slice(0,4);
   const cols=[['name','Name','t'],['who','Agency','t'],['date','Date',''],['cat','Type','t'],['lat','Lat',''],['lon','Lon','']].concat(gs.map((d,i)=>['v'+i,`${d.label} ${d.unit}`,'']));
@@ -617,7 +620,25 @@ function buildLayerSeg(){const items=[...(P.grids||[]).map(d=>[d.id,d.label]),..
 function buildViews(){const v=(P.views&&P.views.length?P.views:[]).concat([['0° E',0,0,3.9],['180°',0,180,3.9]]);
   $('viewBtns').innerHTML=v.map((x,i)=>`<button type="button" data-i="${i}">${esc(x[0])}</button>`).join('');$('viewBtns').querySelectorAll('button').forEach(b=>b.onclick=()=>{const x=v[+b.dataset.i];flyTo(x[1],x[2],x[3]);});}
 // ---------- loading a pack ----------
-async function usePack(pack,keepView){P=pack;world.rotation.y=0;lastW=null;FLAT=+(pack.flattening||0);controls.maxDistance=pack.rings?9:8;P.categories=P.categories||{};P.grids=P.grids||[];P.images=P.images||[];
+// ---------- focus view (as in the Mars Modeling Atlas): fly to a spot, look across it at 40° from the south, orbit around it ----------
+let FOCUS=null,ftw=null;const fv=new THREE.Vector3();
+function startF(tT,tD,tL,dur){const fT=controls.target.clone(),off=camera.position.clone().sub(fT);ftw={fT,tT,fD:off.clone().normalize(),tD:tD.clone().normalize(),fL:off.length(),tL,t0:performance.now(),dur:RM()?1:(dur||1600)};fly=null;}
+function focusOn(lat,lon){if(!P)return;const loc=toVec(lat,lon,radius(lat,lon));FOCUS={loc};const T=toWorld(loc),n=T.clone().normalize();
+  let south=new THREE.Vector3(0,1,0).sub(n.clone().multiplyScalar(n.y));if(south.lengthSq()<1e-6)south.set(1,0,0);south.normalize().multiplyScalar(-1);
+  const dir=n.clone().multiplyScalar(Math.cos(40*Math.PI/180)).addScaledVector(south,Math.sin(40*Math.PI/180));
+  controls.minDistance=.012;startF(T,dir,.32);$('unfocusBtn').hidden=false;}
+function unfocus(instant){if(!FOCUS&&!ftw)return;FOCUS=null;$('unfocusBtn').hidden=true;const dir=camera.position.clone().normalize();
+  if(instant){ftw=null;controls.target.set(0,0,0);camera.position.copy(dir.multiplyScalar(3.4));controls.minDistance=1.1;return;}
+  startF(new THREE.Vector3(),dir,3.4);ftw.done=()=>{controls.minDistance=1.1;};}
+window.UNFOCUS=unfocus;
+// you grabbed the view mid-flight: jump the pivot to the spot and let you carry on from there
+window.FOCUS_SNAP=()=>{const tT=FOCUS?toWorld(FOCUS.loc):ftw.tT,d=tT.clone().sub(controls.target);controls.target.add(d);camera.position.add(d);const dn=ftw.done;ftw=null;if(dn)dn();};
+// each frame: play the flight, then keep the camera riding along with the spot as the planet spins
+function focusStep(t){if(ftw){const k=Math.min(1,(t-ftw.t0)/ftw.dur),e=k<.5?2*k*k:1-Math.pow(-2*k+2,2)/2,tT=FOCUS?toWorld(FOCUS.loc):ftw.tT;
+    controls.target.copy(ftw.fT).lerp(tT,e);const dir=ftw.fD.clone().lerp(ftw.tD,e).normalize(),len=Math.exp(Math.log(ftw.fL)+(Math.log(ftw.tL)-Math.log(ftw.fL))*e);
+    camera.position.copy(controls.target).addScaledVector(dir,len);if(k>=1){const d=ftw.done;ftw=null;if(d)d();}return;}
+  if(FOCUS){fv.copy(toWorld(FOCUS.loc)).sub(controls.target);controls.target.add(fv);camera.position.add(fv);}}
+async function usePack(pack,keepView){unfocus(true);P=pack;world.rotation.y=0;lastW=null;FLAT=+(pack.flattening||0);controls.maxDistance=pack.rings?9:8;P.categories=P.categories||{};P.grids=P.grids||[];P.images=P.images||[];
   Object.keys(imgTex).forEach(k=>{imgTex[k].dispose();delete imgTex[k];});
   G={};P.grids.forEach(d=>G[d.id]=mkGrid(d));const ed=P.grids.find(d=>d.elev);ELEV=ed?G[ed.id]:null;
   SH=null;if(ELEV)SH=shadeFromElev(ELEV);else if(P.shade){try{SH=shadeFromImage(await loadImg(P.shade));}catch(e){SH=null;}}
@@ -772,7 +793,7 @@ function project(p,el,cond){if(!cond||!p){el.hidden=true;return;}const wp=toWorl
 let gVis=true;new IntersectionObserver(es=>{gVis=es[0].isIntersecting;}).observe(stage);
 function resize(){const w=stage.clientWidth,h=stage.clientHeight;renderer.setSize(w,h,false);camera.aspect=w/h;camera.updateProjectionMatrix();}
 new ResizeObserver(resize).observe(stage);resize();
-function frame(t){requestAnimationFrame(frame);
+function frame(t){requestAnimationFrame(frame);focusStep(t);
   if(fly){const k=Math.min(1,(t-fly.t0)/fly.dur),e=k<.5?2*k*k:1-Math.pow(-2*k+2,2)/2;const a=fly.from.clone().normalize(),b=fly.to.clone().normalize();
     const ang=a.angleTo(b);let dir;if(ang<1e-4)dir=b;else{const s=Math.sin(ang);dir=a.multiplyScalar(Math.sin((1-e)*ang)/s).add(b.multiplyScalar(Math.sin(e*ang)/s));}
     camera.position.copy(dir.normalize().multiplyScalar(fly.from.length()+(fly.to.length()-fly.from.length())*e));if(k>=1)fly=null;}
@@ -1140,7 +1161,7 @@ boot();
  function shown(el){const r=el.getBoundingClientRect(),h=Math.max(0,Math.min(r.bottom,innerHeight)-Math.max(r.top,0)),w=Math.max(0,Math.min(r.right,innerWidth)-Math.max(r.left,0));return w*h;}
  function useView(k){if(V&&V!==VIEWS[k]){goal=null;zoomRate=0;spinRate=0;anchor=null;R.reset();R2.reset();tap0=null;lastTap=null;}V=VIEWS[k];const m=$("handMsg");if(m.parentNode!==V.stage)V.stage.appendChild(m);
    if(VIEWS.map)VIEWS.map.handOn=stream!==null&&V===VIEWS.map;}
- const showHelp=()=>{hmsg(`<b>Move your open hand</b> and the cursor follows; it snaps onto planets and buttons. <b>Pinch</b> (thumb to index finger) to press: the gold ring fills as your fingers close. ${V===VIEWS.map?'<b>Pinch a planet or moon to land on it</b>, or pinch and hold on it for half a second. ':'<b>↑ Solar System</b> at the top takes you back out. '}<b>Pinch on empty space and move</b> to turn the view. <b>Make a fist and move it up to zoom in, down to zoom out</b> ; <b>＋ and −</b> at the top also zoom while you hold a pinch on them. Hovering on a top button for a second also presses it. <button type='button' id='handHide' class='linkish'>Hide tips</button>`);const h=$("handHide");if(h)h.addEventListener("click",()=>hmsg(""));};
+ const showHelp=()=>{hmsg(`<b>Move your open hand</b> and the cursor follows; it snaps onto planets and buttons. <b>Pinch</b> (thumb to index finger) to press: the gold ring fills as your fingers close. ${V===VIEWS.map?'<b>Pinch a planet or moon to land on it</b>, or pinch and hold on it for half a second. ':'<b>↑ Solar System</b> at the top takes you back out. '}<b>Pinch on empty space and move</b> to turn the view. <b>To zoom</b>, hold a pinch on <b>＋ or −</b> at the top, or pinch with both hands and pull them apart or push them together. Hovering on a top button for a second also presses it. <button type='button' id='handHide' class='linkish'>Hide tips</button>`);const h=$("handHide");if(h)h.addEventListener("click",()=>hmsg(""));};
  let ac=null,tone=null,sndOn=true;
  function audio(){if(!ac){try{ac=new (window.AudioContext||window.webkitAudioContext)();}catch(e){ac=null;}}if(ac&&ac.state==="suspended")ac.resume();return ac;}
  function chime(up){if(!sndOn||!ac)return;const t=ac.currentTime,f0=up?880:523.25;
@@ -1199,7 +1220,7 @@ boot();
      this.p=Math.max(0,Math.min(1,(.75-pr)/.45));   // how close the fingers are to a pinch, for the meter on the cursor
      // the cursor follows the wrist and knuckles, which barely move when you pinch, so pressing doesn't knock it off target
      const ax=(L[0].x+L[5].x+L[9].x+L[13].x+L[17].x)/5,ay=(L[0].y+L[5].y+L[9].y+L[13].y+L[17].y)/5;
-     const curled=[8,12,16,20].filter(i=>dist(L[i],L[0])<dist(L[i-2],L[0])*1.05).length;if(this.fistOn?curled<=2:curled>=4)this.fistOn=!this.fistOn;
+     const curled=[8,12,16,20].filter(i=>dist(L[i],L[0])<dist(L[i-2],L[0])*1.05).length;this.fistOn=false;   // no fist gesture: zoom with the ＋/− buttons or two hands
      const g={pinch:this.pinchOn&&!this.fistOn,fist:this.fistOn,x:this.fx.f(ax,t),y:this.fy.f(ay,t)};
      const want=g.fist?"fist":g.pinch?"pinch":"idle";this.held=this.held.m===want?{m:want,n:this.held.n+1}:{m:want,n:1};
      let changed=false;if(want!==this.mode&&this.held.n>=2){this.mode=want;this.prev={x:g.x,y:g.y};changed=true;}return {g,changed};}}
@@ -1262,11 +1283,11 @@ boot();
    if(!hands.length){CUR.hidden=true;toneStop();if(seenHand&&now-missN>250){seenHand=false;outSound();}return;}
    seenHand=true;missN=now;
    if(hands.length===2){CUR.hidden=true;tap0=null;R.update(hands[0].L,now);R2.update(hands[1].L,now);
-     const gr=m=>m==="pinch"||m==="fist";
+     const gr=m=>m==="pinch";
      if(gr(R.mode)&&gr(R2.mode)){const d=dist(palmPt(hands[0].L),palmPt(hands[1].L));
        if(!zoom0){V.stop();grabGoal();zoom0={d,r:goal.radius};chime(true);}
        const lo=V.floor||V.ctl.minDistance,hi=V.ctl.maxDistance;
-       const want=zoom0.r*Math.pow(zoom0.d/Math.max(.02,d),V.floor?1.2:3);goal.radius=Math.min(hi,Math.max(lo,want));
+       const want=zoom0.r*Math.pow(zoom0.d/Math.max(.02,d),V.floor?2.5:3);goal.radius=Math.min(hi,Math.max(lo,want));
        if(false){}else if(V===VIEWS.map&&want<VIEWS.map.enterDist()&&VIEWS.map.has(VIEWS.map.focusId())){zoom0=null;goGlobe(VIEWS.map.focusId());}return;}   // the map spans a huge range, so its zoom is steeper
      zoom0=null;
      if(R.mode==="idle"&&R2.mode==="idle")clapCheck(hands[0].L,hands[1].L,now);else clapN=0;return;}
@@ -1292,7 +1313,7 @@ boot();
      if(R.mode==="pinch"){
        // use what was under the cursor just before the fingers started closing, so the press lands where you aimed
        const back=(hist.find(h=>now-h[0]<=160)||[now,hv])[1];
-       tap0={t:now,x:g.x,y:g.y,hv:back,drag:false,done:false,zoom:back&&back.btn?(back.btn.id==="fsZin"?-1.6:back.btn.id==="fsZout"?1.6:0):0};
+       tap0={t:now,x:g.x,y:g.y,hv:back,drag:false,done:false,zoom:back&&back.btn?(back.btn.id==="fsZin"?-2.8:back.btn.id==="fsZout"?2.8:0):0};
        if(tap0.zoom){V.stop();grabGoal();zoomRate=tap0.zoom;zoomHeld=now;}}
      else{if(tap0&&!tap0.drag&&!tap0.done&&!tap0.zoom)click(tap0.hv,now);if(tap0&&tap0.zoom)zoomRate=0;tap0=null;}   // released: a tap
      R.prev={x:g.x,y:g.y};dwell=null;}
