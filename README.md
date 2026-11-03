@@ -1,10 +1,10 @@
-# Planetary Modeling Atlas · v15mk2.3
+# Planetary Modeling Atlas · v15mk2.4
 
 **This is not my data.** None of the maps, gravity models, images or coordinates in this repository were made by me, and I make no claim of ownership over them. They were produced by NASA, ESA, JPL, USGS, the IAU and the researchers and artists credited below. This repository holds reformatted copies of their published work, so that the Planetary Modeling Atlas (a personal, non-commercial viewer) can load it from the web.
 
 ## The atlas
 
-`index.html` is the Planetary Modeling Atlas, version **v15mk2.3**, built with Claude. It is v15 (the Solar System map and globes in one view, real lighting and spin, and hand control on a planet's globe) with these added:
+`index.html` is the Planetary Modeling Atlas, version **v15mk2.4**, built with Claude. It is v15 (the Solar System map and globes in one view, real lighting and spin, and hand control on a planet's globe) with these added:
 
 - Earth's photo layers: Visible colour, Visible colour with clouds, and Night lights.
 - Earth by night: a moonlit blue night side, warm city lights that dim under clouds, an orange band at dusk, and a thin atmosphere at the edge of the photo layers.
@@ -22,6 +22,7 @@ The live layers come straight from their providers in your browser, not from thi
 - **v15mk2.1**: hand control on the planet globe only; closer zoom (1.1 radii); satellites coloured by orbit type, labelled stations, data card and orbit ring.
 - **v15mk2.2**: fist zoom removed; pinch zoom about twice as sensitive, ＋/− about 75% faster.
 - **v15mk2.3**: the focus view from the Mars Modeling Atlas (click a site or double-click a spot to look across it close up; ← Whole planet).
+- **v15mk2.4**: sharper built-in maps: 29 of the 33 worlds at 4096 × 2048 (twice as sharp), Earth's photo layers included; no ↑ Solar System button on the bottom globe.
 
 ## The bots
 
