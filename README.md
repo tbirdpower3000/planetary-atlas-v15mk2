@@ -10,7 +10,7 @@
 - Earth by night: a moonlit blue night side, warm city lights that dim under clouds, an orange band at dusk, and a thin atmosphere at the edge of the photo layers.
 - Real time: the page starts at true speed, so Earth spins at its real rate and the clock shows UTC.
 - Live data on Earth: satellites placed from CelesTrak orbits, coloured by orbit type (low, medium, geostationary, elliptical) with labelled space stations; click one for its data card and full orbit. Live flights too, with address boxes to choose other sources.
-- A closer zoom on each planet's globe (down to 1.1 radii).
+- A closer zoom on each planet's globe (down to 1.1 radii), and the focus view from the Mars Modeling Atlas: click a site or double-click any spot to fly down and look across it at an angle, orbiting around that spot; ← Whole planet goes back.
 
 With GitHub Pages turned on (Settings → Pages → Deploy from a branch → main, / (root)) it runs at **https://tbirdpower3000.github.io/planetary-atlas-v15mk2/**. Opened there in Chrome, hand control (your camera) and the live data can work, which they can't on claude.ai.
 
