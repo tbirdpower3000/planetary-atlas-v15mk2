@@ -1,0 +1,41 @@
+name: Live flights
+
+# Browsers can't read the free flight feeds directly, so this job takes a worldwide snapshot every few minutes and
+# publishes it as flights.json on the `live` branch; the atlas reads it from raw.githubusercontent.com.
+# GitHub runs scheduled jobs on a best-effort basis, so snapshots can arrive 5 to 15 minutes apart.
+on:
+  schedule:
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
+  push:
+    branches: [live-flights-test]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: live-flights
+  cancel-in-progress: false
+
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: scripts
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Take the snapshot
+        run: python scripts/fetch_flights.py
+      - name: Publish it on the live branch (one commit, replaced each time, so the repository doesn't grow)
+        run: |
+          mkdir pub && mv flights.json pub/ && cd pub
+          git init -q -b live
+          git config user.name "live-flights bot"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add flights.json
+          git commit -q -m "Flight snapshot $(date -u +%FT%TZ)"
+          git push -q -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" live
