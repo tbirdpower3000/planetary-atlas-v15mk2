@@ -186,29 +186,62 @@
     flex-wrap: wrap;
     gap: 6px;
   }
+  .bodies {
+    align-items: center;
+    gap: 8px;
+  }
   .bodies button {
-    display: inline-flex;
-    align-items: baseline;
-    gap: 6px;
     border-radius: 999px;
-    padding: 5px 12px;
+    padding: 5px 13px;
   }
-  .bodies button small {
-    font-family: var(--mono);
-    font-size: 0.68rem;
-    color: var(--muted);
+  /* a world and its moons: one tray, the world in bold, the moons a step smaller */
+  .bodies .sys {
+    display: inline-flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 2px;
+    padding: 2px;
+    border: 1px solid var(--rule);
+    border-radius: 18px;
+    background: var(--sheet);
+    max-width: 100%;
   }
-  .bodies button[aria-pressed='true'] {
+  .bodies .sys button {
+    border-color: transparent;
+    background: transparent;
+  }
+  .bodies .sys button:hover {
+    border-color: var(--rule);
+  }
+  .bodies .sys .primary {
+    font-weight: 600;
+  }
+  .bodies .sys .moon {
+    font-size: 0.8rem;
+    padding: 4px 10px;
+  }
+  .bodies button[aria-pressed='true'],
+  .bodies .sys button[aria-pressed='true'] {
     background: var(--chipon);
     color: var(--chiptx);
     border-color: var(--chipon);
   }
-  .bodies button[aria-pressed='true'] small {
-    color: inherit;
-    opacity: 0.7;
+  .bodies .mine {
+    border-color: var(--accent);
   }
   .bodies .load {
     border-style: dashed;
+  }
+  @media (max-width: 560px) {
+    .bodies {
+      gap: 6px;
+    }
+    .bodies button {
+      padding: 5px 11px;
+    }
+    .bodies .sys .moon {
+      padding: 4px 8px;
+    }
   }
   /* Solar-system map: a tracking-station view in deep navy, orbits as thin coloured lines */
   :root {
@@ -622,17 +655,6 @@
       right: 10px;
       max-width: none;
     }
-  }
-  .bodies .gl {
-    font-size: 0.66rem;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    color: var(--muted);
-    align-self: center;
-    padding: 0 2px 0 8px;
-  }
-  .bodies .gl:first-child {
-    padding-left: 0;
   }
   #worlds {
     font-size: 0.86rem;
@@ -1821,7 +1843,7 @@
     <div class="hrow">
       <h1>
         Planetary Modeling Atlas
-        <span class="ver" title="Version v15mk2.13, 3 Nov 2026: live flights work, from the atlas’s own GitHub snapshot of the OpenSky Network">v15mk2.13</span>
+        <span class="ver" title="Version v15mk2.14, 3 Nov 2026: tidier world buttons, each moon grouped with the world it orbits">v15mk2.14</span>
       </h1>
       <p id="howTo">
         Pick a world on the map or below. Drag to turn, scroll or pinch to zoom, click a site to fly to it. ✋ Hand control (on a
@@ -3778,29 +3800,29 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
       } catch (e) {}
     }
     const km = (r) => (r >= 1000 ? (r / 1000).toFixed(1) + 'k' : r >= 20 ? Math.round(r) : r.toFixed(1));
+    // each moon sits in one tray with the world it orbits, so the row needs no group labels; sizes are in the tooltips
+    const PARENT = { moon: 'earth', phobos: 'mars', deimos: 'mars', charon: 'pluto' },
+      GIANTS = ['jupiter', 'saturn', 'uranus', 'neptune'];
+    const parentOf = (b) => PARENT[b.id] || (GIANTS.includes(b.group) && b.id !== b.group ? b.group : '');
+    const chipFor = (b, cls) =>
+      `<button type="button" data-id="${esc(b.id)}" aria-pressed="${b.id === current}"${cls ? ` class="${cls}"` : ''} title="${esc(
+        [b.name, b.kind, b.radiusKm ? `${(+b.radiusKm).toLocaleString('en-US', { maximumFractionDigits: 1 })} km radius` : '']
+          .filter(Boolean)
+          .join(' · '),
+      )}">${esc(b.name)}</button>`;
     function drawBodies() {
+      const shown = (b) => ON.has(b.id) || b.id === current;
       let h = '';
-      GROUPS.forEach(([g, label]) => {
-        const list = INDEX.filter((b) => (b.group || 'dwarf') === g && (ON.has(b.id) || b.id === current));
-        if (!list.length) return;
-        h +=
-          `<span class="gl">${esc(label.replace(' system', '').replace('Dwarf planets and asteroids', 'Small worlds'))}</span>` +
-          list
-            .map(
-              (b) =>
-                `<button type="button" data-id="${esc(b.id)}" aria-pressed="${b.id === current}">${esc(b.name)}<small>${km(b.radiusKm)} km</small></button>`,
-            )
-            .join('');
+      INDEX.filter((b) => !parentOf(b) || !INDEX.some((p) => p.id === parentOf(b))).forEach((p) => {
+        const moons = INDEX.filter((m) => parentOf(m) === p.id && shown(m));
+        if (!moons.length) {
+          if (shown(p)) h += chipFor(p);
+          return;
+        }
+        // a moon always comes with its world, even if that world is switched off in the list
+        h += `<span class="sys" role="group" aria-label="${esc(p.name)} and its moons">${chipFor(p, 'primary')}${moons.map((m) => chipFor(m, 'moon')).join('')}</span>`;
       });
-      if (custom.length)
-        h +=
-          '<span class="gl">Yours</span>' +
-          custom
-            .map(
-              (b) =>
-                `<button type="button" data-id="${esc(b.id)}" aria-pressed="${b.id === current}">${esc(b.name)}<small>${km(b.radiusKm)} km</small></button>`,
-            )
-            .join('');
+      h += custom.map((b) => chipFor(b, 'mine')).join('');
       $('bodies').innerHTML = h + `<button type="button" class="load" id="toLoad">+ Load planet</button>`;
       $('bodies')
         .querySelectorAll('button[data-id]')
