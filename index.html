@@ -1000,6 +1000,51 @@
   body.handfs #handMsg {
     top: 124px;
   }
+  /* ◐ Less: a tidy screen for hand control, with only the buttons that steer; on by default on phones, remembered */
+  body.handmin #fsBri,
+  body.handmin #fsTurn,
+  body.handmin #fsBar .fsTime:has([data-fw]),
+  body.handmin #fsDate,
+  body.handmin #handMsg,
+  body.handmin #voicePill,
+  body.handmin #satKey,
+  body.handmin #orbKey,
+  body.handmin #cap {
+    display: none !important;
+  }
+  body.handmin #handBox {
+    width: 84px;
+    opacity: 0.4;
+  }
+  body.handmin #fsBar {
+    gap: 8px;
+  }
+  /* on a phone, ◐ Less leaves one short row: the way up or down, and two small touch buttons; ＋ and − sit at the right
+     edge, half way down, where a hand reaches them without crossing the view */
+  @media (max-width: 600px) {
+    body.handmin #fsLyr,
+    body.handmin #fsFull {
+      display: none !important;
+    }
+    body.handmin #fsBar {
+      gap: 6px;
+      padding-bottom: 6px;
+    }
+    body.handmin #fsBar .fsTime:has(#fsZin) {
+      position: fixed;
+      right: max(8px, env(safe-area-inset-right, 0px));
+      top: 42%;
+      flex-direction: column;
+      gap: 10px;
+    }
+    body.handmin #fsExit,
+    body.handmin #fsLess {
+      min-height: 40px;
+      min-width: 40px;
+      padding: 0 10px;
+      font-size: 0.95rem;
+    }
+  }
   #fsBar {
     position: fixed;
     top: 0;
@@ -2040,7 +2085,7 @@
     <div class="hrow">
       <h1>
         Planetary Modeling Atlas
-        <span class="ver" title="Version v15mk2.31, 4 Nov 2026: hand control in the Solar System again (✋ Hand control under the map): pinch a planet or press Land on … to go down to its globe, ↑ Solar System to come back up; and the hand cursor no longer creeps off a button you hold it on">v15mk2.31</span>
+        <span class="ver" title="Version v15mk2.32, 4 Nov 2026: five refinements from the hand research bot: presses resolved by a vote over the last 400 ms, lenses that weaken for a fast hand, a steadier two-thirds pinch, a rest line with hysteresis, and only the visible part of the safety box mapped; ⋯ Less in the hand-control bar tidies the screen (on by default on phones)">v15mk2.32</span>
       </h1>
       <button type="button" id="voiceBtn" aria-pressed="false" title="Voice commands: say “Hey Atlas”, then what you want, e.g. “Hey Atlas, show Mars” or “Hey Atlas, next map”">🎤 Voice</button>
       <p id="howTo">
@@ -2264,7 +2309,7 @@
         ><button type="button" data-fw="0" title="Pause">⏸</button
         ><button type="button" data-fw="1" title="Forward, 1 day a second">▶</button
         ><button type="button" data-fw="36525" title="Forward fast">▶▶</button></span
-      ><span id="fsDate"></span><button type="button" id="fsExit">✕ Exit hand control</button>
+      ><span id="fsDate"></span><button type="button" id="fsLess" title="Less on screen: hides the tips, the camera preview, the brightness, turn and time controls and the date; press again to bring them back">⋯ Less</button><button type="button" id="fsExit">✕ Exit hand control</button>
     </div>
     <div id="voicePill" role="status" aria-live="polite" hidden><b id="voiceState">🎤</b><span id="voiceText"></span></div>
     <div id="handBox" hidden><video id="handVid" playsinline muted></video><canvas id="handCv"></canvas></div>
@@ -7201,6 +7246,23 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
       if (!document.fullscreenElement && FS && window.HAND_STOP) window.HAND_STOP();
     }); // Esc leaves hand control too
     $('fsMap').onclick = () => exitToMap();
+    // ◐ Less / ◑ More: on phones it starts tidy; the choice is remembered in this browser
+    let HANDMIN = null;
+    try {
+      HANDMIN = localStorage.getItem('atlasHandMin');
+    } catch (e) {}
+    const setMin = (on) => {
+      document.body.classList.toggle('handmin', on);
+      const phone = matchMedia('(max-width: 600px)').matches;
+      $('fsLess').textContent = on ? (phone ? '⋯' : '⋯ More') : '⋯ Less';
+      $('fsLess').title = on ? 'More: bring the tips and the other controls back' : $('fsLess').title;
+      $('fsExit').textContent = on && phone ? '✕' : '✕ Exit hand control';
+      try {
+        localStorage.setItem('atlasHandMin', on ? '1' : '0');
+      } catch (e) {}
+    };
+    setMin(HANDMIN == null ? matchMedia('(max-width: 600px)').matches : HANDMIN === '1');
+    $('fsLess').onclick = () => setMin(!document.body.classList.contains('handmin'));
     $('fsExit').onclick = () => {
       if (window.HAND_STOP) window.HAND_STOP();
     };
@@ -9326,6 +9388,14 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
         ];
         // orbiters: "show the orbiters", "orbiters off"
         if (/\b(orbiters?|spacecraft|probes?)\b/.test(t) && !$('orbT').hidden) return toggle(t, $('orbOn'), 'Orbiters');
+        if (has(t, 'less on screen', 'tidy screen', 'hide the tips', 'hide the controls', 'less clutter', 'declutter')) {
+          document.body.classList.contains('handmin') || $('fsLess').click();
+          return 'Less on screen.';
+        }
+        if (has(t, 'more on screen', 'show the controls', 'show the tips', 'show everything')) {
+          document.body.classList.contains('handmin') && $('fsLess').click();
+          return 'Everything back on screen.';
+        }
         // Earth's impact craters: a site category that starts hidden
         if (/\b(impact craters?|craters?|impacts?)\b/.test(t) && P && P.categories && P.categories.impact) {
           const b = document.querySelector('#catKeys input[data-cat="impact"]');
@@ -10569,9 +10639,13 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
           // open it is when relaxed (tracked as you go, quickly upward and slowly downward) and how far your pinches close
           // (the firmest point of each, averaged). Until both are known, the trained or default thresholds apply; once they
           // are, the switch-on point is never shallower than two-thirds closed, and it lets go at about one-third closed.
-          if (!this.pinchOn) {
+          // the open reference moves only while the hand is held flat enough to measure (tilted under 60°) and the ratio is
+          // steady (no jump this frame), and at most 0.03 a frame upward, so one tracking glitch can't shift it
+          const dpr = this.prLast == null ? 0 : pr - this.prLast;
+          this.prLast = pr;
+          if (!this.pinchOn && Math.abs(dpr) < 0.05 && Math.abs(this.plane.tiltOut) < Math.PI / 3) {
             if (this.openRef == null) this.openRef = pr;
-            else this.openRef += (pr - this.openRef) * (pr > this.openRef ? 0.3 : 0.004);
+            else this.openRef += Math.max(-0.01, Math.min(0.03, (pr - this.openRef) * (pr > this.openRef ? 0.3 : 0.004)));
           }
           if (this.pinchOn) this.minPr = Math.min(this.minPr == null ? pr : this.minPr, pr);
           // before your first pinch is seen, a typical firm pinch (0.15 palm lengths, or half the switch-on point) stands in
@@ -10584,7 +10658,10 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
             this.pinchOn = !this.pinchOn;
             if (this === R) ADAPT.pinchEdge(this.pinchOn, t);
             if (!this.pinchOn && this.minPr != null) {
-              this.closedRef = this.closedRef == null ? this.minPr : this.closedRef + (this.minPr - this.closedRef) * 0.3;
+              // the median of the last five pinches' firmest points, so one hard squeeze doesn't move the thresholds
+              (this.mins = this.mins || []).push(this.minPr);
+              if (this.mins.length > 5) this.mins.shift();
+              this.closedRef = [...this.mins].sort((a, b) => a - b)[this.mins.length >> 1];
               this.minPr = null;
             }
           }
@@ -10612,6 +10689,7 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
             sy_ = this.fy.f(this.my(ay), t);
           // fast moves follow the predictive tracker, slow ones the smoothed point, blended in between
           const g = { pinch: this.pinchOn && !this.fistOn, fist: this.fistOn, x: sx_ + (mo.lead[0] - sx_) * mo.fast, y: sy_ + (mo.lead[1] - sy_) * mo.fast };
+          this.fast = mo.fast;
           this.fx.minCut = this.fy.minCut = c0;
           // how long the hand has been open: a press only counts when it starts from an open hand (deliberate presses)
           if (!this.pinchOn) this.openSince = this.openSince || t;
@@ -10718,16 +10796,40 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
         if (x0 < 0) x0 = 0;
         if (x0 + xs > 1) x0 = Math.max(0, 1 - xs);
         xs = Math.min(xs, 1 - x0);
+        // only the part of the box the camera can see is mapped to the screen (at arm's length the bottom is often
+        // below the picture), so the hand isn't pushed up to shoulder height to reach the top of the screen
         y0 = Math.max(0, Math.min(0.9, y0));
-        ys = Math.max(0.12, Math.min(ys, 0.98 - y0));
+        ys = Math.max(0.12, Math.min(ys, 0.95 - y0));
         return { x0, xs, y0, ys };
       }
       window.atlasBodyBox = bodyBox; // for testing
-      const resting = (L) => {
+      // how far below the rest line a hand is (as a share of the picture's height; negative = above it)
+      const belowLine = (L) => {
         const px = (L[0].x + L[5].x + L[9].x + L[13].x + L[17].x) / 5,
           py = (L[0].y + L[5].y + L[9].y + L[13].y + L[17].y) / 5;
-        if (eyeOk()) return (px * EYEW.W - EYEW.x) * EYEW.nx + (py * EYEW.H - EYEW.y) * EYEW.ny > 0;
-        return py > waist();
+        if (eyeOk()) return ((px * EYEW.W - EYEW.x) * EYEW.nx + (py * EYEW.H - EYEW.y) * EYEW.ny) / EYEW.H;
+        return py - waist();
+      };
+      // resting, with hysteresis: a hand counts as resting after 250 ms below the line, and as working again only once it is
+      // 3% of the picture above the line (or clearly moving up), so a hand parked near the line doesn't flicker in and out
+      const RESTS = {};
+      const resting = (L, side) => {
+        const d = belowLine(L),
+          k = side || 'x',
+          r = (RESTS[k] = RESTS[k] || { on: false, below: 0, last: d }),
+          now = performance.now(),
+          up = r.last - d > 0.01;
+        r.last = d;
+        if (!r.on) {
+          if (d > 0) {
+            r.below = r.below || now;
+            if (now - r.below > 250) r.on = true;
+          } else r.below = 0;
+        } else if (d < -0.03 || (d < 0 && up)) {
+          r.on = false;
+          r.below = 0;
+        }
+        return r.on;
       };
       function drawHand(hands) {
         const cv = $('handCv'),
@@ -10867,6 +10969,7 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
         reset() {
           this.lastCap = null;
           this.lastCapT = 0;
+          this.capHist = []; // [t, key] for the last 400 ms: a press is resolved by a vote over them, centred 180 ms back
           this.p = null;
           this.raw = null;
           this.prev = new Map(); // each item's centre last frame, to carry the cursor with a moving bubble
@@ -10887,7 +10990,9 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
           return { n: 1 + (nMax - 1) * g, inside: null };
         }
         step(f, items, t, snap, nMax) {
-          nMax = nMax || 2.5;
+          // a fast-moving hand feels the lenses only weakly (down to a fifth), so a button on the way to another one doesn't
+          // bend the cursor off course; a slow approach and the pinch itself get the full strength
+          nMax = 1 + ((nMax || 2.5) - 1) * (1 - 0.8 * Math.max(0, Math.min(1, f.fast || 0)));
           const span = Math.max(36, snap * 1.2);
           this.pr.push([t, f.pr]);
           while (this.pr.length && t - this.pr[0][0] > 150) this.pr.shift();
@@ -10979,9 +11084,32 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
             this.lastCap = cap.key;
             this.lastCapT = t;
           } else if (closing && this.lastCap) this.lastCapT = t; // while the fingers close, the last target is held for the press
+          this.capHist.push([t, cap ? cap.key : null]);
+          while (this.capHist.length && t - this.capHist[0][0] > 400) this.capHist.shift();
           const recent = cap ? cap.key : this.lastCap && t - this.lastCapT < 150 && items.some((it) => it.key === this.lastCap) ? this.lastCap : null;
           const under = items.find((it) => it.dist(f.x, f.y) <= 0); // the target under the hand itself
           return { x: px, y: py, cap: cap ? cap.key : null, recent, hand: under ? under.key : null, n: fin.n };
+        }
+        // the target a press was meant for: a weighted vote over the captures of the last 400 ms, each weighted by a curve
+        // centred 180 ms before now (the fingers closing drag the cursor, so where it was a moment earlier is what was aimed at)
+        vote(t) {
+          const w = new Map();
+          let total = 0;
+          this.capHist.forEach(([tt, k]) => {
+            const age = t - tt,
+              g = age < 16 ? 0 : 1 / (1 + Math.exp((age - 180) / 40));
+            total += g;
+            if (k) w.set(k, (w.get(k) || 0) + g);
+          });
+          let best = null,
+            bw = 0;
+          w.forEach((v, k) => {
+            if (v > bw) {
+              bw = v;
+              best = k;
+            }
+          });
+          return best && bw >= total / 2 ? best : null;
         }
       }
 
@@ -11284,9 +11412,10 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
             .slice(0, 2)
             .map((L, i) => ({ L, W: (r.worldLandmarks || [])[i], side: (((r.handedness || r.handednesses || [])[i] || [])[0] || {}).categoryName }))
             .sort((a, b) => palmPt(b.L).x - palmPt(a.L).x)
-            .filter((h) => !resting(h.L)),
+            .map((h) => Object.assign(h, { rest: resting(h.L, h.side) }))
+            .filter((h) => !h.rest),
           Ls = HH.map((h) => h.L);
-        handLoop.rest = (r.landmarks || []).some((L) => resting(L));
+        handLoop.rest = HH.length === 0 && (r.landmarks || []).length > 0 && Object.values(RESTS).some((x) => x.on);
         if (!Ls.length && handLoop.n && now - missN < 300) return; // a dropout under 0.3 s keeps the gesture going
         if (Ls.length !== (handLoop.n || 0)) {
           R.reset();
@@ -11364,7 +11493,7 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
         else BALS.x = null;
         // the lenses: every frame, over the buttons found by the last hover test (not while turning the view)
         const
-          fl = turning ? null : FLD.step({ x: cx, y: cy, pr: R.pr == null ? 1 : R.pr, pinch: R.mode === 'pinch' }, (hoverAt.btns || []).map(lensItem), now, 28, ADAPT.lens); // 28 px: the default button pull (each button's own span overrides it)
+          fl = turning ? null : FLD.step({ x: cx, y: cy, pr: R.pr == null ? 1 : R.pr, pinch: R.mode === 'pinch', fast: R.fast || 0 }, (hoverAt.btns || []).map(lensItem), now, 28, ADAPT.lens); // 28 px: the default button pull (each button's own span overrides it)
         if (turning) FLD.reset();
         const lx = fl ? fl.x : cx,
           ly = fl ? fl.y : cy;
@@ -11387,7 +11516,8 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
         if (changed) {
           if (R.mode === 'pinch') {
             // use what was under the cursor just before the fingers started closing, so the press lands where you aimed
-            const back = (hist.find((h) => now - h[0] <= 160) || [now, hv])[1];
+            const voted = FLD.vote(now),
+              back = voted ? { btn: voted, label: voted.textContent.trim().slice(0, 28) } : (hist.find((h) => now - h[0] <= 160) || [now, hv])[1];
             tap0 = {
               t: now,
               x: g.x,

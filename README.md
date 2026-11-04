@@ -1,10 +1,10 @@
-# Planetary Modeling Atlas · v15mk2.31
+# Planetary Modeling Atlas · v15mk2.32
 
 **This is not my data.** None of the maps, gravity models, images or coordinates in this repository were made by me, and I make no claim of ownership over them. They were produced by NASA, ESA, JPL, USGS, the IAU and the researchers and artists credited below. This repository holds reformatted copies of their published work, so that the Planetary Modeling Atlas (a personal, non-commercial viewer) can load it from the web.
 
 ## The atlas
 
-`index.html` is the Planetary Modeling Atlas, version **v15mk2.31**, built with Claude. It is v15 (the Solar System map and globes in one view, real lighting and spin, and hand control on a planet's globe) with these added:
+`index.html` is the Planetary Modeling Atlas, version **v15mk2.32**, built with Claude. It is v15 (the Solar System map and globes in one view, real lighting and spin, and hand control on a planet's globe) with these added:
 
 - Earth's photo layers: Visible colour, Visible colour with clouds, and Night lights.
 - Earth by night: a moonlit blue night side, warm city lights that dim under clouds, an orange band at dusk, and a thin atmosphere at the edge of the photo layers.
@@ -48,6 +48,7 @@ The live layers come straight from their providers in your browser, not from thi
 - **v15mk2.29**: **All active satellites** at once (about 11,000 from CelesTrak), from the satellite list or “Hey Atlas, show all satellites”, kept smooth by a per-frame time budget.
 - **v15mk2.30**: the real night sky (2,896 stars from the HYG catalogue) behind the globes and the Solar System, turned to each world's pole and to the ecliptic, and **✦ Sky lore**: constellation figures from five sky cultures to switch on together or one by one: Western, Norse, Ancient Egyptian, Navajo (Diné) and Blackfoot (Siksikáítsitapi), from Stellarium (also “Hey Atlas, show the Norse constellations”). See `sky/README.md` for each file's source and licence. Also **🛰 Orbiters** on the Moon, Mars, Venus, Mercury, Jupiter and Ceres: the spacecraft in orbit there (active, silent or planned), drawn on their published orbits to scale with the dot moving at the true period (orientation and position along the orbit illustrative; `orbiters.json`). And Earth's 53 large and famous **impact craters** as a site category that starts switched off (Chicxulub, Vredefort, Sudbury, Meteor Crater…), from the Earth Impact Database as listed on Wikipedia.
 - **v15mk2.31**: hand control in the Solar System again (✋ Hand control under the map): pinch a planet or moon, or press Land on …, to go down to its globe; ↑ Solar System brings you back up with the hand still steering. The hand cursor no longer creeps off a button you hold it on (the speed-based catch-up now runs only while the hand moves), a held zoom stops when you scroll away, and the last target is held while your fingers close. Phone fixes from the interface bot: a smaller camera preview, full-size top-bar buttons on touch screens, a legend for the orbiters, a voice help card that never fills the screen.
+- **v15mk2.32**: five refinements from the hand research bot: a press is resolved by a weighted vote over the last 400 ms of lens captures (centred 180 ms before the pinch, where the hand was aiming before the pinch dragged the cursor); the lenses weaken while the hand moves fast, so a button on the way doesn't snag; the two-thirds pinch's open reference updates only while the hand is flat and steady and its closed reference is a median of the last five pinches; the rest line has hysteresis (250 ms to rest, clearly above or moving up to return); and only the visible part of the safety box is mapped to the screen. And **⋯ Less** in the hand-control bar tidies the screen (on by default on phones, remembered): on a phone it leaves one short row (the way up or down, two small touch buttons) with ＋ and − at the right edge, half way down.
 
 ## The bots
 
