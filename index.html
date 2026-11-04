@@ -1567,6 +1567,23 @@
     border-style: dashed;
     background: rgba(255, 216, 138, 0.25);
   }
+  /* while turning, the ring stays where you pinched and this dot shows the movement, like the top of a joystick: which way
+     and how far (the further, the more it has turned; in Tilt, how far the palm is tipped) */
+  #handCur i b {
+    display: none;
+    position: absolute;
+    left: calc(50% + var(--sx, 0px));
+    top: calc(50% + var(--sy, 0px));
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: #ffd88a;
+    box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.6);
+    transform: translate(-50%, -50%);
+  }
+  #handCur.drag i b {
+    display: block;
+  }
   #handBtn[aria-pressed='true'] {
     border-color: var(--accent);
     background: color-mix(in srgb, var(--accent) 16%, transparent);
@@ -1958,7 +1975,7 @@
     <div class="hrow">
       <h1>
         Planetary Modeling Atlas
-        <span class="ver" title="Version v15mk2.18, 3 Nov 2026: hand control turns from the middle of the view at any zoom, follows fast moves without lag, and uses your training in 3D; denoising, a resting line and deliberate presses from the training page">v15mk2.18</span>
+        <span class="ver" title="Version v15mk2.19, 3 Nov 2026: while you turn the view by hand, the cursor stays where you pinched and a dot inside it shows the movement, like a joystick">v15mk2.19</span>
       </h1>
       <button type="button" id="voiceBtn" aria-pressed="false" title="Voice commands: say “Atlas”, then what you want, e.g. “Atlas, show Mars” or “Atlas, next map”">🎤 Voice</button>
       <p id="howTo">
@@ -2148,7 +2165,7 @@
       <div id="busy" hidden>Loading…</div>
       <div id="handMsg" role="status" hidden></div>
     </div>
-    <div id="handCur" hidden><i></i><span></span></div>
+    <div id="handCur" hidden><i><b></b></i><span></span></div>
     <div id="fsBar" hidden role="toolbar" aria-label="Hand control">
       <button type="button" id="fsMap">↑ Solar System</button><button type="button" id="fsLand" hidden>Land</button
       ><span class="fsTime" id="fsLyr" role="group" aria-label="Map layer" hidden
@@ -9703,7 +9720,15 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
         setTimeout(() => $('handMsg').textContent.startsWith(TURN_LABEL[turnMode]) && hmsg(''), 6000);
       };
       setTurn(turnMode);
-      let tilt0 = null;
+      let tilt0 = null,
+        turnLock = null; // while turning: where the cursor stays, and where the hand's cursor was when the turn began
+      // the dot inside the locked cursor: the movement squeezed into 26 px (a long move still shows, but never leaves the ring far)
+      function drawStick(vx, vy) {
+        const r = Math.hypot(vx, vy),
+          k = r > 0.5 ? (26 * Math.tanh(r / 140)) / r : 0;
+        CUR.style.setProperty('--sx', (vx * k).toFixed(1) + 'px');
+        CUR.style.setProperty('--sy', (vy * k).toFixed(1) + 'px');
+      }
       // how far to turn for a hand movement across the camera picture: on the globe, the arc of surface the view spans at
       // this distance (2·h·tan(fov/2) for height h above a unit sphere), divided by the share of the picture your reach
       // covers, so the middle of the view follows your hand; capped at the old 3.2 when far out. The map keeps 3.2.
@@ -9886,6 +9911,7 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
               hv: back,
               drag: false,
               done: false,
+              lock: { x: sx, y: sy, hx: cx, hy: cy }, // where the cursor is held if this pinch becomes a turn
               fresh: (R.lastOpen || 0) > 200, // the hand was open long enough before this pinch for it to be deliberate
               zoom: back && back.btn ? (back.btn.id === 'fsZin' ? -2.8 : back.btn.id === 'fsZout' ? 2.8 : 0) : 0,
             };
@@ -9897,6 +9923,8 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
             }
           } else {
             tilt0 = null;
+            turnLock = null;
+            drawStick(0, 0);
             if (tap0 && !tap0.drag && !tap0.done && !tap0.zoom && tap0.fresh) click(tap0.hv, now);
             if (tap0 && tap0.zoom) zoomRate = 0;
             tap0 = null;
@@ -9917,11 +9945,15 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
           }
           if (!tap0.drag && !tap0.done && (moved > 0.05 || (!tap0.hv && now - tap0.t > 450))) {
             tap0.drag = true;
+            turnLock = tap0.lock; // held where you pinched, not where the turn was first noticed
             V.stop();
             grabGoal();
             chime(true);
           }
           if (tap0.drag) {
+            // the cursor stays where the turn began
+            if (!turnLock) turnLock = tap0.lock || { x: sx, y: sy, hx: cx, hy: cy };
+            drawCursor(turnLock.x, turnLock.y);
             const dx = -(g.x - R.prev.x),
               dy = g.y - R.prev.y;
             R.prev = { x: g.x, y: g.y };
@@ -9938,12 +9970,14 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
                 zs = tg / 3.2;
               goal.theta -= sx * 2.6 * dt * zs;
               goal.phi = Math.min(Math.PI - 0.05, Math.max(0.05, goal.phi + sy * 2.2 * dt * zs));
+              drawStick(-sx * 300, sy * 300);
               cursorState('drag', sx || sy ? 'Tilting' : 'Tilt to turn');
               return;
             }
             const [gx, gy] = turnGain();
             goal.theta -= dx * gx;
             goal.phi = Math.min(Math.PI - 0.05, Math.max(0.05, goal.phi - dy * gy));
+            drawStick(cx - turnLock.hx, cy - turnLock.hy);
             cursorState('drag', 'Turning');
             return;
           }
