@@ -1984,7 +1984,7 @@
     <div class="hrow">
       <h1>
         Planetary Modeling Atlas
-        <span class="ver" title="Version v15mk2.21, 3 Nov 2026: smoother hand cursor (it glides between camera frames and onto buttons instead of jumping), and the distance between your eyes tells it how far you sit from the camera">v15mk2.21</span>
+        <span class="ver" title="Version v15mk2.22, 3 Nov 2026: the voice assistant talks back, answers questions from the atlas’s own data, flies to places by name, hears names better, and holds Space to talk">v15mk2.22</span>
       </h1>
       <button type="button" id="voiceBtn" aria-pressed="false" title="Voice commands: say “Atlas”, then what you want, e.g. “Atlas, show Mars” or “Atlas, next map”">🎤 Voice</button>
       <p id="howTo">
@@ -7503,6 +7503,7 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
         if (focusId) enterGlobe(focusId);
       };
       window.SIMJD = () => jd;
+      window.SET_JD = (j) => setJd(j);
       window.HELIO = (id, j) => {
         const b = B[id];
         if (!b) return null;
@@ -8489,7 +8490,11 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
         if (on) pill('🎤', `Say <b>“Atlas”</b>, then a command. <b>“Atlas, help”</b> lists them.`, '', true);
         else $('voicePill').hidden = true;
       };
-      const HELP = `<b>Say “Atlas”, then:</b><ul>
+      const HELP = `<b>Say “Atlas”, then (or hold <kbd>Space</kbd> and just say it):</b><ul>
+        <li>“how big is Mars?”, “how far away is Saturn?”, “what am I looking at?”, “what’s this?” (at the hand cursor)</li>
+        <li>“where is the highest point?”, “where did Apollo 11 land?”, “go to Olympus Mons”, “tell me about Europa”</li>
+        <li>“show live clouds”, “play the last day”, “Earth at night”, “set the date to July 20 1969”, “what’s the date?”</li>
+        <li>“be quiet” / “talk to me” (spoken replies off or on), “what about Venus?” after a question</li>
         <li>“show Mars”, “go to Titan”, “Solar System”</li>
         <li>“next map”, “previous map”, “show gravity”, “show topography”</li>
         <li>“zoom in”, “zoom out”, “brighter”, “darker”, “brightness 150”</li>
@@ -8548,15 +8553,283 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
         });
         return best;
       }
+
+      // ---- speaking back: the browser's own voice reads each answer (on by default; "be quiet" turns it off). While it
+      // speaks, what the microphone hears is ignored, so it never answers itself
+      let talk = true,
+        quietUntil = 0;
+      try {
+        talk = localStorage.getItem('atlasSpeak') !== '0';
+      } catch (e) {}
+      function say(text) {
+        if (!talk || !window.speechSynthesis || !text) return;
+        try {
+          speechSynthesis.cancel();
+          const u = new SpeechSynthesisUtterance(String(text).replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').slice(0, 300));
+          u.lang = 'en-US';
+          u.rate = 1.05;
+          const v = speechSynthesis.getVoices().find((x) => /^en(-|_)/i.test(x.lang) && /natural|google|samantha|aria|jenny/i.test(x.name));
+          if (v) u.voice = v;
+          quietUntil = performance.now() + 15000;
+          u.onend = u.onerror = () => (quietUntil = performance.now() + 400);
+          speechSynthesis.speak(u);
+        } catch (e) {}
+      }
+      // ---- names the speech service often mishears, and what was meant
+      const SOUNDS = [
+        [/\b(i owe|eye oh|i o|aya)\b/g, 'io'],
+        [/\b(series|serious|cereus|sirius)\b/g, 'ceres'],
+        [/\b(tighten|titan's|titen)\b/g, 'titan'],
+        [/\b(europe a|your opa|euro pa)\b/g, 'europa'],
+        [/\b(enchiladas|ensa ladus|enceladus's)\b/g, 'enceladus'],
+        [/\b(try ton|tritone|tryton)\b/g, 'triton'],
+        [/\b(fobos|foe bose|phobos's)\b/g, 'phobos'],
+        [/\b(day most|dee most|damos|deimos's)\b/g, 'deimos'],
+        [/\b(calisto|callista)\b/g, 'callisto'],
+        [/\b(gany mead|ganymead|ganny mede)\b/g, 'ganymede'],
+        [/\b(miranda's)\b/g, 'miranda'],
+        [/\b(the moon's|luna)\b/g, 'moon'],
+        [/\b(mars's|mars')\b/g, 'mars'],
+        [/\b(olympus mon|olympus mons's|olympus moms)\b/g, 'olympus mons'],
+        [/\b(hellas basin|hella's)\b/g, 'hellas'],
+        [/\b(apollo eleven)\b/g, 'apollo 11'],
+        [/\b(curiosity rover)\b/g, 'curiosity'],
+      ];
+      const hearFix = (t) => SOUNDS.reduce((a, [re, w]) => a.replace(re, w), t);
+      // the words the atlas knows, to pick the best of the speech service's guesses
+      function vocab() {
+        const v = new Set(
+          'show go to zoom in out next previous map brighter darker brightness grid names sunlight spin flights satellites asteroids pause play faster slower today hand control help how big far away what where tell me about highest lowest point land landed date set clouds live night quiet talk this here looking'.split(' '),
+        );
+        worlds().forEach((w) => w.name.split(' ').forEach((x) => v.add(x)));
+        [...SITES, ...((P && P.features) || []).map((f) => ({ name: f[0] }))].forEach((x) => String(x.name || '').toLowerCase().split(/[^a-z0-9]+/).forEach((w) => w.length > 2 && v.add(w)));
+        document.querySelectorAll('#layerSeg button').forEach((b) => b.textContent.toLowerCase().split(/[^a-z]+/).forEach((w) => w.length > 3 && v.add(w)));
+        return v;
+      }
+      function bestAlt(alts) {
+        const V = vocab();
+        let best = alts[0],
+          bs = -1;
+        alts.forEach((a, i) => {
+          const words = hearFix(a.toLowerCase()).split(/[^a-z0-9]+/).filter(Boolean),
+            sc = words.filter((w) => V.has(w)).length / Math.max(1, words.length) - i * 0.05; // the first guess wins ties
+          if (sc > bs) {
+            bs = sc;
+            best = a;
+          }
+        });
+        return best;
+      }
+      // ---- answers from the atlas's own data
+      const cap1 = (x) => String(x).replace(/\b\w/g, (c) => c.toUpperCase());
+      const kmF = (v) => Math.round(v).toLocaleString('en-US') + ' km';
+      const worldIn = (t) => worlds().find((x) => x.name && x.re.test(t));
+      const idx = (id) => INDEX.find((b) => b.id === id) || custom.find((b) => b.id === id);
+      // a spot on the globe at a point on screen (the hand cursor, or the middle of the view)
+      function spotAt(x, y) {
+        const r = pick({ clientX: x, clientY: y });
+        return r && r.ll ? r.ll : null;
+      }
+      function spotHere(useCursor) {
+        const C = $('handCur');
+        if (useCursor && C && !C.hidden) {
+          const q = C.getBoundingClientRect();
+          const ll = spotAt(q.left + q.width / 2, q.top + q.height / 2);
+          if (ll) return ll;
+        }
+        const r = renderer.domElement.getBoundingClientRect();
+        return spotAt(r.left + r.width / 2, r.top + r.height / 2);
+      }
+      function describe(ll) {
+        if (!P || !ll) return null;
+        const [lat, lon] = ll,
+          parts = [`${P.name}, ${fmtLat(lat)} ${fmtLon(lon)}`];
+        let nf = null,
+          nd = 1e9;
+        [...((P.features || []).map((f) => ({ name: f[0], lat: f[1], lon: f[2] }))), ...SITES].forEach((f) => {
+          const d = gc(lat, lon, f.lat, f.lon);
+          if (d < nd) {
+            nd = d;
+            nf = f;
+          }
+        });
+        if (nf) parts.push(nd < 150 ? `at ${nf.name}` : `${kmF(nd)} from ${nf.name}`);
+        (P.grids || []).slice(0, 2).forEach((d) => {
+          const v = samp(G[d.id], lat, lon);
+          if (!isNaN(v)) parts.push(`${d.label.toLowerCase()} ${fmt(v, d.unit)}`);
+        });
+        return parts.join(', ');
+      }
+      function extreme(hi) {
+        if (!ELEV) return null;
+        let best = hi ? -1e18 : 1e18,
+          at = null;
+        for (let lat = -89; lat <= 89; lat += 0.5)
+          for (let lon = -180; lon < 180; lon += 0.5) {
+            const v = samp(ELEV, lat, lon);
+            if (!isNaN(v) && (hi ? v > best : v < best)) {
+              best = v;
+              at = [lat, lon];
+            }
+          }
+        return at ? { v: best, ll: at } : null;
+      }
+      let lastQ = null; // the last question, for "what about Venus?"
+      function ask(t) {
+        // "what about X?": the last question again, about another world
+        const wa = t.match(/^(what|how) about (.+)$/);
+        if (wa && lastQ) {
+          const w = worldIn(wa[2]);
+          if (w) return ask(lastQ.replace('{w}', w.name));
+        }
+        // how big
+        if (/\b(how big|how large|radius|diameter|size of|how wide)\b/.test(t)) {
+          const w = worldIn(t) || (P && { id: P.id, name: P.name.toLowerCase() }),
+            b = w && idx(w.id);
+          if (b && b.radiusKm) {
+            lastQ = 'how big is {w}';
+            const e = idx('earth'),
+              rel = e && w.id !== 'earth' ? `, ${b.radiusKm >= e.radiusKm ? (b.radiusKm / e.radiusKm).toFixed(1) + ' times' : Math.round((100 * b.radiusKm) / e.radiusKm) + '% of'} Earth’s` : '';
+            return `${cap1(b.name)} has a radius of ${kmF(b.radiusKm)}${rel}; it’s ${kmF(2 * b.radiusKm)} across.`;
+          }
+        }
+        // how far away, at the date shown
+        if (/\b(how far|distance to|distance from|how close)\b/.test(t)) {
+          const w = worldIn(t);
+          if (w && window.HELIO) {
+            lastQ = 'how far is {w}';
+            if (w.id === 'earth') return 'You’re looking from Earth, so no distance at all.';
+            const j = window.SIMJD(),
+              a = window.HELIO(w.id, j),
+              e = window.HELIO('earth', j);
+            if (a && e) {
+              const au = a.distanceTo(e),
+                km = au * 149597870.7,
+                min = (km / 299792.458 / 60).toFixed(km < 2e7 ? 1 : 0);
+              return `${cap1(w.name)} is ${au.toFixed(2)} astronomical units from Earth on the date shown, about ${(km / 1e6).toFixed(0)} million km; light takes ${min} minutes.`;
+            }
+          }
+        }
+        // what's here
+        if (/\b(what s this|what is this|what s here|what is here|what s under|what is under|point(ing)? at)\b/.test(t)) {
+          const d = describe(spotHere(true));
+          return d || 'Point at the globe with the hand cursor, or turn it so the spot is in the middle.';
+        }
+        if (/\b(what am i looking at|where am i|what s in the middle|where are we)\b/.test(t)) {
+          if (!P || (view() === 'map' && !FS)) return 'The Solar System map. Say “show Mars” to go to a world.';
+          return describe(spotHere(false)) || `${P.name}. ${$('cap').textContent || ''}`;
+        }
+        // highest and lowest places
+        const hiQ = /\b(highest|tallest|top of the world|biggest mountain)\b/.test(t),
+          loQ = /\b(lowest|deepest)\b/.test(t);
+        if ((hiQ || loQ) && P) {
+          const x = extreme(hiQ);
+          if (!x) return `${P.name} has no height map here, so I can’t tell.`;
+          flyTo(x.ll[0], x.ll[1], 2.4);
+          return `The ${hiQ ? 'highest' : 'lowest'} point on this map of ${P.name}: ${fmt(x.v, ELEV.def ? ELEV.def.unit : 'm')}, at ${fmtLat(x.ll[0])} ${fmtLon(x.ll[1])}, ${describe(x.ll).split(', ').slice(2, 3).join('')}. Flying there.`;
+        }
+        // places by name on this world: landing sites and features
+        if (P) {
+          const places = [...SITES.map((s) => ({ name: s.name, lat: s.lat, lon: s.lon, note: s.note, date: s.date, who: s.who, site: s })), ...(P.features || []).map((f) => ({ name: f[0], lat: f[1], lon: f[2] }))]
+            .map((pl) => Object.assign(pl, { key: String(pl.name).toLowerCase().replace(/[^a-z0-9 ]+/g, ' ').replace(/\s+/g, ' ').trim() }))
+            .filter((pl) => pl.key.length > 2)
+            .sort((a, b) => b.key.length - a.key.length);
+          const pl = places.find((x) => new RegExp('\\b' + x.key + '\\b').test(t));
+          if (pl) {
+            if (pl.site && typeof select === 'function') select(pl.site, true);
+            else flyTo(pl.lat, pl.lon, 2.4);
+            const when = pl.date ? `, ${pl.date.slice(0, 4)}` : '';
+            return `${pl.name}${pl.who ? ' (' + pl.who + when + ')' : when}: ${fmtLat(pl.lat)} ${fmtLon(pl.lon)}.${pl.note ? ' ' + pl.note : ''}`;
+          }
+        }
+        // tell me about a world
+        const ab = t.match(/\b(tell me about|what is|what s|describe)\b(.*)$/);
+        if (ab) {
+          const w = worldIn(ab[2]);
+          if (w) {
+            const b = idx(w.id);
+            lastQ = 'tell me about {w}';
+            if (w.id !== current) setTimeout(() => (view() === 'map' && !FS ? enterGlobe(w.id) : go(w.id)), 50);
+            const maps = b && b.layers ? ` Maps: ${b.layers.slice(0, 5).join(', ')}.` : '';
+            return `${cap1(w.name)}${b && b.kind ? ', a ' + String(b.kind).charAt(0).toLowerCase() + String(b.kind).slice(1) : ''}${b && b.radiusKm ? ', radius ' + kmF(b.radiusKm) : ''}.${w.id === current && P && P.blurb ? ' ' + P.blurb : ''}${maps}`;
+          }
+        }
+        // the date shown, and setting it
+        if (/\b(what s the date|what is the date|what date|what year|what time is it)\b/.test(t) && window.SIMJD) {
+          const d = new Date((window.SIMJD() - 2440587.5) * 86400000);
+          return 'The date shown is ' + d.toUTCString().slice(0, 22) + ' UTC.';
+        }
+        const sd = t.match(/\b(?:set the date to|go to the date|date to|go to the year|year)\s+(.+)$/);
+        if (sd && window.SET_JD) {
+          const txt = sd[1].replace(/(\d+)(st|nd|rd|th)\b/g, '$1'),
+            y = txt.match(/^(-?\d{3,4})$/);
+          const d = y ? new Date(Date.UTC(+y[1], 6, 1)) : new Date(txt + ' UTC');
+          if (!isNaN(d)) {
+            if (y) d.setUTCFullYear(+y[1]);
+            WB_pause();
+            window.SET_JD(d.getTime() / 86400000 + 2440587.5);
+            return 'Date set to ' + d.toUTCString().slice(5, 16) + '. Time is paused there; say “play” to carry on.';
+          }
+        }
+        // live clouds controls
+        if (/\b(play|show) (the )?(last day|last 24 hours|clouds moving|cloud loop)\b/.test(t) && P && P.id === 'earth') {
+          const lb = document.querySelector('#layerSeg button[data-id="live"]');
+          if (lb) {
+            lb.click();
+            setTimeout(() => $('livePlay').click(), 300);
+            return 'Playing the last 24 hours of clouds.';
+          }
+        }
+        if (/\b(clouds now|latest clouds)\b/.test(t) && document.querySelector('#layerSeg button[data-id="live"]')) {
+          document.querySelector('#layerSeg button[data-id="live"]').click();
+          $('liveNow').click();
+          return 'The latest clouds.';
+        }
+        if (/\bearth at night\b/.test(t)) {
+          const doNight = () => {
+            const b = document.querySelector('#layerSeg button[data-id="night"]');
+            if (b) b.click();
+          };
+          if (current !== 'earth') {
+            view() === 'map' && !FS ? enterGlobe('earth') : go('earth');
+            setTimeout(doNight, 2500);
+          } else doNight();
+          return 'Earth at night: the city lights.';
+        }
+        return null;
+      }
+      function WB_pause() {
+        const z = document.querySelector('#warp button[data-w="0"]');
+        if (z) z.click();
+      }
       // one spoken command; returns what was done, for the card
       function run(raw) {
-        const t = raw
-          .toLowerCase()
-          .replace(/colour/g, 'color')
-          .replace(/[^a-z0-9%+ ]+/g, ' ')
-          .replace(/\s+/g, ' ')
-          .trim();
+        const t = hearFix(
+          raw
+            .toLowerCase()
+            .replace(/colour/g, 'color')
+            .replace(/[^a-z0-9%+ ]+/g, ' ')
+            .replace(/\s+/g, ' ')
+            .trim(),
+        );
         if (!t) return null;
+        if (has(t, 'be quiet', 'quiet', 'mute', 'stop talking', 'replies off')) {
+          talk = false;
+          try {
+            localStorage.setItem('atlasSpeak', '0');
+            speechSynthesis.cancel();
+          } catch (e) {}
+          return 'Spoken replies off. Say “talk to me” to turn them back on.';
+        }
+        if (has(t, 'talk to me', 'replies on', 'speak up', 'unmute')) {
+          talk = true;
+          try {
+            localStorage.setItem('atlasSpeak', '1');
+          } catch (e) {}
+          return 'Spoken replies on.';
+        }
+        const qa = ask(t);
+        if (qa) return qa;
         if (has(t, 'stop listening', 'stop voice', 'voice off', 'goodbye', 'go to sleep')) {
           stop();
           return 'Stopped listening.';
@@ -8641,6 +8914,7 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
         return { html: `Didn’t catch a command in “${esc(raw.trim())}”. Say <b>“Atlas, help”</b> for the list.`, err: true };
       }
       function heard(text) {
+        if (performance.now() < quietUntil) return; // that's the atlas's own voice
         let cmd = null;
         const m = text.match(WAKE);
         if (m) cmd = text.slice(m.index + m[0].length);
@@ -8654,8 +8928,15 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
         }
         const r = run(cmd);
         if (!r) return;
-        if (typeof r === 'string') pill('✓', esc(r));
-        else {
+        if (typeof r === 'string') {
+          pill('✓', esc(r), '', r.length > 90);
+          if (r.length > 90) {
+            clearTimeout(pillT);
+            pillT = setTimeout(idle, Math.min(20000, 4000 + r.length * 60));
+          }
+          say(r);
+        } else {
+          if (r.err) say('Sorry, I didn’t catch that.');
           pill(r.err ? '?' : '🎤', r.html, r.err ? 'err' : '');
           if (r.keep) {
             clearTimeout(pillT);
@@ -8672,7 +8953,7 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
         rec.lang = 'en-US';
         rec.continuous = true;
         rec.interimResults = false;
-        rec.maxAlternatives = 1;
+        rec.maxAlternatives = 3;
         // prefer recognition on this device when the browser has it
         local = false;
         try {
@@ -8684,7 +8965,13 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
         } catch (e) {}
         rec.onresult = (e) => {
           fails = 0;
-          for (let i = e.resultIndex; i < e.results.length; i++) if (e.results[i].isFinal) heard(e.results[i][0].transcript);
+          for (let i = e.resultIndex; i < e.results.length; i++)
+            if (e.results[i].isFinal) {
+              // of the service's guesses, the one that sounds most like something the atlas knows
+              const alts = [...e.results[i]].map((a) => a.transcript),
+                withWake = alts.filter((a) => WAKE.test(a));
+              heard(bestAlt(withWake.length ? withWake : alts));
+            }
         };
         rec.onerror = (e) => {
           if (e.error === 'not-allowed' || e.error === 'service-not-allowed') {
@@ -8747,8 +9034,22 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
         $('voicePill').hidden = true;
       }
       $('voiceBtn').onclick = () => (on ? stop() : start());
+      // hold Space to talk without the wake word (while voice is on, and not while typing in a box)
+      const typing = () => /^(INPUT|TEXTAREA|SELECT)$/.test((document.activeElement || {}).tagName || '') || (document.activeElement || {}).isContentEditable;
+      document.addEventListener('keydown', (e) => {
+        if (!on || e.code !== 'Space' || e.repeat || typing()) return;
+        e.preventDefault();
+        armedUntil = Infinity;
+        pill('🎤', 'Listening… (let go of Space when you’ve said it)', 'armed', true);
+      });
+      document.addEventListener('keyup', (e) => {
+        if (!on || e.code !== 'Space' || typing()) return;
+        armedUntil = performance.now() + 2500; // the last words still arrive just after you let go
+      });
       window.atlasVoice = run; // for testing: run a command as if it was spoken after the wake word
       window.atlasHeard = heard;
+      window.atlasAsk = (t) => ask(hearFix(t.toLowerCase().replace(/[^a-z0-9%+ ]+/g, ' ').replace(/\s+/g, ' ').trim()));
+      window.atlasBestAlt = bestAlt;
     }
     // ---------- hand control (camera + MediaPipe hand tracking, all on this computer) ----------
     {
