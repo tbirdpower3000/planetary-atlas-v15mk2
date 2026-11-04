@@ -1590,6 +1590,43 @@
     box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.6);
     transform: translate(-50%, -50%);
   }
+  /* a press you can feel: the button gives a quick bounce and a ring bursts from where you pressed */
+  .juice-ring {
+    position: fixed;
+    z-index: 81;
+    pointer-events: none;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    border: 3px solid #ffd88a;
+    transform: translate(-50%, -50%);
+    animation: juiceRing 0.42s ease-out forwards;
+  }
+  @keyframes juiceRing {
+    to {
+      width: 92px;
+      height: 92px;
+      opacity: 0;
+      border-width: 1px;
+    }
+  }
+  .juiced {
+    animation: juiceBounce 0.28s ease-out;
+  }
+  @keyframes juiceBounce {
+    0% {
+      scale: 1;
+    }
+    35% {
+      scale: 0.9;
+    }
+    70% {
+      scale: 1.06;
+    }
+    100% {
+      scale: 1;
+    }
+  }
   #handCur.drag i b {
     display: block;
   }
@@ -1984,7 +2021,7 @@
     <div class="hrow">
       <h1>
         Planetary Modeling Atlas
-        <span class="ver" title="Version v15mk2.24, 3 Nov 2026: fixes the hand cursor, which stopped in v15mk2.23; the wake word is now “Hey Atlas”; buttons work like lenses for the hand cursor (Snell’s law)">v15mk2.24</span>
+        <span class="ver" title="Version v15mk2.25, 3 Nov 2026: tricks from game design for hand control: slow movements are finer (speed-based gain), presses that are a moment late or early still count, and presses bounce and burst so you can feel them">v15mk2.25</span>
       </h1>
       <button type="button" id="voiceBtn" aria-pressed="false" title="Voice commands: say “Hey Atlas”, then what you want, e.g. “Hey Atlas, show Mars” or “Hey Atlas, next map”">🎤 Voice</button>
       <p id="howTo">
@@ -10250,6 +10287,8 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
           this.reset();
         }
         reset() {
+          this.lastCap = null;
+          this.lastCapT = 0;
           this.p = null;
           this.raw = null;
           this.prev = new Map(); // each item's centre last frame, to carry the cursor with a moving bubble
@@ -10357,10 +10396,68 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
                 cap = it;
                 break;
               }
-          return { x: px, y: py, cap: cap ? cap.key : null, n: fin.n };
+          // late-press forgiveness: for 150 ms after the cursor slips off a target, a press still counts for it
+          if (cap) {
+            this.lastCap = cap.key;
+            this.lastCapT = t;
+          }
+          const recent = cap ? cap.key : this.lastCap && t - this.lastCapT < 150 && items.some((it) => it.key === this.lastCap) ? this.lastCap : null;
+          const under = items.find((it) => it.dist(f.x, f.y) <= 0); // the target under the hand itself
+          return { x: px, y: py, cap: cap ? cap.key : null, recent, hand: under ? under.key : null, n: fin.n };
         }
       }
 
+
+      // ---- tricks from game design (as on the training page)
+      // speed-based gain, as on a mouse or a console: slow hand movements move the cursor less than the hand (down to 45%)
+      // for precision, quick ones fully; it drifts back to where the hand points and never strays more than 60 px from it
+      const BALS = { x: null, y: null, ax: 0, ay: 0, t: 0 };
+      function ballistic(x, y, t) {
+        const B = BALS;
+        if (B.x == null || t - B.t > 300) {
+          B.x = B.ax = x;
+          B.y = B.ay = y;
+          B.t = t;
+          return [x, y];
+        }
+        const dt = Math.max(0.008, (t - B.t) / 1000),
+          dx = x - B.ax,
+          dy = y - B.ay,
+          v = Math.hypot(dx, dy) / dt,
+          u = Math.max(0, Math.min(1, (v - 120) / 580)),
+          g = 0.45 + 0.55 * u * u * (3 - 2 * u);
+        B.x += dx * g;
+        B.y += dy * g;
+        const k = 1 - Math.exp(-dt / (v > 500 ? 0.12 : 0.9));
+        B.x += (x - B.x) * k;
+        B.y += (y - B.y) * k;
+        const ox = B.x - x,
+          oy = B.y - y,
+          o = Math.hypot(ox, oy);
+        if (o > 60) {
+          B.x = x + (ox * 60) / o;
+          B.y = y + (oy * 60) / o;
+        }
+        B.ax = x;
+        B.ay = y;
+        B.t = t;
+        return [B.x, B.y];
+      }
+      // a press you can feel: a bounce of the button and a ring bursting from the cursor
+      function juice(el) {
+        const q = CUR.getBoundingClientRect(),
+          r = document.createElement('div');
+        r.className = 'juice-ring';
+        r.style.left = q.left + q.width / 2 + 'px';
+        r.style.top = q.top + 17 + 'px';
+        document.body.appendChild(r);
+        setTimeout(() => r.remove(), 450);
+        if (el) {
+          el.classList.remove('juiced');
+          void el.offsetWidth;
+          el.classList.add('juiced');
+        }
+      }
       const FLD = new Field();
       const lensItem = (b) => {
         const r = b.getBoundingClientRect();
@@ -10425,6 +10522,7 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
       }
       function click(hv, now) {
         tick();
+        if (hv && hv.btn) juice(hv.btn);
         if (hv && hv.btn) ADAPT.success(hv.btn, now);
         else ADAPT.missPress(now, cx, cy, hoverAt.btns || []);
         if (!hv) return;
@@ -10679,8 +10777,11 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
         ADAPT.size(R.size, now);
         CUR.hidden = false;
         placeCursor(g);
+        const turning = tap0 && tap0.drag;
+        if (!turning) [cx, cy] = ballistic(cx, cy, now);
+        else BALS.x = null;
         // the lenses: every frame, over the buttons found by the last hover test (not while turning the view)
-        const turning = tap0 && tap0.drag,
+        const
           fl = turning ? null : FLD.step({ x: cx, y: cy, pr: R.pr == null ? 1 : R.pr, pinch: R.mode === 'pinch' }, (hoverAt.btns || []).map(lensItem), now, 28, ADAPT.lens); // 28 px: the default button pull (each button's own span overrides it)
         if (turning) FLD.reset();
         const lx = fl ? fl.x : cx,
@@ -10692,7 +10793,8 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
         } // hover-test about ten times a second; aiming into the globe is costly
         ADAPT.frame(now, lx, ly, R.mode);
         window.atlasLens = { fl, cx, cy }; // for testing
-        const hv = fl && fl.cap ? { btn: fl.cap, label: fl.cap.textContent.trim().slice(0, 28) } : handLoop.hv,
+        const capB = fl && (fl.cap || (R.mode === 'pinch' && changed ? fl.recent : null)),
+          hv = capB ? { btn: capB, label: capB.textContent.trim().slice(0, 28) } : handLoop.hv,
           sx = hv && hv.x != null ? hv.x : lx,
           sy = hv && hv.y != null ? hv.y : ly;
         drawCursor(sx, sy);
@@ -10729,6 +10831,13 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
           dwell = null;
         }
         if (R.mode === 'pinch' && tap0) {
+          // an early press: the pinch started on nothing, and a button is reached within 150 ms with the fingers still closed
+          if (!tap0.hv && !tap0.drag && !tap0.done && now - tap0.t < 150 && fl && (fl.cap || fl.hand)) {
+            const b = fl.cap || fl.hand;
+            tap0.hv = { btn: b, label: b.textContent.trim().slice(0, 28) };
+            tap0.top = !!b.closest('#fsBar');
+            tap0.zoom = b.id === 'fsZin' ? -2.8 : b.id === 'fsZout' ? 2.8 : 0;
+          }
           if (R.full) tap0.full = true;
           if (tap0.top) {
             // a top-bar button locks on only once the pinch is full; ＋ and − then zoom for as long as you hold it
