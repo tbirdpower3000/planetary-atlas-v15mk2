@@ -2085,7 +2085,7 @@
     <div class="hrow">
       <h1>
         Planetary Modeling Atlas
-        <span class="ver" title="Version v15mk2.33, 4 Nov 2026: tidier hand-control code; v15mk2.32: five refinements from the hand research bot: presses resolved by a short vote over where the cursor was, steadier button holds, a steadier two-thirds pinch, a rest line with hysteresis, and only the visible part of the safety box mapped; ⋯ Less in the hand-control bar tidies the screen (on by default on phones)">v15mk2.33</span>
+        <span class="ver" title="Version v15mk2.34, 4 Nov 2026: button highlights no longer flicker at the edge, and a held pinch keeps up with the hand; v15mk2.33: tidier hand-control code; v15mk2.32: five refinements from the hand research bot: presses resolved by a short vote over where the cursor was, steadier button holds, a steadier two-thirds pinch, a rest line with hysteresis, and only the visible part of the safety box mapped; ⋯ Less in the hand-control bar tidies the screen (on by default on phones)">v15mk2.34</span>
       </h1>
       <button type="button" id="voiceBtn" aria-pressed="false" title="Voice commands: say “Hey Atlas”, then what you want, e.g. “Hey Atlas, show Mars” or “Hey Atlas, next map”">🎤 Voice</button>
       <p id="howTo">
@@ -10410,6 +10410,10 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
           get lens() {
             return (on && cur().k.lens) || 2.5;
           },
+          // how far the cursor wobbles while nearly still (px), for the capture's exit margin
+          get wobble() {
+            return tre || 8;
+          },
           get pOff() {
             return on ? cur().k.pOff : BASE.pOff;
           },
@@ -10970,6 +10974,8 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
           this.raw = null;
           this.prev = new Map(); // each item's centre last frame, to carry the cursor with a moving bubble
           this.pr = [];
+          this.pinchT = null; // when the current pinch began (the closing guard lasts 200 ms of it)
+          this.capKey = null; // the item captured last frame (it keeps the capture until the cursor is clearly outside)
         }
         n(x, y, items, span, nMax) {
           let g = 0;
@@ -10989,7 +10995,12 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
           const span = Math.max(36, snap * 1.2);
           this.pr.push([t, f.pr]);
           while (this.pr.length && t - this.pr[0][0] > 150) this.pr.shift();
-          const closing = f.pinch || (this.pr.length > 2 && this.pr[0][1] - f.pr > 0.08);
+          // the fingers closing drag the hand point: hold the cursor harder while that happens, i.e. during the pinch's first
+          // 200 ms or while the pinch ratio is still changing fast (closing, or opening to let go), not for the whole held pinch,
+          // which made a carried disc trail the hand by 60-170 px
+          if (f.pinch && this.pinchT == null) this.pinchT = t;
+          else if (!f.pinch) this.pinchT = null;
+          const closing = (f.pinch && t - this.pinchT < 200) || (this.pr.length > 2 && Math.abs(this.pr[0][1] - f.pr) > 0.08);
           if (!this.p) {
             this.p = [f.x, f.y];
             this.raw = [f.x, f.y];
@@ -11064,6 +11075,13 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
                 cap = it;
                 break;
               }
+          // once captured, an item keeps the capture until the cursor is outside it by more than the hand's own wobble
+          // (6-16 px), so a jitter at the edge can't flicker the highlight on and off
+          if (!cap && this.capKey != null) {
+            const was = items.find((it) => it.key === this.capKey);
+            if (was && was.dist(px, py) < Math.max(6, Math.min(16, this.margin || 8))) cap = was;
+          }
+          this.capKey = cap ? cap.key : null;
           if (cap) {
             this.lastCap = cap.key;
             this.lastCapT = t;
@@ -11472,6 +11490,7 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
         const turning = tap0 && tap0.drag;
         if (!turning) [cx, cy] = ballistic(cx, cy, now);
         else BALS.x = null;
+        FLD.margin = ADAPT.wobble; // the capture's exit margin: the hand's own wobble (clamped 6-16 px)
         const
           fl = turning ? null : FLD.step({ x: cx, y: cy, pr: R.pr == null ? 1 : R.pr, pinch: R.mode === 'pinch', fast: R.fast || 0 }, (hoverAt.btns || []).map(holdItem), now, 28, ADAPT.lens); // 28 px: the default button pull (each button's own span overrides it)
         if (turning) FLD.reset();
