@@ -1975,7 +1975,7 @@
     <div class="hrow">
       <h1>
         Planetary Modeling Atlas
-        <span class="ver" title="Version v15mk2.19, 3 Nov 2026: while you turn the view by hand, the cursor stays where you pinched and a dot inside it shows the movement, like a joystick; and no more pressing by hovering; the buttons at the top press only on a full pinch, when you let go">v15mk2.19</span>
+        <span class="ver" title="Version v15mk2.19, 3 Nov 2026: while you turn the view by hand, the cursor stays where you pinched and a dot inside it shows the movement, like a joystick; and no more pressing by hovering; the buttons at the top press only on a full pinch, when you let go; worlds open on shaded relief, and Earth on its clouds">v15mk2.19</span>
       </h1>
       <button type="button" id="voiceBtn" aria-pressed="false" title="Voice commands: say “Atlas”, then what you want, e.g. “Atlas, show Mars” or “Atlas, next map”">🎤 Voice</button>
       <p id="howTo">
@@ -3047,6 +3047,18 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
     }
     // imagery + relief: the photo map tinted by height, shaded by the relief, or both, mixed by a slider
     const BL = { cv: document.createElement('canvas'), tex: null, img: {}, tint: null, shade: null, key: '', job: 0 };
+    // the map a world opens on: Earth with its clouds (cloud cover over the colour map, which also dims the night-side city
+    // lights where it's cloudy); every other world with shaded relief (its photo map shaded by its topography) where it has
+    // both, else its photo map, else its first data map
+    function defaultLayer() {
+      if (P.id === 'earth' && P.images.some((im) => im.id === 'visc')) return 'visc';
+      if (ELEV && blendPhotos().length) {
+        $('blendM').value = 'shade';
+        return 'blend';
+      }
+      if (P.images.length) return P.images[0].id;
+      return P.grids.length ? P.grids[0].id : null;
+    }
     function blendPhotos() {
       return (P && P.images ? P.images : []).filter((im) => im.id !== 'night' && !/night/i.test(im.label));
     }
@@ -3917,7 +3929,7 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
       buildReadout();
       bodyPanel();
       drawTable();
-      setLayer(P.grids.length ? P.grids[0].id : P.images.length ? P.images[0].id : null);
+      setLayer(defaultLayer());
       if (!P.grids.length && !P.images.length) {
         tctx.fillStyle = '#777';
         tctx.fillRect(0, 0, TW, TH);
