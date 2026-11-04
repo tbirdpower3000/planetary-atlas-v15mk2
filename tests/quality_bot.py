@@ -70,6 +70,8 @@ async def shoot(root, port, tag):
                 vb = await pg.evaluate("document.querySelectorAll('#viewBtns button').length")
                 if vb: await pg.evaluate(f"document.querySelectorAll('#viewBtns button')[{1 if vb > 1 else 0}].click()")
                 await pg.wait_for_timeout(2600)
+                # Live clouds change every 10 minutes and come from outside, so they can't be compared between versions
+                layers = [x for x in layers if x[0] != 'live']
                 for lid, label in layers:
                     await pg.evaluate(f"document.querySelector('#layerSeg button[data-id=\"{lid}\"]').click()")
                     await pg.wait_for_timeout(1800)

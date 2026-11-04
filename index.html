@@ -1975,7 +1975,7 @@
     <div class="hrow">
       <h1>
         Planetary Modeling Atlas
-        <span class="ver" title="Version v15mk2.19, 3 Nov 2026: while you turn the view by hand, the cursor stays where you pinched and a dot inside it shows the movement, like a joystick; and no more pressing by hovering; the buttons at the top press only on a full pinch, when you let go; worlds open on shaded relief, and Earth on its clouds">v15mk2.19</span>
+        <span class="ver" title="Version v15mk2.20, 3 Nov 2026: Earth has Live clouds from three weather satellites (GOES-East, GOES-West, Himawari) with a 24-hour slider">v15mk2.20</span>
       </h1>
       <button type="button" id="voiceBtn" aria-pressed="false" title="Voice commands: say “Atlas”, then what you want, e.g. “Atlas, show Mars” or “Atlas, next map”">🎤 Voice</button>
       <p id="howTo">
@@ -2078,6 +2078,11 @@
             <option value="overlay">Overlay</option>
           </select></label
         ><label class="tgroup" id="blendIL" hidden>Photo<select id="blendI" aria-label="Which photo map"></select></label></span
+      >
+      <span id="liveT" class="toolbar" style="gap: 8px 14px" hidden
+        ><button type="button" id="livePlay" title="Play back the last 24 hours">▶ 24 h</button
+        ><input id="liveS" type="range" min="-47" max="0" step="1" value="0" aria-label="Time of the cloud picture, back to 24 hours ago" style="width: min(260px, 40vw)" /><output id="liveO">latest</output
+        ><button type="button" id="liveNow" title="Jump to the latest picture">Now</button><span id="liveN" class="muted" style="font-size: 0.8rem"></span></span
       >
       <span id="minT" class="toolbar" style="gap: 10px 18px" hidden
         ><label class="tgroup"
@@ -3187,6 +3192,199 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
         return t;
       });
     }
+
+    // ---------- live clouds over Earth, from three weather satellites ----------
+    // GOES-East (75.2° W), GOES-West (137.2° W) and Himawari (140.7° E) each see their side of the Earth every 10 minutes.
+    // NASA GIBS serves their 10.3 µm "clean infrared" pictures, already on a latitude/longitude grid, and they load straight
+    // into the browser. Cold cloud tops are bright in infrared, by day and by night. Each pixel takes the satellite that sees
+    // it most nearly overhead (within 72° of arc, beyond which the view is too slanted); the brightness is stretched per
+    // satellite between its median and its 93rd percentile, so the clear ground drops out and the clouds remain. Europe,
+    // Africa and the Indian Ocean are outside all three views (that is Meteosat's area, not in this feed), so no live clouds
+    // are drawn there. The slider steps back through the last 24 hours in half hours; ▶ plays them.
+    const LIVE = {
+      sats: [
+        ['GOES-East_ABI_Band13_Clean_Infrared', -75.2, 'GOES-East'],
+        ['GOES-West_ABI_Band13_Clean_Infrared', -137.2, 'GOES-West'],
+        ['Himawari_AHI_Band13_Clean_Infrared', 140.7, 'Himawari'],
+      ],
+      W: 2048,
+      H: 1024,
+      cv: null,
+      tex: null,
+      base: null,
+      cache: new Map(), // slot time (ms) -> cloud alpha (Uint8Array), the last 24 kept
+      job: 0,
+      play: null,
+      shown: null,
+    };
+    const liveUrl = (layer, iso) =>
+      `https://gibs.earthdata.nasa.gov/wms/epsg4326/best/wms.cgi?SERVICE=WMS&REQUEST=GetMap&VERSION=1.3.0&LAYERS=${layer}&STYLES=&CRS=EPSG:4326&BBOX=-90,-180,90,180&WIDTH=${LIVE.W}&HEIGHT=${LIVE.H}&FORMAT=image/jpeg&TIME=${iso}`;
+    // the newest picture is usually ready about half an hour after it was taken; slot 0 is that, slot -n is n half hours earlier
+    function liveSlot(n) {
+      const t = Date.now() - 35 * 60000,
+        tenMin = Math.floor(t / 600000) * 600000;
+      return n === 0 ? tenMin : Math.floor(t / 1800000) * 1800000 + n * 1800000;
+    }
+    const liveIso = (ms) => new Date(ms).toISOString().slice(0, 19) + 'Z';
+    function liveImg(layer, ms) {
+      return new Promise((res, rej) => {
+        const im = new Image();
+        im.crossOrigin = 'anonymous';
+        im.onload = () => res(im);
+        im.onerror = () => rej(new Error('live image'));
+        im.src = liveUrl(layer, liveIso(ms));
+      });
+    }
+    // one satellite's picture: as luminance, or null if it didn't load or was blank (try up to two slots earlier)
+    async function liveSat(sat, ms) {
+      for (const back of [0, 600000, 1200000]) {
+        try {
+          const im = await liveImg(sat[0], ms - back),
+            c = document.createElement('canvas');
+          c.width = LIVE.W;
+          c.height = LIVE.H;
+          const x = c.getContext('2d', { willReadFrequently: true });
+          x.drawImage(im, 0, 0, LIVE.W, LIVE.H);
+          const d = x.getImageData(0, 0, LIVE.W, LIVE.H).data,
+            L = new Uint8Array(LIVE.W * LIVE.H);
+          let n = 0;
+          for (let i = 0, j = 0; j < L.length; i += 4, j++) {
+            L[j] = (d[i] * 77 + d[i + 1] * 150 + d[i + 2] * 29) >> 8;
+            if (L[j] > 8) n++;
+          }
+          if (n > L.length * 0.05) return L;
+        } catch (e) {}
+      }
+      return null;
+    }
+    // the clouds at one time: an alpha per pixel (0 clear, 255 thick cloud) and which satellites answered
+    async function liveClouds(ms) {
+      if (LIVE.cache.has(ms)) return LIVE.cache.get(ms);
+      const lums = await Promise.all(LIVE.sats.map((s) => liveSat(s, ms))),
+        { W, H } = LIVE,
+        A = new Uint8Array(W * H);
+      // each satellite's stretch: between the median and the 93rd percentile of what it sees
+      const st = lums.map((L) => {
+        if (!L) return null;
+        const h = new Uint32Array(256);
+        let n = 0;
+        for (let j = 0; j < L.length; j += 7)
+          if (L[j] > 8) {
+            h[L[j]]++;
+            n++;
+          }
+        const q = (f) => {
+          let c = 0;
+          for (let v = 0; v < 256; v++) if ((c += h[v]) >= n * f) return v;
+          return 255;
+        };
+        const lo = q(0.5),
+          hi = Math.max(lo + 20, q(0.93));
+        return [lo, hi];
+      });
+      const MAXC = Math.cos((72 * Math.PI) / 180),
+        sub = LIVE.sats.map((s) => (s[1] * Math.PI) / 180);
+      for (let y = 0; y < H; y++) {
+        const lat = (90 - ((y + 0.5) / H) * 180) * (Math.PI / 180),
+          cl = Math.cos(lat);
+        for (let x = 0; x < W; x++) {
+          const lon = (((x + 0.5) / W) * 360 - 180) * (Math.PI / 180),
+            j = y * W + x;
+          let best = -1,
+            bc = MAXC;
+          for (let k = 0; k < 3; k++) {
+            if (!lums[k] || lums[k][j] <= 8) continue;
+            const c = cl * Math.cos(lon - sub[k]); // cosine of the arc from the point below the satellite
+            if (c > bc) {
+              bc = c;
+              best = k;
+            }
+          }
+          if (best < 0) continue;
+          const [lo, hi] = st[best],
+            u = Math.min(1, Math.max(0, (lums[best][j] - lo) / (hi - lo))),
+            edge = Math.min(1, (bc - MAXC) / 0.08); // fade out toward the edge of the satellite's view
+          A[j] = Math.round(255 * u * u * (3 - 2 * u) * edge);
+        }
+      }
+      const out = { A, ok: lums.map((L, k) => (L ? LIVE.sats[k][2] : null)).filter(Boolean), ms };
+      if (out.ok.length) {
+        LIVE.cache.set(ms, out);
+        while (LIVE.cache.size > 24) LIVE.cache.delete(LIVE.cache.keys().next().value);
+      }
+      return out;
+    }
+    async function livePaint(n) {
+      const job = ++LIVE.job,
+        ms = liveSlot(n);
+      $('liveO').textContent = n === 0 ? 'latest' : new Date(ms).toLocaleString([], { weekday: 'short', hour: '2-digit', minute: '2-digit' });
+      $('liveN').textContent = LIVE.cache.has(ms) ? '' : 'Loading the satellite pictures…';
+      if (!LIVE.base) {
+        const vis = (P.images || []).find((im) => im.id === 'vis');
+        if (!vis) return;
+        LIVE.base = await loadImg(vis.src);
+      }
+      const cl = await liveClouds(ms);
+      if (job !== LIVE.job || layer !== 'live') return;
+      if (!LIVE.cv) {
+        LIVE.cv = document.createElement('canvas');
+        LIVE.cv.width = LIVE.W;
+        LIVE.cv.height = LIVE.H;
+        LIVE.tex = new THREE.CanvasTexture(LIVE.cv);
+        LIVE.tex.anisotropy = 4;
+      }
+      const x = LIVE.cv.getContext('2d');
+      x.drawImage(LIVE.base, 0, 0, LIVE.W, LIVE.H);
+      if (cl.ok.length) {
+        const img = x.getImageData(0, 0, LIVE.W, LIVE.H),
+          d = img.data,
+          A = cl.A;
+        for (let j = 0, i = 0; j < A.length; j++, i += 4) {
+          const a = A[j] / 255;
+          if (!a) continue;
+          d[i] += (246 - d[i]) * a;
+          d[i + 1] += (248 - d[i + 1]) * a;
+          d[i + 2] += (252 - d[i + 2]) * a;
+        }
+        x.putImageData(img, 0, 0);
+      }
+      LIVE.tex.needsUpdate = true;
+      setMap(LIVE.tex);
+      LIVE.shown = ms;
+      const when = new Date(cl.ms).toUTCString().slice(5, 22) + ' UTC';
+      $('liveN').textContent = cl.ok.length
+        ? `${when} · ${cl.ok.join(', ')}${cl.ok.length < 3 ? ' (the others didn’t answer)' : ''}`
+        : 'The satellite pictures couldn’t be loaded (offline, or the service is busy). Showing the surface without clouds.';
+      $('legN').textContent =
+        'Live clouds from GOES-East, GOES-West (NOAA) and Himawari (JMA) infrared pictures via NASA GIBS, every 10 minutes. No live feed covers Europe, Africa and the Indian Ocean here, so those areas show no clouds.';
+    }
+    $('liveS').oninput = (e) => layer === 'live' && livePaint(+e.target.value);
+    $('liveNow').onclick = () => {
+      liveStop();
+      $('liveS').value = 0;
+      livePaint(0);
+    };
+    function liveStop() {
+      if (LIVE.play) clearTimeout(LIVE.play);
+      LIVE.play = null;
+      $('livePlay').textContent = '▶ 24 h';
+    }
+    $('livePlay').onclick = () => {
+      if (LIVE.play) return liveStop();
+      $('livePlay').textContent = '⏸ Pause';
+      let n = +$('liveS').value >= 0 ? -47 : +$('liveS').value;
+      const tick = async () => {
+        if (layer !== 'live') return liveStop();
+        $('liveS').value = n;
+        await livePaint(n);
+        if (!LIVE.play) return;
+        n = n >= 0 ? -47 : n + 1;
+        LIVE.play = setTimeout(tick, 350);
+      };
+      LIVE.play = setTimeout(tick, 0);
+    };
+    // the latest picture refreshes by itself every 10 minutes while it's on screen
+    setInterval(() => layer === 'live' && +$('liveS').value === 0 && !LIVE.play && !document.hidden && livePaint(0), 600000);
     function nightFor(im) {
       const u = mat.uniforms,
         ims = P.images || [],
@@ -3197,7 +3395,7 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
       u.uCloudOn.value = 0;
       u.uAmb.value = 0.16;
       u.uRim.value = P && P.id === 'earth' && im ? 0.6 : 0; // only on photographs, never over a data map
-      if (im && im.id === 'visc' && day)
+      if (im && (im.id === 'visc' || im.id === 'live') && day)
         imgTexOf(day)
           .then((t) => {
             if (layer !== im.id && layer !== 'blend') return;
@@ -3232,6 +3430,17 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
       $('minT').hidden = !id.startsWith('min_');
       if (P && $('readout')) buildReadout();
       $('blendT').hidden = id !== 'blend';
+      $('liveT').hidden = id !== 'live';
+      if (id !== 'live') liveStop();
+      if (id === 'live') {
+        nightFor({ id: 'live' });
+        $('legend').hidden = true;
+        $('ticks').hidden = true;
+        $('legT').textContent = 'Live clouds';
+        $('cap').textContent = `${P.name} · Live clouds`;
+        livePaint(+$('liveS').value);
+        return;
+      }
       if (id === 'blend' && ELEV && blendBase()) {
         const base = blendBase();
         nightFor(base);
@@ -3762,12 +3971,16 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
     }
     // what each world's sources are used for (worked out from its pack by code/source_uses.py), and the sources of the features on top
     const SRC_USE = {"mercury": [["Konopliv et al. (2020), JGMESS_160A gravity, Ica", "The Free-air gravity and Geoid maps, summed from the spherical-harmonic field on this page’s grid."], ["Celestia Content: Mercury texture and normal map", "The Visible colour map on the globe."]], "venus": [["Konopliv, Banerdt & Sjogren (1999), SHGJ180U gra", "The Free-air gravity and Geoid maps, summed from the spherical-harmonic field on this page’s grid."], ["Celestia Content: Venus surface texture and norm", "The Surface map on the globe."], ["Lander coordinates: List of artificial objects o", "The positions of the 17 landing sites, on the globe and in the sites table."]], "earth": [["Amante & Eakins (2009), ETOPO1, via Fatiando a T", "The Topography map and the globe’s relief, which every map is draped on."], ["Förste et al. (2014), EIGEN-6C4 gravity, via Fat", "The Gravity disturbance map, summed from the spherical-harmonic field on this page’s grid."], ["EIGEN-6C4 geoid via Fatiando a Terra earth-geoid", "The Geoid map."], ["WGS84 normal gravity from Boule (Fatiando a Terr", "The normal gravity of the WGS84 ellipsoid, subtracted from EIGEN-6C4 to make the Gravity disturbance map."], ["Celestia Content: Earth colour, cloud and night ", "The Visible colour, Visible colour with clouds and Night lights maps, as prepared for Celestia."], ["NASA Earth Observatory, Blue Marble and Night Li", "The NASA imagery behind the cloud cover and the night lights."]], "moon": [["Wieczorek (2015), LOLA shape MoonTopo2600p, grid", "The Topography map and the globe’s relief, which every map is draped on."], ["Goossens et al. (2020), GRGM1200L, NASA PDS GRAI", "The Free-air gravity, Bouguer gravity and Selenoid maps, summed from the spherical-harmonic field on this page’s grid. Bouguer gravity also uses the topography."], ["Lognonné, Gagnepain-Beyneix & Chenet (2003), moo", "The Moonquakes and impacts points (Apollo seismic network)."], ["Tai Udovicic et al. (2023), MoonPIES polar crate", "The south-polar cold-trap craters."], ["LRO Wide Angle Camera colour, NASA SVS CGI Moon ", "The Visible colour map on the globe (Imagery + relief uses it too)."], ["Landing coordinates: List of artificial objects ", "The positions of the 41 landing sites, on the globe and in the sites table."]], "mars": [["Smith et al. (2001), MOLA, as gridded in the Mar", "The Topography map and the globe’s relief, which every map is draped on."], ["Genova et al. (2016), GMM-3 gravity field (SHTOO", "The Free-air gravity, Bouguer gravity and Areoid maps, summed from the spherical-harmonic field on this page’s grid. Bouguer gravity also uses the topography."], ["Wieczorek (2015), MarsTopo719 shape model (SHTOO", "The shape of Mars, used to take the pull of the topography out of the free-air gravity for the Bouguer gravity map."], ["Viking MDIM colour mosaic, USGS", "The Imagery map on the globe (Imagery + relief uses it too)."], ["Landing coordinates: List of artificial objects ", "The positions of the 16 landing sites, on the globe and in the sites table."]], "phobos": [["Celestia Content, phobos.jpg (CC-BY-3.0)", "The Colour map on the globe."], ["Feature names and positions: IAU Gazetteer of Pl", "The 14 feature names on the globe: IAU names at their official positions."]], "deimos": [["Celestia Content, deimos.jpg (CC0-1.0)", "The Colour map on the globe."], ["Feature names and positions: IAU Gazetteer of Pl", "The 2 feature names on the globe: IAU names at their official positions."]], "jupiter": [["Celestia Content, jupiter.jpg (CC-BY-3.0); shape", "The Cloud tops map on the globe. Also the shape: the radius and the polar flattening."], ["Entry points: NASA/JPL (Cassini, PIA21896) and t", "Where the probes entered the atmosphere, marked on the globe."]], "io": [["Celestia Content, textures/hires/io.png (CC-BY-4", "The Colour map on the globe."], ["Feature names and positions: IAU Gazetteer of Pl", "The 14 feature names on the globe: IAU names at their official positions."]], "europa": [["Celestia Content, textures/hires/europa.jpg (see", "The Colour map on the globe."], ["Feature names and positions: IAU Gazetteer of Pl", "The 14 feature names on the globe: IAU names at their official positions."]], "ganymede": [["Celestia Content, textures/hires/ganymede.jpg (C", "The Colour map on the globe."], ["Feature names and positions: IAU Gazetteer of Pl", "The 14 feature names on the globe: IAU names at their official positions."]], "callisto": [["Celestia Content, textures/hires/callisto.jpg (s", "The Colour map on the globe."], ["Feature names and positions: IAU Gazetteer of Pl", "The 14 feature names on the globe: IAU names at their official positions."]], "saturn": [["Celestia Content, saturn.jpg (CC-BY-3.0); shape ", "The Cloud tops map on the globe. Also the shape: the radius and the polar flattening."], ["Entry points: NASA/JPL (Cassini, PIA21896) and t", "Where the probes entered the atmosphere, marked on the globe."]], "mimas": [["Celestia Content, mimas.jpg (see repository)", "The Colour map on the globe."], ["Feature names and positions: IAU Gazetteer of Pl", "The 14 feature names on the globe: IAU names at their official positions."]], "enceladus": [["Celestia Content, textures/hires/enceladus.jpg (", "The Colour map on the globe."], ["Feature names and positions: IAU Gazetteer of Pl", "The 14 feature names on the globe: IAU names at their official positions."]], "tethys": [["Celestia Content, tethys.jpg (see repository)", "The Colour map on the globe."], ["Feature names and positions: IAU Gazetteer of Pl", "The 14 feature names on the globe: IAU names at their official positions."]], "dione": [["Celestia Content, dione.jpg (see repository)", "The Colour map on the globe."], ["Feature names and positions: IAU Gazetteer of Pl", "The 14 feature names on the globe: IAU names at their official positions."]], "rhea": [["Celestia Content, rhea.jpg (see repository)", "The Colour map on the globe."], ["Feature names and positions: IAU Gazetteer of Pl", "The 14 feature names on the globe: IAU names at their official positions."]], "titan": [["Celestia Content, textures/hires/titan.png (CC-B", "The Colour map on the globe."], ["Feature names and positions: IAU Gazetteer of Pl", "The 14 feature names on the globe: IAU names at their official positions."]], "hyperion": [["Celestia Content, hyperion.jpg (CC-BY-4.0)", "The Colour map on the globe."], ["Feature names and positions: IAU Gazetteer of Pl", "The 5 feature names on the globe: IAU names at their official positions."]], "iapetus": [["Celestia Content, iapetus.jpg (see repository)", "The Colour map on the globe."], ["Feature names and positions: IAU Gazetteer of Pl", "The 14 feature names on the globe: IAU names at their official positions."]], "uranus": [["Celestia Content, uranus.jpg (CC-BY-NC-SA-3.0); ", "The Cloud tops map on the globe. Also the shape: the radius and the polar flattening."], ["Entry points: NASA/JPL (Cassini, PIA21896) and t", "The giant planets’ probe entry sites; no probe has entered this world, so none is marked."]], "miranda": [["Celestia Content, miranda.jpg (CC-BY-SA-4.0)", "The Colour map on the globe."], ["Feature names and positions: IAU Gazetteer of Pl", "The 14 feature names on the globe: IAU names at their official positions."]], "ariel": [["Celestia Content, ariel.jpg (CC-BY-SA-4.0)", "The Colour map on the globe."], ["Feature names and positions: IAU Gazetteer of Pl", "The 14 feature names on the globe: IAU names at their official positions."]], "umbriel": [["Celestia Content, umbriel.jpg (CC-BY-SA-4.0)", "The Colour map on the globe."], ["Feature names and positions: IAU Gazetteer of Pl", "The 13 feature names on the globe: IAU names at their official positions."]], "titania": [["Celestia Content, titania.jpg (CC-BY-SA-4.0)", "The Colour map on the globe."], ["Feature names and positions: IAU Gazetteer of Pl", "The 14 feature names on the globe: IAU names at their official positions."]], "oberon": [["Celestia Content, oberon.jpg (CC-BY-SA-4.0)", "The Colour map on the globe."], ["Feature names and positions: IAU Gazetteer of Pl", "The 10 feature names on the globe: IAU names at their official positions."]], "neptune": [["Celestia Content, neptune.jpg (CC-BY-3.0); shape", "The Cloud tops map on the globe. Also the shape: the radius and the polar flattening."], ["Entry points: NASA/JPL (Cassini, PIA21896) and t", "The giant planets’ probe entry sites; no probe has entered this world, so none is marked."]], "triton": [["Celestia Content, textures/hires/triton.jpg (CC-", "The Colour map on the globe."], ["Feature names and positions: IAU Gazetteer of Pl", "The 14 feature names on the globe: IAU names at their official positions."]], "ceres": [["Celestia Content, textures/hires/ceres.jpg (see ", "The Colour map on the globe."], ["Feature names and positions: IAU Gazetteer of Pl", "The 14 feature names on the globe: IAU names at their official positions."]], "vesta": [["Celestia Content, textures/hires/vesta.jpg (see ", "The Colour map on the globe."], ["Feature names and positions: IAU Gazetteer of Pl", "The 14 feature names on the globe: IAU names at their official positions."]], "pluto": [["Celestia Content, textures/hires/pluto.jpg (CC-B", "The Colour map on the globe."], ["Feature names and positions: IAU Gazetteer of Pl", "The 14 feature names on the globe: IAU names at their official positions."]], "charon": [["Celestia Content, charon.jpg (CC-BY-NC-SA-3.0)", "The Colour map on the globe."], ["Feature names and positions: IAU Gazetteer of Pl", "The 14 feature names on the globe: IAU names at their official positions."]], "_extra": {"earth": [["Kelso, T.S. CelesTrak general perturbations element sets", "https://celestrak.org/NORAD/elements/", "The live satellites: each one’s orbit, read in the browser."], ["Vallado, D.A. et al. (2006). Revisiting Spacetrack Report #3. AIAA 2006-6753; satellite.js", "https://github.com/shashwatak/satellite-js", "The SGP4 model that places each satellite at the time shown."], ["Schäfer, M. et al. (2014). OpenSky Network", "https://opensky-network.org", "The live flights, through the atlas’s own GitHub job that takes a worldwide snapshot every few minutes."]], "moon": [["Robbins, S.J. (2019). A new global database of lunar impact craters >1–2 km. JGR Planets 124, 871–892", "https://doi.org/10.1029/2018JE005592", "The crater rings, crater density and crater counts (1.3 million craters)."], ["Povilaitis, R.Z. et al. (2018). Crater density differences. Planetary and Space Science 162, 41–51", "https://doi.org/10.1016/j.pss.2017.05.006", "The alternative 5–20 km crater catalog (22,746 craters)."], ["Neukum, G., Ivanov, B.A. & Hartmann, W.K. (2001). Space Science Reviews 96, 55–86", "https://doi.org/10.1023/A:1011989004263", "The lunar production and chronology functions for model ages."], ["Michael, G.G. craterstats", "https://github.com/ggmichael/craterstats", "The production and chronology function coefficients for crater model ages (BSD-3 licence)."], ["Michael, G.G., Kneissl, T. & Neesemann, A. (2016). Poisson timing analysis. Icarus 277, 279–285", "https://doi.org/10.1016/j.icarus.2016.05.019", "The Poisson fit behind each crater model age."]], "mars": [["Robbins, S.J. & Hynek, B.M. (2012). A new global database of Mars impact craters ≥1 km. JGR 117, E05004", "https://doi.org/10.1029/2011JE003966", "The crater rings, crater density and crater counts (384,343 craters)."], ["Ivanov, B.A. (2001); Hartmann, W.K. & Neukum, G. (2001). Space Science Reviews 96", "https://doi.org/10.1023/A:1011945222010", "The Mars production and chronology functions for model ages."], ["Michael, G.G. craterstats", "https://github.com/ggmichael/craterstats", "The production and chronology function coefficients for crater model ages (BSD-3 licence)."], ["Michael, G.G., Kneissl, T. & Neesemann, A. (2016). Poisson timing analysis. Icarus 277, 279–285", "https://doi.org/10.1016/j.icarus.2016.05.019", "The Poisson fit behind each crater model age."], ["Ody, A. et al. (2012). Global maps of anhydrous minerals at the surface of Mars from OMEGA/MEx. JGR 117, E00J14", "https://doi.org/10.1029/2012JE004117", "The five mineral maps: ferric oxides, dust, pyroxene, olivine and near-infrared albedo."], ["ESA Planetary Science Archive: Mars Express OMEGA global maps (MEX-M-OMEGA-5-DDR-GLOBAL-MAPS-V1.0)", "https://archives.esac.esa.int/psa/ftp/MARS-EXPRESS/OMEGA/MEX-M-OMEGA-5-DDR-GLOBAL-MAPS-V1.0/", "The 40 pixel-per-degree map files, averaged to 1° cells in the Mars Planetary Modeling Atlas."], ["Wordsworth, R. et al. (2021). Nature Geoscience 14, 127–132 (Fig. 1a)", "https://doi.org/10.1038/s41561-021-00701-8", "The geologic timeline and the dates of Tharsis, Hellas and Argyre."], ["Andrews-Hanna, J.C., Zuber, M.T. & Banerdt, W.B. (2008). The Borealis basin. Nature 453, 1212–1215", "https://doi.org/10.1038/nature07011", "The Borealis ellipse and its alternative fits, the Hellas axes, and how Ancient Mars removes Tharsis."], ["Melosh, H.J. (2008). Did an impact blast away half of the martian crust? Nature Geoscience 1, 412–414", "", "The 4.4 Ga date of the Borealis impact."], ["Bouley, S. et al. (2016). Late Tharsis formation and implications for early Mars. Nature 531, 344–347", "https://doi.org/10.1038/nature17171", "The alternative ancient spin axis."], ["Konopliv, A.S. et al. (2016). Icarus 274, 253–260", "", "Mars’s moment of inertia, which sets the rotational bulge Ancient Mars is measured against."], ["Robbins, S.J., Hynek, B.M., Lillis, R.J. & Bottke, W.F. (2013). Large impact crater histories of Mars. Icarus 225, 173–184", "https://doi.org/10.1016/j.icarus.2013.03.019", "The ages of the major impacts."], ["Bottke, W.F. & Andrews-Hanna, J.C. (2017), Nature Geoscience 10; Frey, H.V. (2004)", "", "Utopia’s age and Ladon’s size."], ["Citron, R.I., Manga, M. & Hemingway, D.J. (2018). Timing of oceans on Mars from shoreline deformation. Nature 555, 643–646", "https://doi.org/10.1038/nature26144", "The Tharsis correction for the ocean and the shoreline ages."], ["Carr, M.H. & Head, J.W. (2003); Sholes, S.F. et al. (2021), JGR Planets 126, e2020JE006486", "https://doi.org/10.1029/2020JE006486", "The Arabia and Deuteronilus shorelines and their mean heights."], ["Scheller, E.L. et al. (2021). Long-term drying of Mars. Science 372, 56–62", "https://doi.org/10.1126/science.abc7717", "When the ocean dries out on the timeline."]]}};
+    SRC_USE._extra.earth = (SRC_USE._extra.earth || []).concat([
+      ['NASA GIBS: GOES-East and GOES-West ABI (NOAA) and Himawari AHI (JMA) Band 13 clean infrared, near real time', 'https://earthdata.nasa.gov/news/blog/view-earth-every-10-minutes-geostationary-imagery', 'The Live clouds layer: the three satellites’ infrared pictures every 10 minutes, loaded in your browser and blended into one cloud map over the Visible colour map.'],
+    ]);
     function buildLayerSeg() {
       const photos = blendPhotos(),
         mins = (P.grids || []).filter((d) => d.group === 'min'),
         items = [...(P.grids || []).filter((d) => d.group !== 'min').map((d) => [d.id, d.label]), ...(P.images || []).map((d) => [d.id, d.label])];
       if (mins.length) items.splice((P.grids || []).filter((d) => d.group !== 'min').length, 0, ['minerals', 'Minerals']);
       if (ELEV && photos.length) items.push(['blend', 'Imagery + relief']);
+      if (P.id === 'earth' && (P.images || []).some((im) => im.id === 'vis')) items.push(['live', 'Live clouds ☁']);
       const keep = $('blendI').value;
       $('blendI').innerHTML = photos.map((im) => `<option value="${esc(im.id)}">${esc(im.label)}</option>`).join('');
       if (photos.some((im) => im.id === keep)) $('blendI').value = keep;
@@ -3929,6 +4142,7 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
       buildReadout();
       bodyPanel();
       drawTable();
+      LIVE.base = null;
       setLayer(defaultLayer());
       if (!P.grids.length && !P.images.length) {
         tctx.fillStyle = '#777';
