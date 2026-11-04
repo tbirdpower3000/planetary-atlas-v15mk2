@@ -2021,7 +2021,7 @@
     <div class="hrow">
       <h1>
         Planetary Modeling Atlas
-        <span class="ver" title="Version v15mk2.26, 3 Nov 2026: fixes hand presses on the top-bar buttons (a pinch was never seen as deliberate, so they didn’t respond)">v15mk2.26</span>
+        <span class="ver" title="Version v15mk2.27, 4 Nov 2026: a pinch registers only once your fingers are about two-thirds closed, measured against your own hand, and the gold ring fills exactly to that point; the waist line is placed from your eye line and height">v15mk2.27</span>
       </h1>
       <button type="button" id="voiceBtn" aria-pressed="false" title="Voice commands: say “Hey Atlas”, then what you want, e.g. “Hey Atlas, show Mars” or “Hey Atlas, next map”">🎤 Voice</button>
       <p id="howTo">
@@ -2218,7 +2218,7 @@
     </div>
     <div id="handCur" hidden><i><b></b></i><span></span></div>
     <div id="fsBar" hidden role="toolbar" aria-label="Hand control">
-      <button type="button" id="fsMap">↑ Solar System</button><button type="button" id="fsLand" hidden>Land</button
+      <button type="button" id="fsMap">↑ Solar System</button><button type="button" id="fsFull" hidden title="Browsers only go full screen after a click or a key press">⛶ Full screen</button><button type="button" id="fsLand" hidden>Land</button
       ><span class="fsTime" id="fsLyr" role="group" aria-label="Map layer" hidden
         ><button type="button" id="fsLyPrev" title="Previous map" aria-label="Previous map">‹</button
         ><button type="button" id="fsLy" title="Next map">🗺</button
@@ -6812,11 +6812,47 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
       updFs();
       RENDER_BOTH_UNTIL = performance.now() + 900;
       const el = document.documentElement;
-      if (el.requestFullscreen && !document.fullscreenElement) el.requestFullscreen().catch(() => {});
+      // browsers only allow full screen straight after a click or key press; when it was asked for some other way (a
+      // voice command), the view still fills the window, and the next click or key press anywhere (or ⛶) finishes the job
+      if (el.requestFullscreen && !document.fullscreenElement)
+        el.requestFullscreen().then(() => ($('fsFull').hidden = true)).catch(() => {
+          fsPending = true;
+          $('fsFull').hidden = false;
+        });
     }
+    let fsPending = false;
+    function fsFinish() {
+      if (!fsPending || !FS || document.fullscreenElement) return;
+      fsPending = false;
+      $('fsFull').hidden = true;
+      const el = document.documentElement;
+      if (el.requestFullscreen) el.requestFullscreen().catch(() => ($('fsFull').hidden = false));
+    }
+    $('fsFull').onclick = () => {
+      fsPending = true;
+      fsFinish();
+    };
+    // the next real click or key press goes full screen (Esc and Space, which are for leaving and push-to-talk, excepted)
+    document.addEventListener('pointerdown', fsFinish, true);
+    document.addEventListener(
+      'keydown',
+      (e) => {
+        if (e.key === 'f' || e.key === 'F') {
+          if (FS && !document.fullscreenElement && !/^(INPUT|TEXTAREA|SELECT)$/.test((document.activeElement || {}).tagName || '')) {
+            fsPending = true;
+            fsFinish();
+          }
+          return;
+        }
+        if (e.key !== 'Escape' && e.code !== 'Space') fsFinish();
+      },
+      true,
+    );
     function exitFS() {
       if (!FS) return;
       FS = false;
+      fsPending = false;
+      $('fsFull').hidden = true;
       document.body.classList.remove('handfs');
       $('fsBar').hidden = true;
       $('fsLand').hidden = true;
@@ -8534,6 +8570,7 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
         <li>“where is the highest point?”, “where did Apollo 11 land?”, “go to Olympus Mons”, “tell me about Europa”</li>
         <li>“show live clouds”, “play the last day”, “Earth at night”, “set the date to July 20 1969”, “what’s the date?”</li>
         <li>“be quiet” / “talk to me” (spoken replies off or on), “what about Venus?” after a question</li>
+        <li>“I’m 5 foot 7” (your height, which places the waist line below your eyes)</li>
         <li>“show Mars”, “go to Titan”, “Solar System”</li>
         <li>“next map”, “previous map”, “show gravity”, “show topography”</li>
         <li>“zoom in”, “zoom out”, “brighter”, “darker”, “brightness 150”</li>
@@ -8793,6 +8830,19 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
             return `${cap1(w.name)}${b && b.kind ? ', a ' + String(b.kind).charAt(0).toLowerCase() + String(b.kind).slice(1) : ''}${b && b.radiusKm ? ', radius ' + kmF(b.radiusKm) : ''}.${w.id === current && P && P.blurb ? ' ' + P.blurb : ''}${maps}`;
           }
         }
+        // your height, for the waist line ("I'm 5 foot 7", "my height is 170 cm")
+        const hm = t.match(/\b(?:i am|i m|im|my height is|set my height to|height)\s+(\d)\s*(?:foot|feet|ft)\s*(\d{1,2})?\b/) || t.match(/\b(?:i am|i m|im|my height is|set my height to|height)\s+(\d)\s+(\d{1,2})\b/),
+          hc = t.match(/\b(?:i am|i m|im|my height is|set my height to|height)\s+(\d{3})\s*(?:cm|centimeters|centimetres)\b/);
+        if (hm || hc) {
+          const cm = hc ? +hc[1] : Math.round((+hm[1] * 12 + (+hm[2] || 0)) * 2.54);
+          if (cm >= 100 && cm <= 230) {
+            try {
+              localStorage.setItem('atlasHeightCm', cm);
+            } catch (e) {}
+            const inch = Math.round(cm / 2.54);
+            return `Height set to ${Math.floor(inch / 12)} foot ${inch % 12} (${cm} cm). The waist line is now about ${Math.round(0.32 * cm)} cm below your eyes.`;
+          }
+        }
         // the date shown, and setting it
         if (/\b(what s the date|what is the date|what date|what year|what time is it)\b/.test(t) && window.SIMJD) {
           const d = new Date((window.SIMJD() - 2440587.5) * 86400000);
@@ -8912,7 +8962,8 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
         for (const [w, id, label] of TG) if (has(t, ...w) && $(id)) return toggle(t, $(id), label);
         if (has(t, 'hand control', 'hands')) {
           $(FS && MODE === 'map' ? 'mapHand' : 'handBtn').click();
-          return 'Hand control';
+          // a voice command can't make the browser go full screen by itself (only a click or key press can)
+          return document.fullscreenElement ? 'Hand control' : 'Hand control. To go full screen, press F or click anywhere.';
         }
         const WB = [...document.querySelectorAll('#warp button')],
           wi = WB.findIndex((b) => b.getAttribute('aria-pressed') === 'true');
@@ -10122,15 +10173,37 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
           this.plane = handPlane(Q, side);
           // how big the palm looks on camera, divided by the cosine of its tilt out of the picture: a distance gauge
           this.size = Math.hypot(L[9].x - L[0].x, L[9].y - L[0].y) / Math.cos(this.plane.tiltOut);
-          if (this.pinchOn ? pr > ADAPT.pOff : pr < ADAPT.pOn) {
+          // a pinch registers only once the fingers are about two-thirds of the way closed, measured against your own hand: how
+          // open it is when relaxed (tracked as you go, quickly upward and slowly downward) and how far your pinches close
+          // (the firmest point of each, averaged). Until both are known, the trained or default thresholds apply; once they
+          // are, the switch-on point is never shallower than two-thirds closed, and it lets go at about one-third closed.
+          if (!this.pinchOn) {
+            if (this.openRef == null) this.openRef = pr;
+            else this.openRef += (pr - this.openRef) * (pr > this.openRef ? 0.3 : 0.004);
+          }
+          if (this.pinchOn) this.minPr = Math.min(this.minPr == null ? pr : this.minPr, pr);
+          // before your first pinch is seen, a typical firm pinch (0.15 palm lengths, or half the switch-on point) stands in
+          const cRef = this.closedRef != null ? this.closedRef : Math.min(0.15, ADAPT.pOn * 0.5),
+            gap = this.openRef != null ? this.openRef - cRef : 0,
+            known = gap > 0.15,
+            onAt = known ? Math.min(ADAPT.pOn, this.openRef - (2 / 3) * gap) : ADAPT.pOn,
+            offAt = known ? Math.max(onAt + 0.06, Math.min(ADAPT.pOff, this.openRef - 0.33 * gap)) : ADAPT.pOff;
+          if (this.pinchOn ? pr > offAt : pr < onAt) {
             this.pinchOn = !this.pinchOn;
             if (this === R) ADAPT.pinchEdge(this.pinchOn, t);
+            if (!this.pinchOn && this.minPr != null) {
+              this.closedRef = this.closedRef == null ? this.minPr : this.closedRef + (this.minPr - this.closedRef) * 0.3;
+              this.minPr = null;
+            }
           }
-          this.p = Math.max(0, Math.min(1, (0.75 - pr) / 0.45)); // how close the fingers are to a pinch, for the meter on the cursor
+          // the meter on the cursor: the gold ring is full exactly when the pinch registers
+          const open0 = known ? this.openRef : 0.75;
+          this.p = Math.max(0, Math.min(1, (open0 - pr) / Math.max(0.05, open0 - onAt)));
           this.pr = pr;
-          // a full pinch: the fingers 20% further closed than where a pinch switches on, two frames running. The buttons at the
-          // top of the view only press on a full pinch, so a half-closed hand passing over them never presses one
-          this.fullN = this.pinchOn && pr < ADAPT.pOn * 0.8 ? (this.fullN || 0) + 1 : 0;
+          this.closedness = known ? (this.openRef - pr) / gap : null;
+          // a full pinch: about 80% closed (or 20% past the switch-on point), two frames running. The buttons at the top of the
+          // view only press on a full pinch, so a half-closed hand passing over them never presses one
+          this.fullN = this.pinchOn && (known ? this.closedness >= 0.8 : pr < onAt * 0.8) ? (this.fullN || 0) + 1 : 0;
           this.full = this.fullN >= 2;
           // the cursor follows the wrist and knuckles, which barely move when you pinch, so pressing doesn't knock it off target
           const ax = (L[0].x + L[5].x + L[9].x + L[13].x + L[17].x) / 5,
@@ -10186,7 +10259,51 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
       const camSph = () => new THREE.Spherical().setFromVector3(V.cam.position.clone().sub(V.ctl.target));
       // the waist line: just below the bottom of your trained reach box, or near the bottom of the picture
       const waist = () => Math.min(0.97, Math.max(0.6, ADAPT.trained ? ADAPT.reach.y0 + ADAPT.reach.ys + 0.07 : 0.84));
-      const resting = (L) => (L[0].y + L[5].y + L[9].y + L[13].y + L[17].y) / 5 > waist();
+      // ...or, when your face is in view, from your eyes: your natural waist is about 0.32 of your height below your eyes
+      // (eye height is about 0.94 of standing height and the natural waist about 0.62, seated or standing alike), and the
+      // pupils, about 6.3 cm apart, give the scale. The line runs parallel to your eye line, a perpendicular step below it,
+      // so it tilts and moves with you when you lean. Your height is kept in this browser ("Hey Atlas, I'm 5 foot 7").
+      const heightCm = () => {
+        try {
+          const h = +localStorage.getItem('atlasHeightCm');
+          return h >= 100 && h <= 230 ? h : 170;
+        } catch (e) {
+          return 170;
+        }
+      };
+      let EYEW = null; // { x, y: the waist point, nx, ny: the downward perpendicular, ux, uy: along the eye line, t } in pixels
+      function eyeWaist(F, W, H, now) {
+        const ax = F[468].x * W,
+          ay = F[468].y * H,
+          bx = F[473].x * W,
+          by = F[473].y * H,
+          d = Math.hypot(bx - ax, by - ay);
+        if (d < 4) return;
+        let ux = (bx - ax) / d,
+          uy = (by - ay) / d,
+          nx = -uy,
+          ny = ux;
+        if (ny < 0) {
+          nx = -nx;
+          ny = -ny;
+        }
+        if (ux < 0) {
+          ux = -ux;
+          uy = -uy;
+        }
+        const off = (0.32 * heightCm() * d) / 6.3,
+          x = (ax + bx) / 2 + nx * off,
+          y = (ay + by) / 2 + ny * off,
+          k = EYEW && now - EYEW.t < 1500 ? 0.25 : 1; // smoothed, so a blink or a nod doesn't make the line jump
+        EYEW = EYEW && k < 1 ? { x: EYEW.x + (x - EYEW.x) * k, y: EYEW.y + (y - EYEW.y) * k, nx: EYEW.nx + (nx - EYEW.nx) * k, ny: EYEW.ny + (ny - EYEW.ny) * k, ux: EYEW.ux + (ux - EYEW.ux) * k, uy: EYEW.uy + (uy - EYEW.uy) * k, t: now, W, H } : { x, y, nx, ny, ux, uy, t: now, W, H };
+      }
+      const eyeOk = () => EYEW && performance.now() - EYEW.t < 1500;
+      const resting = (L) => {
+        const px = (L[0].x + L[5].x + L[9].x + L[13].x + L[17].x) / 5,
+          py = (L[0].y + L[5].y + L[9].y + L[13].y + L[17].y) / 5;
+        if (eyeOk()) return (px * EYEW.W - EYEW.x) * EYEW.nx + (py * EYEW.H - EYEW.y) * EYEW.ny > 0;
+        return py > waist();
+      };
       function drawHand(hands) {
         const cv = $('handCv'),
           v = $('handVid');
@@ -10194,17 +10311,41 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
         cv.height = v.videoHeight;
         const ctx = cv.getContext('2d');
         ctx.clearRect(0, 0, cv.width, cv.height);
-        const wy = waist() * cv.height;
         ctx.strokeStyle = 'rgba(127, 200, 255, 0.85)';
         ctx.lineWidth = 3;
         ctx.setLineDash([10, 8]);
-        ctx.beginPath();
-        ctx.moveTo(0, wy);
-        ctx.lineTo(cv.width, wy);
-        ctx.stroke();
-        ctx.setLineDash([]);
         ctx.fillStyle = 'rgba(127, 200, 255, 0.12)';
-        ctx.fillRect(0, wy, cv.width, cv.height - wy);
+        if (eyeOk()) {
+          // the waist line from your eyes, parallel to your eye line (it may sit below the picture when you're close)
+          const sx = cv.width / EYEW.W,
+            sy = cv.height / EYEW.H,
+            x0 = EYEW.x * sx,
+            y0 = EYEW.y * sy,
+            L2 = 2 * (cv.width + cv.height),
+            ax = x0 - EYEW.ux * L2,
+            ay = y0 - EYEW.uy * L2,
+            bx = x0 + EYEW.ux * L2,
+            by = y0 + EYEW.uy * L2;
+          ctx.beginPath();
+          ctx.moveTo(ax, ay);
+          ctx.lineTo(bx, by);
+          ctx.stroke();
+          ctx.beginPath();
+          ctx.moveTo(ax, ay);
+          ctx.lineTo(bx, by);
+          ctx.lineTo(bx + EYEW.nx * L2, by + EYEW.ny * L2);
+          ctx.lineTo(ax + EYEW.nx * L2, ay + EYEW.ny * L2);
+          ctx.closePath();
+          ctx.fill();
+        } else {
+          const wy = waist() * cv.height;
+          ctx.beginPath();
+          ctx.moveTo(0, wy);
+          ctx.lineTo(cv.width, wy);
+          ctx.stroke();
+          ctx.fillRect(0, wy, cv.width, cv.height - wy);
+        }
+        ctx.setLineDash([]);
         hands.forEach(({ L, st }) => {
           ctx.fillStyle = st.mode === 'pinch' ? '#ffd166' : st.mode === 'fist' ? '#ef476f' : '#06d6a0';
           L.forEach((p) => {
@@ -10693,6 +10834,7 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
             if (F && F.length > 473) {
               const ar = (v.videoHeight || 3) / (v.videoWidth || 4);
               ADAPT.eyes(Math.hypot(F[468].x - F[473].x, (F[468].y - F[473].y) * ar), now);
+              eyeWaist(F, v.videoWidth || 640, v.videoHeight || 480, now);
               const cm = ADAPT.eyeCm;
               if (cm) $('handBox').dataset.dist = '≈ ' + cm + ' cm';
             }
