@@ -1077,6 +1077,20 @@
     font-size: 1.6rem !important;
     line-height: 1;
   }
+  #fsTurn {
+    border-color: rgba(255, 216, 138, 0.6) !important;
+  }
+  /* edge-glide mode: faint bands at the edges where resting the cursor turns the view */
+  body.turn-edges .stage::after,
+  body.turn-edges .mapstage::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 3;
+    box-shadow: inset 0 0 0 9vmin rgba(255, 216, 138, 0.07);
+    border-radius: inherit;
+  }
   #fsLy {
     max-width: 15em;
     overflow: hidden;
@@ -1944,7 +1958,7 @@
     <div class="hrow">
       <h1>
         Planetary Modeling Atlas
-        <span class="ver" title="Version v15mk2.16, 3 Nov 2026: voice commands, brightness, changing the map and adaptive aim in hand control, and a hand-control training page">v15mk2.16</span>
+        <span class="ver" title="Version v15mk2.17, 3 Nov 2026: in hand control, choose how the view turns: drag, tilt your palm, or rest at the edges">v15mk2.17</span>
       </h1>
       <button type="button" id="voiceBtn" aria-pressed="false" title="Voice commands: say “Atlas”, then what you want, e.g. “Atlas, show Mars” or “Atlas, next map”">🎤 Voice</button>
       <p id="howTo">
@@ -2142,6 +2156,7 @@
         ><button type="button" id="fsLy" title="Next map">🗺</button
         ><button type="button" id="fsLyNext" title="Next map" aria-label="Next map">›</button></span
       ><button type="button" id="fsBri" title="Brightness: each press steps it up, then back round">☀ 100%</button
+      ><button type="button" id="fsTurn" title="How the view turns: press to switch between Grab, Drag, Tilt and Edges">✊ Grab</button
       ><span class="fsTime"
         ><button type="button" id="fsZin" title="Zoom in: pinch and hold">＋</button
         ><button type="button" id="fsZout" title="Zoom out: pinch and hold">−</button></span
@@ -8520,7 +8535,7 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
       }
       const showHelp = () => {
         hmsg(
-          `<b>Move your open hand</b> and the cursor follows; it snaps onto planets and buttons. <b>Pinch</b> (thumb to index finger) to press: the gold ring fills as your fingers close. ${V === VIEWS.map ? '<b>Pinch a planet or moon to land on it</b>, or pinch and hold on it for half a second. ' : '<b>‹ 🗺 ›</b> at the top change the map; <b>↑ Solar System</b> takes you back out. '}<b>Pinch on empty space and move</b> to turn the view. <b>To zoom</b>, hold a pinch on <b>＋ or −</b> at the top, or pinch with both hands and pull them apart or push them together. Hovering on a top button for a second also presses it. 🎯 Adaptive aim learns as you go: if a button takes a few tries, it gets easier to grab${ADAPT.trained ? '' : ", and a one-minute <a href='https://tbirdpower3000.github.io/hand-control-training/'>training session</a> teaches it your reach and pinch"}. <button type='button' id='handHide' class='linkish'>Hide tips</button>`,
+          `<b>Move your open hand</b> and the cursor follows; it snaps onto planets and buttons. <b>Pinch</b> (thumb to index finger) to press: the gold ring fills as your fingers close. ${V === VIEWS.map ? '<b>Pinch a planet or moon to land on it</b>, or pinch and hold on it for half a second. ' : '<b>‹ 🗺 ›</b> at the top change the map; <b>↑ Solar System</b> takes you back out. '}<b>Pinch on empty space and move</b> to turn the view (<b>✊ Grab</b> at the top, the default, works like the Mars and Moon atlases: pinch anywhere and move to turn, make a fist and move up or down to zoom; press it to switch to Drag, Tilt or Edges). <b>To zoom</b>, hold a pinch on <b>＋ or −</b> at the top, or pinch with both hands and pull them apart or push them together. Hovering on a top button for a second also presses it. 🎯 Adaptive aim learns as you go: if a button takes a few tries, it gets easier to grab${ADAPT.trained ? '' : ", and a one-minute <a href='https://tbirdpower3000.github.io/hand-control-training/'>training session</a> teaches it your reach and pinch"}. <button type='button' id='handHide' class='linkish'>Hide tips</button>`,
         );
         const h = $('handHide');
         if (h) h.addEventListener('click', () => hmsg(''));
@@ -8740,6 +8755,7 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
         $('handBox').style.opacity = '';
         $('handSnd').hidden = true;
         $('handAssist').hidden = true;
+        document.body.classList.remove('turn-edges');
         cancelAnimationFrame(raf);
         goal = null;
         zoomRate = 0;
@@ -8818,6 +8834,7 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
         setBtn(true);
         $('handSnd').hidden = false;
         $('handAssist').hidden = false;
+        setTurn(turnMode);
         showHelp();
         handLoop();
       }
@@ -9283,7 +9300,11 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
           // the cursor follows the wrist and knuckles, which barely move when you pinch, so pressing doesn't knock it off target
           const ax = (L[0].x + L[5].x + L[9].x + L[13].x + L[17].x) / 5,
             ay = (L[0].y + L[5].y + L[9].y + L[13].y + L[17].y) / 5;
-          this.fistOn = false; // no fist gesture: zoom with the ＋/− buttons or two hands
+          // a fist (Grab mode only): all four fingertips closer to the wrist than their middle knuckles, with hysteresis
+          if (turnMode === 'grab') {
+            const curled = [8, 12, 16, 20].filter((i) => Math.hypot(L[i].x - L[0].x, L[i].y - L[0].y) < Math.hypot(L[i - 2].x - L[0].x, L[i - 2].y - L[0].y) * 1.05).length;
+            if (this.fistOn ? curled <= 2 : curled >= 4) this.fistOn = !this.fistOn;
+          } else this.fistOn = false;
           const g = { pinch: this.pinchOn && !this.fistOn, fist: this.fistOn, x: this.fx.f(ax, t), y: this.fy.f(ay, t) };
           const want = g.fist ? 'fist' : g.pinch ? 'pinch' : 'idle';
           this.held = this.held.m === want ? { m: want, n: this.held.n + 1 } : { m: want, n: 1 };
@@ -9452,6 +9473,37 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
       const hist = [];
       let dwell = null,
         zoomHeld = 0;
+      // ---- how the view turns: Drag, Tilt or Edges, chosen with ↻ in the top bar and remembered in this browser
+      const TURN = ['grab', 'drag', 'tilt', 'edges'],
+        TURN_LABEL = { grab: '✊ Grab', drag: '↻ Drag', tilt: '↻ Tilt', edges: '↻ Edges' },
+        TURN_HELP = {
+          grab: 'As in the Mars and Moon atlases: pinch anywhere and move to turn; make a fist and move up or down to zoom; open your hand to let go. Hover on a top button to press it.',
+          drag: 'Turning: pinch on empty space and move your hand.',
+          tilt: 'Turning: pinch on empty space to hold, then tilt your palm like a plane: left or right to spin, forward or back to tip the view. Let go to stop.',
+          edges: 'Turning: no pinch needed. Rest the cursor near an edge of the view (the faint band) and it glides that way; further into the band is faster.',
+        };
+      let turnMode = 'grab',
+        fistA = null;
+      try {
+        turnMode = TURN.includes(localStorage.getItem('atlasTurn')) ? localStorage.getItem('atlasTurn') : 'grab';
+      } catch (e) {}
+      function setTurn(m) {
+        turnMode = m;
+        $('fsTurn').textContent = TURN_LABEL[m];
+        document.body.classList.toggle('turn-edges', m === 'edges' && !!stream);
+        try {
+          localStorage.setItem('atlasTurn', m);
+        } catch (e) {}
+      }
+      $('fsTurn').onclick = () => {
+        setTurn(TURN[(TURN.indexOf(turnMode) + 1) % TURN.length]);
+        hmsg(`${TURN_LABEL[turnMode]}. ${TURN_HELP[turnMode]} <button type='button' id='handHide' class='linkish'>OK</button>`);
+        const h = $('handHide');
+        if (h) h.addEventListener('click', () => hmsg(''));
+        setTimeout(() => $('handMsg').textContent.startsWith(TURN_LABEL[turnMode]) && hmsg(''), 6000);
+      };
+      setTurn(turnMode);
+      let tilt0 = null;
       // ---- two-hand zoom: both hands pinch (or grip); pulling apart zooms in, pushing together zooms out
       let zoom0 = null;
       const palmPt = (L) => ({ x: (L[0].x + L[9].x) / 2, y: (L[0].y + L[9].y) / 2 });
@@ -9598,6 +9650,27 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
         hist.push([now, hv]);
         while (hist.length && now - hist[0][0] > 400) hist.shift();
         CUR.style.setProperty('--p', R.mode === 'pinch' ? 1 : R.p);
+        if (turnMode === 'grab' && R.mode === 'fist') {
+          // joystick zoom: nothing inside the lock band, then faster the further the fist moves up (in) or down (out)
+          if (changed || !fistA) {
+            V.stop();
+            grabGoal();
+            fistA = { x: g.x, y: g.y };
+            tap0 = null;
+            chime(false);
+            toneStart();
+          }
+          const oy = g.y - fistA.y,
+            band = 0.05;
+          zoomRate = Math.abs(oy) < band ? 0 : (oy - Math.sign(oy) * band) * 7;
+          cursorState('press', zoomRate ? (zoomRate < 0 ? 'Zooming in' : 'Zooming out') : 'Fist: move up or down to zoom');
+          R.prev = { x: g.x, y: g.y };
+          return;
+        } else if (fistA) {
+          fistA = null;
+          zoomRate = 0;
+          toneStop();
+        }
         if (changed) {
           if (R.mode === 'pinch') {
             // use what was under the cursor just before the fingers started closing, so the press lands where you aimed
@@ -9618,7 +9691,8 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
               zoomHeld = now;
             }
           } else {
-            if (tap0 && !tap0.drag && !tap0.done && !tap0.zoom) click(tap0.hv, now);
+            tilt0 = null;
+            if (tap0 && !tap0.drag && !tap0.done && !tap0.zoom && (turnMode !== 'grab' || (tap0.hv && tap0.hv.btn))) click(tap0.hv, now);
             if (tap0 && tap0.zoom) zoomRate = 0;
             tap0 = null;
           } // released: a tap
@@ -9632,11 +9706,12 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
           }
           const moved = dist(g, tap0);
           // pinch and hold still on a planet, moon, site or button: it presses without letting go
-          if (!tap0.drag && !tap0.done && tap0.hv && moved < 0.03 && now - tap0.t > 550) {
+          const grabNow = turnMode === 'grab' && !(tap0.hv && tap0.hv.btn);
+          if (!grabNow && !tap0.drag && !tap0.done && tap0.hv && moved < 0.03 && now - tap0.t > 550) {
             tap0.done = true;
             click(tap0.hv, now);
           }
-          if (!tap0.drag && !tap0.done && (moved > 0.05 || (!tap0.hv && now - tap0.t > 450))) {
+          if (!tap0.drag && !tap0.done && (grabNow || moved > 0.05 || (!tap0.hv && now - tap0.t > 450))) {
             tap0.drag = true;
             V.stop();
             grabGoal();
@@ -9647,6 +9722,19 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
               dy = g.y - R.prev.y;
             R.prev = { x: g.x, y: g.y };
             if (!goal) grabGoal();
+            if (turnMode === 'tilt' && R.plane) {
+              // the palm as a plane: how far its normal vector has swung since the pinch began. Left/right swing (x) spins,
+              // forward/back swing (y) tips; a small dead zone so a steady hand holds the view still
+              const n = R.plane.n;
+              if (!tilt0) tilt0 = { x: n.x, y: n.y };
+              const dz = (v) => (Math.abs(v) < 0.08 ? 0 : v - Math.sign(v) * 0.08),
+                sx = dz(n.x - tilt0.x),
+                sy = dz(n.y - tilt0.y);
+              goal.theta -= sx * 2.6 * dt;
+              goal.phi = Math.min(Math.PI - 0.05, Math.max(0.05, goal.phi + sy * 2.2 * dt));
+              cursorState('drag', sx || sy ? 'Tilting' : 'Tilt to turn');
+              return;
+            }
             goal.theta -= dx * 3.2;
             goal.phi = Math.min(Math.PI - 0.05, Math.max(0.05, goal.phi - dy * 3.2));
             cursorState('drag', 'Turning');
@@ -9654,6 +9742,23 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
           }
         }
         R.prev = { x: g.x, y: g.y };
+        if (turnMode === 'edges' && R.mode === 'idle' && !(hv && (hv.btn || hv.body))) {
+          const r = V.stage.getBoundingClientRect(),
+            band = Math.min(r.width, r.height) * 0.12,
+            ex = cx < r.left + band ? -(1 - (cx - r.left) / band) : cx > r.right - band ? 1 - (r.right - cx) / band : 0,
+            ey = cy < r.top + band ? -(1 - (cy - r.top) / band) : cy > r.bottom - band ? 1 - (r.bottom - cy) / band : 0;
+          if (ex || ey) {
+            handLoop.edgeT = handLoop.edgeT || now;
+            if (now - handLoop.edgeT > 350) {
+              // a short wait first, so passing through a band on the way somewhere doesn't turn the view
+              if (!goal) grabGoal();
+              goal.theta -= ex * 1.6 * dt;
+              goal.phi = Math.min(Math.PI - 0.05, Math.max(0.05, goal.phi + ey * 1.2 * dt));
+              cursorState('drag', 'Gliding');
+              return;
+            }
+          } else handLoop.edgeT = 0;
+        } else handLoop.edgeT = 0;
         // dwell: hovering over a big button for a second presses it
         if (R.mode !== 'pinch' && hv && hv.btn && hv.btn.closest('#fsBar')) {
           if (!dwell || dwell.b !== hv.btn) dwell = { b: hv.btn, t: now, fired: false };
