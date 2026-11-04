@@ -1958,7 +1958,7 @@
     <div class="hrow">
       <h1>
         Planetary Modeling Atlas
-        <span class="ver" title="Version v15mk2.17, 3 Nov 2026: in hand control, choose how the view turns: drag, tilt your palm, or rest at the edges">v15mk2.17</span>
+        <span class="ver" title="Version v15mk2.18, 3 Nov 2026: hand control turns from the middle of the view at any zoom, with denoising, a resting line and deliberate presses from the training page">v15mk2.18</span>
       </h1>
       <button type="button" id="voiceBtn" aria-pressed="false" title="Voice commands: say “Atlas”, then what you want, e.g. “Atlas, show Mars” or “Atlas, next map”">🎤 Voice</button>
       <p id="howTo">
@@ -2156,7 +2156,7 @@
         ><button type="button" id="fsLy" title="Next map">🗺</button
         ><button type="button" id="fsLyNext" title="Next map" aria-label="Next map">›</button></span
       ><button type="button" id="fsBri" title="Brightness: each press steps it up, then back round">☀ 100%</button
-      ><button type="button" id="fsTurn" title="How the view turns: press to switch between Grab, Drag, Tilt and Edges">✊ Grab</button
+      ><button type="button" id="fsTurn" title="How the view turns: press to switch between Drag, Tilt and Edges">↻ Drag</button
       ><span class="fsTime"
         ><button type="button" id="fsZin" title="Zoom in: pinch and hold">＋</button
         ><button type="button" id="fsZout" title="Zoom out: pinch and hold">−</button></span
@@ -8535,7 +8535,7 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
       }
       const showHelp = () => {
         hmsg(
-          `<b>Move your open hand</b> and the cursor follows; it snaps onto planets and buttons. <b>Pinch</b> (thumb to index finger) to press: the gold ring fills as your fingers close. ${V === VIEWS.map ? '<b>Pinch a planet or moon to land on it</b>, or pinch and hold on it for half a second. ' : '<b>‹ 🗺 ›</b> at the top change the map; <b>↑ Solar System</b> takes you back out. '}<b>Pinch on empty space and move</b> to turn the view (<b>✊ Grab</b> at the top, the default, works like the Mars and Moon atlases: pinch anywhere and move to turn, make a fist and move up or down to zoom; press it to switch to Drag, Tilt or Edges). <b>To zoom</b>, hold a pinch on <b>＋ or −</b> at the top, or pinch with both hands and pull them apart or push them together. Hovering on a top button for a second also presses it. 🎯 Adaptive aim learns as you go: if a button takes a few tries, it gets easier to grab${ADAPT.trained ? '' : ", and a one-minute <a href='https://tbirdpower3000.github.io/hand-control-training/'>training session</a> teaches it your reach and pinch"}. <button type='button' id='handHide' class='linkish'>Hide tips</button>`,
+          `<b>Move your open hand</b> and the cursor follows; it snaps onto planets and buttons. <b>Pinch</b> (thumb to index finger) to press: the gold ring fills as your fingers close. ${V === VIEWS.map ? '<b>Pinch a planet or moon to land on it</b>, or pinch and hold on it for half a second. ' : '<b>‹ 🗺 ›</b> at the top change the map; <b>↑ Solar System</b> takes you back out. '}<b>Pinch on empty space and move</b> to turn the view (<b>↻</b> at the top switches to tilting your palm, or resting at the edges). <b>To zoom</b>, hold a pinch on <b>＋ or −</b> at the top, or pinch with both hands and pull them apart or push them together. Hovering on a top button for a second also presses it. 🎯 Adaptive aim learns as you go: if a button takes a few tries, it gets easier to grab${ADAPT.trained ? '' : ", and a one-minute <a href='https://tbirdpower3000.github.io/hand-control-training/'>training session</a> teaches it your reach and pinch"}. <button type='button' id='handHide' class='linkish'>Hide tips</button>`,
         );
         const h = $('handHide');
         if (h) h.addEventListener('click', () => hmsg(''));
@@ -9266,17 +9266,110 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
         }
       }
       const d3 = (a, b) => Math.hypot(a.x - b.x, a.y - b.y, (a.z || 0) - (b.z || 0));
+      // the spectral gauge, as on the training page: every half second a 64-sample DFT of the raw palm path (Hann window,
+      // detrended); the share of power at 3–12 Hz (tremor, jitter) against below 2 Hz (deliberate) lowers the cutoff
+      function Spec() {
+        const N = 64,
+          bx = new Float32Array(N),
+          by = new Float32Array(N),
+          bt = new Float64Array(N),
+          win = Float32Array.from({ length: N }, (_, i) => 0.5 - 0.5 * Math.cos((2 * Math.PI * i) / (N - 1)));
+        let n = 0,
+          head = 0,
+          last = 0,
+          gain = 1;
+        const pw = (buf) => {
+          let sx = 0,
+            sy = 0,
+            sxx = 0,
+            sxy = 0;
+          for (let i = 0; i < N; i++) {
+            sx += i;
+            sy += buf[i];
+            sxx += i * i;
+            sxy += i * buf[i];
+          }
+          const b = (N * sxy - sx * sy) / (N * sxx - sx * sx) || 0,
+            a = (sy - b * sx) / N,
+            P = new Float32Array(N / 2 + 1);
+          for (let k = 0; k <= N / 2; k++) {
+            let re = 0,
+              im = 0;
+            for (let i = 0; i < N; i++) {
+              const d = (buf[i] - a - b * i) * win[i],
+                w = (2 * Math.PI * k * i) / N;
+              re += d * Math.cos(w);
+              im -= d * Math.sin(w);
+            }
+            P[k] = re * re + im * im;
+          }
+          return P;
+        };
+        return {
+          push(x, y, t) {
+            bx[head] = x;
+            by[head] = y;
+            bt[head] = t;
+            head = (head + 1) % N;
+            if (n < N) n++;
+            if (n < N || t - last < 500) return gain;
+            last = t;
+            const X = new Float32Array(N),
+              Y = new Float32Array(N);
+            for (let i = 0; i < N; i++) {
+              X[i] = bx[(head + i) % N];
+              Y[i] = by[(head + i) % N];
+            }
+            const span = (bt[(head + N - 1) % N] - bt[head]) / 1000,
+              fs = span > 0 ? (N - 1) / span : 30,
+              px = pw(X),
+              py = pw(Y);
+            let low = 0,
+              high = 0;
+            for (let k = 1; k <= N / 2; k++) {
+              const f = (k * fs) / N,
+                p = px[k] + py[k];
+              if (f < 2) low += p;
+              else if (f >= 3 && f <= 12) high += p;
+            }
+            const noise = high / (high + low + 1e-12);
+            gain += (1 - 0.65 * Math.min(1, noise * 1.6) - gain) * 0.5;
+            return gain;
+          },
+          reset() {
+            n = 0;
+            head = 0;
+            gain = 1;
+          },
+          get gain() {
+            return gain;
+          },
+        };
+      }
+      const med3 = () => {
+        const q = [];
+        return (v) => {
+          q.push(v);
+          if (q.length > 3) q.shift();
+          return q.length < 3 ? v : [...q].sort((a, b) => a - b)[1];
+        };
+      };
       class HandState {
         constructor() {
           this.fx = new OneEuro(0.8, 3);
           this.fy = new OneEuro(0.8, 3);
           this.fp = new OneEuro(3, 1);
+          this.spec = Spec();
+          this.mx = med3();
+          this.my = med3();
           this.reset();
         }
         reset() {
           this.fx.reset();
           this.fy.reset();
           this.fp.reset();
+          if (this.spec) this.spec.reset();
+          this.openSince = 0;
           this.pinchOn = false;
           this.fistOn = false;
           this.held = { m: 'idle', n: 0 };
@@ -9300,12 +9393,19 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
           // the cursor follows the wrist and knuckles, which barely move when you pinch, so pressing doesn't knock it off target
           const ax = (L[0].x + L[5].x + L[9].x + L[13].x + L[17].x) / 5,
             ay = (L[0].y + L[5].y + L[9].y + L[13].y + L[17].y) / 5;
-          // a fist (Grab mode only): all four fingertips closer to the wrist than their middle knuckles, with hysteresis
-          if (turnMode === 'grab') {
-            const curled = [8, 12, 16, 20].filter((i) => Math.hypot(L[i].x - L[0].x, L[i].y - L[0].y) < Math.hypot(L[i - 2].x - L[0].x, L[i - 2].y - L[0].y) * 1.05).length;
-            if (this.fistOn ? curled <= 2 : curled >= 4) this.fistOn = !this.fistOn;
-          } else this.fistOn = false;
-          const g = { pinch: this.pinchOn && !this.fistOn, fist: this.fistOn, x: this.fx.f(ax, t), y: this.fy.f(ay, t) };
+          this.fistOn = false; // no fist gesture: zoom with the ＋/− buttons or two hands
+          // smoothing turned down by tremor (spectral gain) and near the edge of the camera picture, where landmarks jump
+          const sg = this.spec.push(ax, ay, t),
+            edge = Math.min(ax, 1 - ax, ay, 1 - ay),
+            eg = edge < 0.08 ? 0.35 + 0.65 * (edge / 0.08) : 1,
+            c0 = this.fx.minCut;
+          this.fx.minCut = this.fy.minCut = c0 * sg * eg;
+          const g = { pinch: this.pinchOn && !this.fistOn, fist: this.fistOn, x: this.fx.f(this.mx(ax), t), y: this.fy.f(this.my(ay), t) };
+          this.fx.minCut = this.fy.minCut = c0;
+          // how long the hand has been open: a press only counts when it starts from an open hand (deliberate presses)
+          if (!this.pinchOn) this.openSince = this.openSince || t;
+          else if (this.mode !== 'pinch') this.lastOpen = this.openSince ? t - this.openSince : 0;
+          if (this.pinchOn) this.openSince = 0;
           const want = g.fist ? 'fist' : g.pinch ? 'pinch' : 'idle';
           this.held = this.held.m === want ? { m: want, n: this.held.n + 1 } : { m: want, n: 1 };
           let changed = false;
@@ -9336,6 +9436,9 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
         anchor = null,
         spinRate = 0;
       const camSph = () => new THREE.Spherical().setFromVector3(V.cam.position.clone().sub(V.ctl.target));
+      // the waist line: just below the bottom of your trained reach box, or near the bottom of the picture
+      const waist = () => Math.min(0.97, Math.max(0.6, ADAPT.trained ? ADAPT.reach.y0 + ADAPT.reach.ys + 0.07 : 0.84));
+      const resting = (L) => (L[0].y + L[5].y + L[9].y + L[13].y + L[17].y) / 5 > waist();
       function drawHand(hands) {
         const cv = $('handCv'),
           v = $('handVid');
@@ -9343,6 +9446,17 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
         cv.height = v.videoHeight;
         const ctx = cv.getContext('2d');
         ctx.clearRect(0, 0, cv.width, cv.height);
+        const wy = waist() * cv.height;
+        ctx.strokeStyle = 'rgba(127, 200, 255, 0.85)';
+        ctx.lineWidth = 3;
+        ctx.setLineDash([10, 8]);
+        ctx.beginPath();
+        ctx.moveTo(0, wy);
+        ctx.lineTo(cv.width, wy);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.fillStyle = 'rgba(127, 200, 255, 0.12)';
+        ctx.fillRect(0, wy, cv.width, cv.height - wy);
         hands.forEach(({ L, st }) => {
           ctx.fillStyle = st.mode === 'pinch' ? '#ffd166' : st.mode === 'fist' ? '#ef476f' : '#06d6a0';
           L.forEach((p) => {
@@ -9361,8 +9475,16 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
         const r = V.stage.getBoundingClientRect(),
           clamp = (v) => Math.max(0, Math.min(1, v));
         const q = ADAPT.reach; // your comfortable area of the camera view, from training (or the default)
-        cx = r.left + clamp((1 - g.x - q.x0) / q.xs) * r.width;
-        cy = r.top + clamp((g.y - q.y0) / q.ys) * r.height;
+        // eased into the last 4% at each edge, so the cursor settles into a corner instead of jittering against a wall
+        const soft = (u) => {
+          u = Math.max(-0.2, Math.min(1.2, u));
+          if (u > 0.04 && u < 0.96) return u;
+          const e = Math.max(0, Math.min(1, u <= 0.04 ? u / 0.04 : (1 - u) / 0.04)),
+            k = e * e * (3 - 2 * e);
+          return u <= 0.04 ? 0.04 * k : 1 - 0.04 * k;
+        };
+        cx = r.left + soft((1 - g.x - q.x0) / q.xs) * r.width;
+        cy = r.top + soft((g.y - q.y0) / q.ys) * r.height;
       }
       function drawCursor(x, y) {
         CUR.style.left = x + 'px';
@@ -9474,18 +9596,16 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
       let dwell = null,
         zoomHeld = 0;
       // ---- how the view turns: Drag, Tilt or Edges, chosen with ↻ in the top bar and remembered in this browser
-      const TURN = ['grab', 'drag', 'tilt', 'edges'],
-        TURN_LABEL = { grab: '✊ Grab', drag: '↻ Drag', tilt: '↻ Tilt', edges: '↻ Edges' },
+      const TURN = ['drag', 'tilt', 'edges'],
+        TURN_LABEL = { drag: '↻ Drag', tilt: '↻ Tilt', edges: '↻ Edges' },
         TURN_HELP = {
-          grab: 'As in the Mars and Moon atlases: pinch anywhere and move to turn; make a fist and move up or down to zoom; open your hand to let go. Hover on a top button to press it.',
           drag: 'Turning: pinch on empty space and move your hand.',
           tilt: 'Turning: pinch on empty space to hold, then tilt your palm like a plane: left or right to spin, forward or back to tip the view. Let go to stop.',
           edges: 'Turning: no pinch needed. Rest the cursor near an edge of the view (the faint band) and it glides that way; further into the band is faster.',
         };
-      let turnMode = 'grab',
-        fistA = null;
+      let turnMode = 'drag';
       try {
-        turnMode = TURN.includes(localStorage.getItem('atlasTurn')) ? localStorage.getItem('atlasTurn') : 'grab';
+        turnMode = TURN.includes(localStorage.getItem('atlasTurn')) ? localStorage.getItem('atlasTurn') : 'drag';
       } catch (e) {}
       function setTurn(m) {
         turnMode = m;
@@ -9504,6 +9624,17 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
       };
       setTurn(turnMode);
       let tilt0 = null;
+      // how far to turn for a hand movement across the camera picture: on the globe, the arc of surface the view spans at
+      // this distance (2·h·tan(fov/2) for height h above a unit sphere), divided by the share of the picture your reach
+      // covers, so the middle of the view follows your hand; capped at the old 3.2 when far out. The map keeps 3.2.
+      function turnGain() {
+        if (V !== VIEWS.globe) return [3.2, 3.2];
+        const h = Math.max(0.01, camSph().radius - 1),
+          spanY = 2 * h * Math.tan((V.cam.fov * Math.PI) / 360),
+          spanX = spanY * V.cam.aspect,
+          q = ADAPT.reach;
+        return [Math.min(3.2, spanX / q.xs), Math.min(3.2, spanY / q.ys)];
+      }
       // ---- two-hand zoom: both hands pinch (or grip); pulling apart zooms in, pushing together zooms out
       let zoom0 = null;
       const palmPt = (L) => ({ x: (L[0].x + L[9].x) / 2, y: (L[0].y + L[9].y) / 2 });
@@ -9577,8 +9708,10 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
           HH = (r.landmarks || [])
             .slice(0, 2)
             .map((L, i) => ({ L, W: (r.worldLandmarks || [])[i], side: (((r.handedness || r.handednesses || [])[i] || [])[0] || {}).categoryName }))
-            .sort((a, b) => palmPt(b.L).x - palmPt(a.L).x),
+            .sort((a, b) => palmPt(b.L).x - palmPt(a.L).x)
+            .filter((h) => !resting(h.L)),
           Ls = HH.map((h) => h.L);
+        handLoop.rest = (r.landmarks || []).some((L) => resting(L));
         if (!Ls.length && handLoop.n && now - missN < 300) return; // a dropout under 0.3 s keeps the gesture going
         if (Ls.length !== (handLoop.n || 0)) {
           R.reset();
@@ -9596,11 +9729,23 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
         if (!hands.length) {
           CUR.hidden = true;
           toneStop();
+          if (handLoop.rest) {
+            if (!handLoop.restNote) {
+              handLoop.restNote = true;
+              hmsg('Resting: hands below the blue line on the camera view (about your waist) are ignored. Raise a hand to carry on.');
+            }
+            seenHand = false;
+            return;
+          }
           if (seenHand && now - missN > 250) {
             seenHand = false;
             outSound();
           }
           return;
+        }
+        if (handLoop.restNote) {
+          handLoop.restNote = false;
+          if ($('handMsg').textContent.startsWith('Resting')) hmsg('');
         }
         seenHand = true;
         missN = now;
@@ -9650,27 +9795,6 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
         hist.push([now, hv]);
         while (hist.length && now - hist[0][0] > 400) hist.shift();
         CUR.style.setProperty('--p', R.mode === 'pinch' ? 1 : R.p);
-        if (turnMode === 'grab' && R.mode === 'fist') {
-          // joystick zoom: nothing inside the lock band, then faster the further the fist moves up (in) or down (out)
-          if (changed || !fistA) {
-            V.stop();
-            grabGoal();
-            fistA = { x: g.x, y: g.y };
-            tap0 = null;
-            chime(false);
-            toneStart();
-          }
-          const oy = g.y - fistA.y,
-            band = 0.05;
-          zoomRate = Math.abs(oy) < band ? 0 : (oy - Math.sign(oy) * band) * 7;
-          cursorState('press', zoomRate ? (zoomRate < 0 ? 'Zooming in' : 'Zooming out') : 'Fist: move up or down to zoom');
-          R.prev = { x: g.x, y: g.y };
-          return;
-        } else if (fistA) {
-          fistA = null;
-          zoomRate = 0;
-          toneStop();
-        }
         if (changed) {
           if (R.mode === 'pinch') {
             // use what was under the cursor just before the fingers started closing, so the press lands where you aimed
@@ -9682,6 +9806,7 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
               hv: back,
               drag: false,
               done: false,
+              fresh: (R.lastOpen || 0) > 200, // the hand was open long enough before this pinch for it to be deliberate
               zoom: back && back.btn ? (back.btn.id === 'fsZin' ? -2.8 : back.btn.id === 'fsZout' ? 2.8 : 0) : 0,
             };
             if (tap0.zoom) {
@@ -9692,7 +9817,7 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
             }
           } else {
             tilt0 = null;
-            if (tap0 && !tap0.drag && !tap0.done && !tap0.zoom && (turnMode !== 'grab' || (tap0.hv && tap0.hv.btn))) click(tap0.hv, now);
+            if (tap0 && !tap0.drag && !tap0.done && !tap0.zoom && tap0.fresh) click(tap0.hv, now);
             if (tap0 && tap0.zoom) zoomRate = 0;
             tap0 = null;
           } // released: a tap
@@ -9706,12 +9831,11 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
           }
           const moved = dist(g, tap0);
           // pinch and hold still on a planet, moon, site or button: it presses without letting go
-          const grabNow = turnMode === 'grab' && !(tap0.hv && tap0.hv.btn);
-          if (!grabNow && !tap0.drag && !tap0.done && tap0.hv && moved < 0.03 && now - tap0.t > 550) {
+          if (!tap0.drag && !tap0.done && tap0.hv && moved < 0.03 && now - tap0.t > 550) {
             tap0.done = true;
             click(tap0.hv, now);
           }
-          if (!tap0.drag && !tap0.done && (grabNow || moved > 0.05 || (!tap0.hv && now - tap0.t > 450))) {
+          if (!tap0.drag && !tap0.done && (moved > 0.05 || (!tap0.hv && now - tap0.t > 450))) {
             tap0.drag = true;
             V.stop();
             grabGoal();
@@ -9730,13 +9854,16 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
               const dz = (v) => (Math.abs(v) < 0.08 ? 0 : v - Math.sign(v) * 0.08),
                 sx = dz(n.x - tilt0.x),
                 sy = dz(n.y - tilt0.y);
-              goal.theta -= sx * 2.6 * dt;
-              goal.phi = Math.min(Math.PI - 0.05, Math.max(0.05, goal.phi + sy * 2.2 * dt));
+              const [tg] = turnGain(),
+                zs = tg / 3.2;
+              goal.theta -= sx * 2.6 * dt * zs;
+              goal.phi = Math.min(Math.PI - 0.05, Math.max(0.05, goal.phi + sy * 2.2 * dt * zs));
               cursorState('drag', sx || sy ? 'Tilting' : 'Tilt to turn');
               return;
             }
-            goal.theta -= dx * 3.2;
-            goal.phi = Math.min(Math.PI - 0.05, Math.max(0.05, goal.phi - dy * 3.2));
+            const [gx, gy] = turnGain();
+            goal.theta -= dx * gx;
+            goal.phi = Math.min(Math.PI - 0.05, Math.max(0.05, goal.phi - dy * gy));
             cursorState('drag', 'Turning');
             return;
           }
@@ -9752,8 +9879,9 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
             if (now - handLoop.edgeT > 350) {
               // a short wait first, so passing through a band on the way somewhere doesn't turn the view
               if (!goal) grabGoal();
-              goal.theta -= ex * 1.6 * dt;
-              goal.phi = Math.min(Math.PI - 0.05, Math.max(0.05, goal.phi + ey * 1.2 * dt));
+              const zs = turnGain()[0] / 3.2;
+              goal.theta -= ex * 1.6 * dt * zs;
+              goal.phi = Math.min(Math.PI - 0.05, Math.max(0.05, goal.phi + ey * 1.2 * dt * zs));
               cursorState('drag', 'Gliding');
               return;
             }
