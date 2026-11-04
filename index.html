@@ -1984,7 +1984,7 @@
     <div class="hrow">
       <h1>
         Planetary Modeling Atlas
-        <span class="ver" title="Version v15mk2.23, 3 Nov 2026: buttons work like lenses for the hand cursor (Snell’s law), so a jitter can’t knock it off a button, as on the training page">v15mk2.23</span>
+        <span class="ver" title="Version v15mk2.24, 3 Nov 2026: fixes the hand cursor, which stopped in v15mk2.23; buttons work like lenses for the hand cursor (Snell’s law)">v15mk2.24</span>
       </h1>
       <button type="button" id="voiceBtn" aria-pressed="false" title="Voice commands: say “Atlas”, then what you want, e.g. “Atlas, show Mars” or “Atlas, next map”">🎤 Voice</button>
       <p id="howTo">
@@ -10679,7 +10679,7 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
         placeCursor(g);
         // the lenses: every frame, over the buttons found by the last hover test (not while turning the view)
         const turning = tap0 && tap0.drag,
-          fl = turning ? null : FLD.step({ x: cx, y: cy, pr: R.pr == null ? 1 : R.pr, pinch: R.mode === 'pinch' }, (hoverAt.btns || []).map(lensItem), now, BASE.snap, ADAPT.lens);
+          fl = turning ? null : FLD.step({ x: cx, y: cy, pr: R.pr == null ? 1 : R.pr, pinch: R.mode === 'pinch' }, (hoverAt.btns || []).map(lensItem), now, 28, ADAPT.lens); // 28 px: the default button pull (each button's own span overrides it)
         if (turning) FLD.reset();
         const lx = fl ? fl.x : cx,
           ly = fl ? fl.y : cy;
