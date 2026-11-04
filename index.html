@@ -2021,7 +2021,7 @@
     <div class="hrow">
       <h1>
         Planetary Modeling Atlas
-        <span class="ver" title="Version v15mk2.28, 4 Nov 2026: brings back the live flights and satellites toggles on Earth (hidden since v15mk2.20); a safety box for the hand in use, placed from your eyes and height with standard body proportions (shoulder to elbow height, a forearm’s sweep wide), used as your reach area until you train">v15mk2.28</span>
+        <span class="ver" title="Version v15mk2.29, 4 Nov 2026: All active satellites at once (about 11,000, from CelesTrak), from the satellite list or “Hey Atlas, show all satellites”">v15mk2.29</span>
       </h1>
       <button type="button" id="voiceBtn" aria-pressed="false" title="Voice commands: say “Hey Atlas”, then what you want, e.g. “Hey Atlas, show Mars” or “Hey Atlas, next map”">🎤 Voice</button>
       <p id="howTo">
@@ -2172,7 +2172,8 @@
           <option value="weather">Weather</option>
           <option value="gps-ops">GPS</option>
           <option value="geo">Geostationary</option>
-          <option value="starlink">Starlink</option></select
+          <option value="starlink">Starlink</option>
+          <option value="active">All active satellites</option></select
         ><span id="satKey" hidden
           ><i style="--c: #5fd4ff"></i>Low orbit <i style="--c: #7dff9a"></i>Medium (navigation)
           <i style="--c: #ffc94d"></i>Geostationary <i style="--c: #d58cff"></i>Elliptical <i class="st"></i>Station</span
@@ -8125,14 +8126,20 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
           });
         return lib;
       }
+      const TLEMEM = {};
       async function saLoad(g) {
-        saMsg = 'Loading satellites…';
+        saMsg = g === 'active' ? 'Loading every active satellite (about 2 MB; it takes a few seconds)…' : 'Loading satellites…';
         upd();
         try {
           const L_ = await loadLib(),
             key = 'atlasTLE_' + g + '|' + SAU;
           let txt = null,
             age = 0;
+          if (TLEMEM[key]) {
+            txt = TLEMEM[key].txt;
+            age = Date.now() - TLEMEM[key].t;
+          }
+          if (!txt)
           try {
             const c = JSON.parse(localStorage.getItem(key) || 'null');
             if (c && c.txt) {
@@ -8148,6 +8155,7 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
                 if (/^1 /m.test(t)) {
                   txt = t;
                   age = 0;
+                  TLEMEM[key] = { t: Date.now(), txt }; // also kept for this visit (the full list may be too big to save)
                   try {
                     localStorage.setItem(key, JSON.stringify({ t: Date.now(), txt }));
                   } catch (e) {}
@@ -8209,9 +8217,11 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
           SA.geometry.setDrawRange(0, 0);
           return;
         }
-        // spread the work: up to 1500 orbits a frame, the rest keep their last spot
-        const n = Math.min(sats.length, 1500);
-        for (let k = 0; k < n; k++) {
+        // spread the work: up to 1500 orbits a frame and at most 4 ms of it (so even every active satellite at once keeps the
+        // view smooth); the rest keep their last spot and move on a later frame
+        const n = Math.min(sats.length, 1500),
+          tEnd = performance.now() + 4;
+        for (let k = 0; k < n && (k < 64 || performance.now() < tEnd); k++) {
           const s = sats[saIdx];
           saIdx = (saIdx + 1) % sats.length;
           let pv = null;
@@ -8571,7 +8581,7 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
         <li>“where is the highest point?”, “where did Apollo 11 land?”, “go to Olympus Mons”, “tell me about Europa”</li>
         <li>“show live clouds”, “play the last day”, “Earth at night”, “set the date to July 20 1969”, “what’s the date?”</li>
         <li>“be quiet” / “talk to me” (spoken replies off or on), “what about Venus?” after a question</li>
-        <li>“I’m 5 foot 7” (your height, which places the waist line below your eyes)</li>
+        <li>“I’m 5 foot 7” (your height, which places the waist line below your eyes), “show all satellites”</li>
         <li>“show Mars”, “go to Titan”, “Solar System”</li>
         <li>“next map”, “previous map”, “show gravity”, “show topography”</li>
         <li>“zoom in”, “zoom out”, “brighter”, “darker”, “brightness 150”</li>
@@ -8960,6 +8970,15 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
           [['satellites'], 'liveSat', 'Satellites'],
           [['asteroids', 'asteroid belt'], 'mapBelt', 'Asteroids'],
         ];
+        if (has(t, 'all satellites', 'all the satellites', 'every satellite', 'all active satellites') && $('liveSatG')) {
+          const sel = $('liveSatG');
+          if (sel.value !== 'active') {
+            sel.value = 'active';
+            sel.dispatchEvent(new Event('change'));
+          }
+          if (!$('liveSat').checked) $('liveSat').click();
+          return 'Showing every active satellite. It takes a few seconds to load.';
+        }
         for (const [w, id, label] of TG) if (has(t, ...w) && $(id)) return toggle(t, $(id), label);
         if (has(t, 'hand control', 'hands')) {
           $(FS && MODE === 'map' ? 'mapHand' : 'handBtn').click();
