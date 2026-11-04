@@ -2085,7 +2085,7 @@
     <div class="hrow">
       <h1>
         Planetary Modeling Atlas
-        <span class="ver" title="Version v15mk2.34, 4 Nov 2026: button highlights no longer flicker at the edge, and a held pinch keeps up with the hand; v15mk2.33: tidier hand-control code; v15mk2.32: five refinements from the hand research bot: presses resolved by a short vote over where the cursor was, steadier button holds, a steadier two-thirds pinch, a rest line with hysteresis, and only the visible part of the safety box mapped; ⋯ Less in the hand-control bar tidies the screen (on by default on phones)">v15mk2.34</span>
+        <span class="ver" title="Version v15mk2.35, 4 Nov 2026: the hand cursor keeps up with ordinary reaches (about 100 ms less lag); shared starting settings only once five people have shared; v15mk2.34: button highlights no longer flicker at the edge, and a held pinch keeps up with the hand; v15mk2.33: tidier hand-control code; v15mk2.32: five refinements from the hand research bot: presses resolved by a short vote over where the cursor was, steadier button holds, a steadier two-thirds pinch, a rest line with hysteresis, and only the visible part of the safety box mapped; ⋯ Less in the hand-control bar tidies the screen (on by default on phones)">v15mk2.35</span>
       </h1>
       <button type="button" id="voiceBtn" aria-pressed="false" title="Voice commands: say “Hey Atlas”, then what you want, e.g. “Hey Atlas, show Mars” or “Hey Atlas, next map”">🎤 Voice</button>
       <p id="howTo">
@@ -10050,7 +10050,8 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
           .then((r) => (r.ok ? r.json() : null))
           .then((d) => {
             const g = d && d.format === 'hand-control-defaults' && d.groups && d.groups.all;
-            if (!g || !(g.n >= 10)) return;
+            // shared defaults are used only once enough different people have shared (ready); until then the built-in ones
+            if (!g || d.ready === false || !(g.n >= 5)) return;
             ['Left', 'Right'].forEach((sd) => {
               if (!untouched(H[sd])) return;
               Object.keys(BASE).forEach((n) => isFinite(g[n]) && (H[sd].k[n] = Math.max(LIM[n][0], Math.min(LIM[n][1], +g[n]))));
@@ -10593,10 +10594,10 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
           }
           // the velocity averaged over about 0.15 s: a tremor's back-and-forth cancels out, a real move doesn't, so a shaky but
           // still hand never counts as fast
-          const kv = 1 - Math.exp(-dt / 0.15);
+          const kv = 1 - Math.exp(-dt / 0.08); // speed averaged over 80 ms (was 150): the lead starts sooner
           for (let i = 0; i < 2; i++) this.vl[i] += (this.v[i] - this.vl[i]) * kv;
           this.speed = Math.hypot(this.vl[0], this.vl[1]); // in camera pictures per second
-          const s = Math.max(0, Math.min(1, (this.speed - 0.6) / 1.0));
+          const s = Math.max(0, Math.min(1, (this.speed - 0.15) / 0.35)); // the lead fades in from ordinary reaching speeds (was from 0.6)
           this.fast = s * s * (3 - 2 * s);
           const braking = this.vl[0] * this.a[0] + this.vl[1] * this.a[1] < 0,
             lead = braking ? 0 : 0.06 * this.fast;
