@@ -488,7 +488,8 @@
     margin: 0;
     max-width: 44ch;
   }
-  #satKey {
+  #satKey,
+  #orbKey {
     display: inline-flex;
     flex-wrap: wrap;
     gap: 4px 10px;
@@ -496,7 +497,8 @@
     font-size: 0.76rem;
     color: var(--muted);
   }
-  #satKey i {
+  #satKey i,
+  #orbKey i {
     display: inline-block;
     width: 9px;
     height: 9px;
@@ -894,6 +896,8 @@
       0 0 6px #000;
   }
   #labels span.feat.orb {
+    pointer-events: auto;
+    cursor: help;
     font: 500 0.72rem var(--sans);
     font-style: normal;
     letter-spacing: 0;
@@ -1058,6 +1062,8 @@
     gap: 8px;
     align-items: baseline;
     max-width: min(34rem, calc(100vw - 24px));
+    max-height: 46vh;
+    overflow: auto;
     padding: 8px 14px;
     border-radius: 14px;
     background: rgba(14, 18, 28, 0.92);
@@ -1653,6 +1659,12 @@
   }
   /* phones: the globe sits right under the world list, with its controls just below it; the map is taller than wide */
   @media (max-width: 600px) {
+    #handBox {
+      width: 112px;
+    }
+    .skyT label {
+      white-space: nowrap;
+    }
     header,
     .grid {
       display: contents;
@@ -1768,8 +1780,7 @@
     select {
       min-height: 38px;
     }
-    .mapbar button,
-    #fsBar button {
+    .mapbar button {
       min-height: 32px;
     }
     input[type='checkbox'] {
@@ -2029,7 +2040,7 @@
     <div class="hrow">
       <h1>
         Planetary Modeling Atlas
-        <span class="ver" title="Version v15mk2.30, 4 Nov 2026: the real night sky behind the globes and the Solar System, and constellation figures from five sky cultures to switch on: Western, Norse, Ancient Egyptian, Navajo and Blackfoot; Earth’s large and famous impact craters, as a site category that starts switched off; 🛰 Orbiters: the spacecraft in orbit around the Moon, Mars, Venus, Mercury, Jupiter and Ceres, drawn on their published orbits">v15mk2.30</span>
+        <span class="ver" title="Version v15mk2.31, 4 Nov 2026: hand control in the Solar System again (✋ Hand control under the map): pinch a planet or press Land on … to go down to its globe, ↑ Solar System to come back up; and the hand cursor no longer creeps off a button you hold it on">v15mk2.31</span>
       </h1>
       <button type="button" id="voiceBtn" aria-pressed="false" title="Voice commands: say “Hey Atlas”, then what you want, e.g. “Hey Atlas, show Mars” or “Hey Atlas, next map”">🎤 Voice</button>
       <p id="howTo">
@@ -2091,7 +2102,6 @@
           ><button
             type="button"
             id="mapHand"
-            hidden
             aria-pressed="false"
             title="Steer the view with your hand, using your computer's camera"
           >
@@ -7270,7 +7280,9 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
       diveIn($('mapStage'));
     }
     function exitToMap() {
-      if (FS && window.HAND_STOP) window.HAND_STOP(); // hand control is for the globe only: going back to the Solar System ends it
+      // with hand control on, ↑ Solar System swaps the full-screen view to the map and the hand carries on steering there
+      // (pinch a planet, or press Land on …, to go back down; ✋ Stop hand control or Esc ends it)
+      if (FS && MODE === 'globe') setMode('map');
       if (DIVE) diveOut();
       else $('mapStage').scrollIntoView({ behavior: RM() ? 'auto' : 'smooth', block: 'center' });
       if (window.MAPFOCUS && current) window.MAPFOCUS(current);
@@ -10947,7 +10959,7 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
           const here = this.n(px, py, items, span, nMax),
             off = Math.hypot(f.x - px, f.y - py),
             inLens = (here.n - 1) / Math.max(1e-6, nMax - 1),
-            k = off > span * 1.6 ? 0.35 : 0.25 * (1 - inLens) + 0.02 * inLens;
+            k = off > span * 1.6 ? 0.35 : 0.25 * (1 - inLens) + (len > 0.5 ? 0.02 : 0) * inLens; // inside a lens, a still hand doesn't drift
           px += (f.x - px) * (closing ? k * 0.2 : k);
           py += (f.y - py) * (closing ? k * 0.2 : k);
           px = Math.max(0, Math.min(innerWidth, px));
@@ -10966,7 +10978,7 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
           if (cap) {
             this.lastCap = cap.key;
             this.lastCapT = t;
-          }
+          } else if (closing && this.lastCap) this.lastCapT = t; // while the fingers close, the last target is held for the press
           const recent = cap ? cap.key : this.lastCap && t - this.lastCapT < 150 && items.some((it) => it.key === this.lastCap) ? this.lastCap : null;
           const under = items.find((it) => it.dist(f.x, f.y) <= 0); // the target under the hand itself
           return { x: px, y: py, cap: cap ? cap.key : null, recent, hand: under ? under.key : null, n: fin.n };
@@ -10994,7 +11006,9 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
           g = 0.45 + 0.55 * u * u * (3 - 2 * u);
         B.x += dx * g;
         B.y += dy * g;
-        const k = 1 - Math.exp(-dt / (v > 500 ? 0.12 : 0.9));
+        // the catch-up to where the hand points runs only while the hand moves: a still hand leaves the cursor where it is,
+        // so it can't creep off a button it was held on (which made presses miss)
+        const k = (1 - Math.exp(-dt / (v > 500 ? 0.12 : 0.9))) * Math.min(1, v / 120);
         B.x += (x - B.x) * k;
         B.y += (y - B.y) * k;
         const ox = B.x - x,
@@ -11229,6 +11243,7 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
             paused = true;
             goal = null;
             zoom0 = null;
+            zoomRate = 0;
             tap0 = null;
             toneStop();
             R.reset();
