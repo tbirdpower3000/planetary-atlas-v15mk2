@@ -2021,7 +2021,7 @@
     <div class="hrow">
       <h1>
         Planetary Modeling Atlas
-        <span class="ver" title="Version v15mk2.25, 3 Nov 2026: tricks from game design for hand control: slow movements are finer (speed-based gain), presses that are a moment late or early still count, and presses bounce and burst so you can feel them">v15mk2.25</span>
+        <span class="ver" title="Version v15mk2.26, 3 Nov 2026: fixes hand presses on the top-bar buttons (a pinch was never seen as deliberate, so they didn’t respond)">v15mk2.26</span>
       </h1>
       <button type="button" id="voiceBtn" aria-pressed="false" title="Voice commands: say “Hey Atlas”, then what you want, e.g. “Hey Atlas, show Mars” or “Hey Atlas, next map”">🎤 Voice</button>
       <p id="howTo">
@@ -10150,7 +10150,9 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
           this.fx.minCut = this.fy.minCut = c0;
           // how long the hand has been open: a press only counts when it starts from an open hand (deliberate presses)
           if (!this.pinchOn) this.openSince = this.openSince || t;
-          else if (this.mode !== 'pinch') this.lastOpen = this.openSince ? t - this.openSince : 0;
+          // measured once, on the first frame of the pinch (later frames would find openSince already cleared and read 0,
+          // which made every press look non-deliberate)
+          else if (this.mode !== 'pinch' && this.openSince) this.lastOpen = t - this.openSince;
           if (this.pinchOn) this.openSince = 0;
           const want = g.fist ? 'fist' : g.pinch ? 'pinch' : 'idle';
           this.held = this.held.m === want ? { m: want, n: this.held.n + 1 } : { m: want, n: 1 };
@@ -10823,6 +10825,7 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
             tilt0 = null;
             turnLock = null;
             drawStick(0, 0);
+            window.atlasTapLog = tap0 && { drag: tap0.drag, done: tap0.done, zoom: tap0.zoom, fresh: tap0.fresh, top: tap0.top, full: tap0.full, hv: tap0.hv && (tap0.hv.btn ? tap0.hv.btn.id : tap0.hv.label) }; // for testing
             if (tap0 && !tap0.drag && !tap0.done && !tap0.zoom && tap0.fresh && (!tap0.top || tap0.full)) click(tap0.hv, now);
             if (tap0 && tap0.zoom) zoomRate = 0;
             tap0 = null;
