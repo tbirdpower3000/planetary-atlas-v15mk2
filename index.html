@@ -1984,7 +1984,7 @@
     <div class="hrow">
       <h1>
         Planetary Modeling Atlas
-        <span class="ver" title="Version v15mk2.22, 3 Nov 2026: the voice assistant talks back, answers questions from the atlas’s own data, flies to places by name, hears names better, and holds Space to talk">v15mk2.22</span>
+        <span class="ver" title="Version v15mk2.23, 3 Nov 2026: buttons work like lenses for the hand cursor (Snell’s law), so a jitter can’t knock it off a button, as on the training page">v15mk2.23</span>
       </h1>
       <button type="button" id="voiceBtn" aria-pressed="false" title="Voice commands: say “Atlas”, then what you want, e.g. “Atlas, show Mars” or “Atlas, next map”">🎤 Voice</button>
       <p id="howTo">
@@ -9477,6 +9477,7 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
             }
             if (okReach(src.reach)) h.reach = Object.assign({}, src.reach);
             if (isFinite(src.sizeRef) && src.sizeRef > 0) h.sizeRef = +src.sizeRef;
+            if (src.k && isFinite(src.k.lens) && src.k.lens >= 1.5 && src.k.lens <= 4) h.k.lens = +src.k.lens; // how strongly buttons hold the cursor, from training
             if (src.trained) h.trained = src.trained;
           };
           if (v.hands) ['Left', 'Right'].forEach((sd) => put(H[sd], v.hands[sd]));
@@ -9854,6 +9855,9 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
           get pOn() {
             return on ? cur().k.pOn : BASE.pOn;
           },
+          get lens() {
+            return (on && cur().k.lens) || 2.5;
+          },
           get pOff() {
             return on ? cur().k.pOff : BASE.pOff;
           },
@@ -10084,6 +10088,7 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
             if (this === R) ADAPT.pinchEdge(this.pinchOn, t);
           }
           this.p = Math.max(0, Math.min(1, (0.75 - pr) / 0.45)); // how close the fingers are to a pinch, for the meter on the cursor
+          this.pr = pr;
           // a full pinch: the fingers 20% further closed than where a pinch switches on, two frames running. The buttons at the
           // top of the view only press on a full pinch, so a half-closed hand passing over them never presses one
           this.fullN = this.pinchOn && pr < ADAPT.pOn * 0.8 ? (this.fullN || 0) + 1 : 0;
@@ -10234,12 +10239,137 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
         CUR.className = cls || '';
         CUR.querySelector('span').textContent = label || '';
       }
-      // magnetic targets: the cursor snaps to the nearest button, planet or site within reach, like sticky buttons on a console
+
+      // ---- buttons as lenses (Snell's law), as on the training page: the cursor bends toward a button and slows inside it,
+      // a jitter inside moves it only a fraction as far, and sliding along the edge reflects back in. Planets, moons and
+      // landing sites keep the magnet. Each button's lens reaches as far as its button pull.
+      class Field {
+        constructor() {
+          this.reset();
+        }
+        reset() {
+          this.p = null;
+          this.raw = null;
+          this.prev = new Map(); // each item's centre last frame, to carry the cursor with a moving bubble
+          this.pr = [];
+        }
+        // n at a point: 1 in the open, rising to nMax at and inside an item's edge
+        n(x, y, items, span, nMax) {
+          let g = 0;
+          for (const it of items) {
+            const d = it.dist(x, y),
+              sp = it.span || span;
+            if (d <= 0) return { n: nMax, inside: it };
+            if (d < sp) {
+              const u = 1 - d / sp;
+              g = Math.max(g, u * u * (3 - 2 * u));
+            }
+          }
+          return { n: 1 + (nMax - 1) * g, inside: null };
+        }
+        step(f, items, t, snap, nMax) {
+          nMax = nMax || 2.5;
+          const span = Math.max(36, snap * 1.2);
+          this.pr.push([t, f.pr]);
+          while (this.pr.length && t - this.pr[0][0] > 150) this.pr.shift();
+          const closing = f.pinch || (this.pr.length > 2 && this.pr[0][1] - f.pr > 0.08);
+          if (!this.p) {
+            this.p = [f.x, f.y];
+            this.raw = [f.x, f.y];
+          }
+          let [px, py] = this.p;
+          // a lens that moved carries the cursor inside it
+          const cur = this.n(px, py, items, span, nMax);
+          if (cur.inside && this.prev.has(cur.inside.key)) {
+            const [ox, oy] = this.prev.get(cur.inside.key);
+            px += cur.inside.cx - ox;
+            py += cur.inside.cy - oy;
+          }
+          this.prev = new Map(items.map((it) => [it.key, [it.cx, it.cy]]));
+          const dx = f.x - this.raw[0],
+            dy = f.y - this.raw[1];
+          this.raw = [f.x, f.y];
+          const len = Math.hypot(dx, dy);
+          const kClose = closing ? 3 : 1;
+          if (len > 1e-6) {
+            const n1 = this.n(px, py, items, span, nMax).n * kClose;
+            // the normal: the gradient of n, by central differences (pointing toward higher n, i.e. into the lens)
+            const e = 3,
+              gx = this.n(px + e, py, items, span, nMax).n - this.n(px - e, py, items, span, nMax).n,
+              gy = this.n(px, py + e, items, span, nMax).n - this.n(px, py - e, items, span, nMax).n,
+              gl = Math.hypot(gx, gy);
+            let ux = dx / len,
+              uy = dy / len;
+            // where the ray is heading, to find n2
+            const n2 = this.n(px + ux * (len / n1), py + uy * (len / n1), items, span, nMax).n * kClose;
+            if (gl > 1e-6 && Math.abs(n2 - n1) > 1e-4) {
+              let nx = gx / gl,
+                ny = gy / gl;
+              let cos1 = ux * nx + uy * ny;
+              if (cos1 < 0) {
+                // moving down the gradient (outward): use the outward normal
+                nx = -nx;
+                ny = -ny;
+                cos1 = -cos1;
+              }
+              const sin1 = Math.sqrt(Math.max(0, 1 - cos1 * cos1)),
+                sin2 = (n1 / n2) * sin1;
+              // the tangential direction (along the edge)
+              let tx = ux - cos1 * nx,
+                ty = uy - cos1 * ny;
+              const tl = Math.hypot(tx, ty);
+              if (tl > 1e-6) {
+                tx /= tl;
+                ty /= tl;
+              }
+              if (sin2 >= 1) {
+                // total internal reflection: the outward part of the move turns back in
+                ux = tx * sin1 - nx * cos1;
+                uy = ty * sin1 - ny * cos1;
+              } else {
+                const cos2 = Math.sqrt(1 - sin2 * sin2);
+                ux = tx * sin2 + nx * cos2;
+                uy = ty * sin2 + ny * cos2;
+              }
+            }
+            const nm = (n1 + n2) / 2;
+            px += (ux * len) / nm;
+            py += (uy * len) / nm;
+          }
+          // drift back to where the hand points: fast in the open, slow inside a lens, at once if the hand is far away
+          const here = this.n(px, py, items, span, nMax),
+            off = Math.hypot(f.x - px, f.y - py),
+            inLens = (here.n - 1) / Math.max(1e-6, nMax - 1),
+            k = off > span * 1.6 ? 0.35 : 0.25 * (1 - inLens) + 0.02 * inLens;
+          px += (f.x - px) * (closing ? k * 0.2 : k);
+          py += (f.y - py) * (closing ? k * 0.2 : k);
+          px = Math.max(0, Math.min(innerWidth, px));
+          py = Math.max(0, Math.min(innerHeight, py));
+          this.p = [px, py];
+          const fin = this.n(px, py, items, span, nMax);
+          // captured: the cursor is inside an item, or within a few px of its edge
+          let cap = fin.inside;
+          if (!cap)
+            for (const it of items)
+              if (it.dist(px, py) < 4) {
+                cap = it;
+                break;
+              }
+          return { x: px, y: py, cap: cap ? cap.key : null, n: fin.n };
+        }
+      }
+
+      const FLD = new Field();
+      const lensItem = (b) => {
+        const r = b.getBoundingClientRect();
+        return { key: b, cx: r.left + r.width / 2, cy: r.top + r.height / 2, span: Math.max(36, ADAPT.snapFor(b) * 1.2), dist: (x, y) => Math.hypot(Math.max(r.left - x, 0, x - r.right), Math.max(r.top - y, 0, y - r.bottom)) };
+      };
+      // magnetic targets: the cursor snaps to the nearest planet or site within reach (buttons have the lenses above)
       const center = (el) => {
         const r = el.getBoundingClientRect();
         return [r.left + r.width / 2, r.top + r.height / 2];
       };
-      function hoverAt(x, y) {
+      function hoverAt(x, y, noBtn) {
         const btns = [
           ...document.querySelectorAll('#fsBar button:not([hidden])'),
           ...V.stage.querySelectorAll('button:not([hidden])'),
@@ -10260,7 +10390,7 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
           }
         });
         hoverAt.btns = btns;
-        if (best && bd < ADAPT.snapFor(best)) {
+        if (!noBtn && best && bd < ADAPT.snapFor(best)) {
           const [bx, by] = center(best);
           return { btn: best, label: best.textContent.trim().slice(0, 28), x: bx, y: by };
         }
@@ -10547,15 +10677,22 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
         ADAPT.size(R.size, now);
         CUR.hidden = false;
         placeCursor(g);
+        // the lenses: every frame, over the buttons found by the last hover test (not while turning the view)
+        const turning = tap0 && tap0.drag,
+          fl = turning ? null : FLD.step({ x: cx, y: cy, pr: R.pr == null ? 1 : R.pr, pinch: R.mode === 'pinch' }, (hoverAt.btns || []).map(lensItem), now, BASE.snap, ADAPT.lens);
+        if (turning) FLD.reset();
+        const lx = fl ? fl.x : cx,
+          ly = fl ? fl.y : cy;
         if (now - (handLoop.ht || 0) > 90) {
           handLoop.ht = now;
-          handLoop.hv = hoverAt(cx, cy);
-          if (R.mode === 'idle') ADAPT.sample(now, cx, cy, handLoop.hv, hoverAt.btns || []);
+          handLoop.hv = hoverAt(lx, ly, true);
+          if (R.mode === 'idle') ADAPT.sample(now, lx, ly, fl && fl.cap ? { btn: fl.cap } : handLoop.hv, hoverAt.btns || []);
         } // hover-test about ten times a second; aiming into the globe is costly
-        ADAPT.frame(now, cx, cy, R.mode);
-        const hv = handLoop.hv,
-          sx = hv && hv.x != null ? hv.x : cx,
-          sy = hv && hv.y != null ? hv.y : cy;
+        ADAPT.frame(now, lx, ly, R.mode);
+        window.atlasLens = { fl, cx, cy }; // for testing
+        const hv = fl && fl.cap ? { btn: fl.cap, label: fl.cap.textContent.trim().slice(0, 28) } : handLoop.hv,
+          sx = hv && hv.x != null ? hv.x : lx,
+          sy = hv && hv.y != null ? hv.y : ly;
         drawCursor(sx, sy);
         if (hv && hv.x != null) GLIDE.vx = GLIDE.vy = 0;
         hist.push([now, hv]);
