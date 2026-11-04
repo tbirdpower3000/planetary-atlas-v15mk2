@@ -2021,7 +2021,7 @@
     <div class="hrow">
       <h1>
         Planetary Modeling Atlas
-        <span class="ver" title="Version v15mk2.26, 3 Nov 2026: fixes hand presses on the top-bar buttons (a pinch was never seen as deliberate, so they didn’t respond)">v15mk2.26</span>
+        <span class="ver" title="Version v15mk2.26, 4 Nov 2026: fixes hand presses on the top-bar buttons; when hand control is started by voice, F, a click anywhere or ⛶ finishes going full screen">v15mk2.26</span>
       </h1>
       <button type="button" id="voiceBtn" aria-pressed="false" title="Voice commands: say “Hey Atlas”, then what you want, e.g. “Hey Atlas, show Mars” or “Hey Atlas, next map”">🎤 Voice</button>
       <p id="howTo">
@@ -2218,7 +2218,7 @@
     </div>
     <div id="handCur" hidden><i><b></b></i><span></span></div>
     <div id="fsBar" hidden role="toolbar" aria-label="Hand control">
-      <button type="button" id="fsMap">↑ Solar System</button><button type="button" id="fsLand" hidden>Land</button
+      <button type="button" id="fsMap">↑ Solar System</button><button type="button" id="fsFull" hidden title="Browsers only go full screen after a click or a key press">⛶ Full screen</button><button type="button" id="fsLand" hidden>Land</button
       ><span class="fsTime" id="fsLyr" role="group" aria-label="Map layer" hidden
         ><button type="button" id="fsLyPrev" title="Previous map" aria-label="Previous map">‹</button
         ><button type="button" id="fsLy" title="Next map">🗺</button
@@ -6812,11 +6812,47 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
       updFs();
       RENDER_BOTH_UNTIL = performance.now() + 900;
       const el = document.documentElement;
-      if (el.requestFullscreen && !document.fullscreenElement) el.requestFullscreen().catch(() => {});
+      // browsers only allow full screen straight after a click or key press; when it was asked for some other way (a
+      // voice command), the view still fills the window, and the next click or key press anywhere (or ⛶) finishes the job
+      if (el.requestFullscreen && !document.fullscreenElement)
+        el.requestFullscreen().then(() => ($('fsFull').hidden = true)).catch(() => {
+          fsPending = true;
+          $('fsFull').hidden = false;
+        });
     }
+    let fsPending = false;
+    function fsFinish() {
+      if (!fsPending || !FS || document.fullscreenElement) return;
+      fsPending = false;
+      $('fsFull').hidden = true;
+      const el = document.documentElement;
+      if (el.requestFullscreen) el.requestFullscreen().catch(() => ($('fsFull').hidden = false));
+    }
+    $('fsFull').onclick = () => {
+      fsPending = true;
+      fsFinish();
+    };
+    // the next real click or key press goes full screen (Esc and Space, which are for leaving and push-to-talk, excepted)
+    document.addEventListener('pointerdown', fsFinish, true);
+    document.addEventListener(
+      'keydown',
+      (e) => {
+        if (e.key === 'f' || e.key === 'F') {
+          if (FS && !document.fullscreenElement && !/^(INPUT|TEXTAREA|SELECT)$/.test((document.activeElement || {}).tagName || '')) {
+            fsPending = true;
+            fsFinish();
+          }
+          return;
+        }
+        if (e.key !== 'Escape' && e.code !== 'Space') fsFinish();
+      },
+      true,
+    );
     function exitFS() {
       if (!FS) return;
       FS = false;
+      fsPending = false;
+      $('fsFull').hidden = true;
       document.body.classList.remove('handfs');
       $('fsBar').hidden = true;
       $('fsLand').hidden = true;
@@ -8912,7 +8948,8 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
         for (const [w, id, label] of TG) if (has(t, ...w) && $(id)) return toggle(t, $(id), label);
         if (has(t, 'hand control', 'hands')) {
           $(FS && MODE === 'map' ? 'mapHand' : 'handBtn').click();
-          return 'Hand control';
+          // a voice command can't make the browser go full screen by itself (only a click or key press can)
+          return document.fullscreenElement ? 'Hand control' : 'Hand control. To go full screen, press F or click anywhere.';
         }
         const WB = [...document.querySelectorAll('#warp button')],
           wi = WB.findIndex((b) => b.getAttribute('aria-pressed') === 'true');
