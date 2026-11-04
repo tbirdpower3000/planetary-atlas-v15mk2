@@ -1,0 +1,209 @@
+{
+ "about": "Spacecraft in orbit around other worlds: periapsis and apoapsis altitude (km), inclination (deg). Orbits are drawn from these published values with an arbitrary orientation of the node and an arbitrary starting point; the period is worked out from the altitudes. Positions along the orbit are illustrative, not tracked.",
+ "worlds": {
+  "moon": [
+   {
+    "name": "Lunar Reconnaissance Orbiter",
+    "agency": "NASA",
+    "since": 2009,
+    "peri": 20,
+    "apo": 165,
+    "inc": 86,
+    "period_h": 1.95,
+    "status": "active",
+    "note": "Mapping the Moon since 2009; its camera and laser altimeter made the maps this atlas uses.",
+    "url": "https://science.nasa.gov/mission/lro/"
+   },
+   {
+    "name": "Chandrayaan-2 orbiter",
+    "agency": "ISRO",
+    "since": 2019,
+    "peri": 100,
+    "apo": 100,
+    "inc": 90,
+    "period_h": 1.96,
+    "status": "active",
+    "note": "India’s lunar orbiter; its lander Vikram was lost on landing, the orbiter carries on.",
+    "url": "https://www.isro.gov.in/Chandrayaan2.html"
+   },
+   {
+    "name": "Danuri (KPLO)",
+    "agency": "KARI",
+    "since": 2022,
+    "peri": 100,
+    "apo": 100,
+    "inc": 90,
+    "period_h": 1.96,
+    "status": "active",
+    "note": "South Korea’s first lunar orbiter.",
+    "url": "https://www.kari.re.kr/eng/sub03_08_01.do"
+   },
+   {
+    "name": "Queqiao-2",
+    "agency": "CNSA",
+    "since": 2024,
+    "peri": 200,
+    "apo": 16000,
+    "inc": 62.4,
+    "period_h": 24.32,
+    "status": "active",
+    "note": "Relay satellite for the far side (Chang’e 6 and later).",
+    "url": "https://www.cnsa.gov.cn/"
+   }
+  ],
+  "mars": [
+   {
+    "name": "2001 Mars Odyssey",
+    "agency": "NASA",
+    "since": 2001,
+    "peri": 390,
+    "apo": 450,
+    "inc": 93,
+    "period_h": 1.98,
+    "status": "active",
+    "note": "The longest-serving spacecraft at Mars.",
+    "url": "https://science.nasa.gov/mission/odyssey/"
+   },
+   {
+    "name": "Mars Express",
+    "agency": "ESA",
+    "since": 2003,
+    "peri": 298,
+    "apo": 10107,
+    "inc": 86.9,
+    "period_h": 6.72,
+    "status": "active",
+    "note": "Europe’s first Mars mission.",
+    "url": "https://www.esa.int/Science_Exploration/Space_Science/Mars_Express"
+   },
+   {
+    "name": "Mars Reconnaissance Orbiter",
+    "agency": "NASA",
+    "since": 2006,
+    "peri": 255,
+    "apo": 320,
+    "inc": 92.7,
+    "period_h": 1.88,
+    "status": "active",
+    "note": "Carries HiRISE, the sharpest camera at Mars.",
+    "url": "https://science.nasa.gov/mission/mars-reconnaissance-orbiter/"
+   },
+   {
+    "name": "MAVEN",
+    "agency": "NASA",
+    "since": 2014,
+    "peri": 150,
+    "apo": 6200,
+    "inc": 75,
+    "period_h": 4.49,
+    "status": "active",
+    "note": "Studies the upper atmosphere and how Mars lost its air.",
+    "url": "https://science.nasa.gov/mission/maven/"
+   },
+   {
+    "name": "ExoMars Trace Gas Orbiter",
+    "agency": "ESA / Roscosmos",
+    "since": 2016,
+    "peri": 400,
+    "apo": 400,
+    "inc": 74,
+    "period_h": 1.97,
+    "status": "active",
+    "note": "Sniffs trace gases such as methane; relays for the rovers.",
+    "url": "https://www.esa.int/Science_Exploration/Human_and_Robotic_Exploration/Exploration/ExoMars"
+   },
+   {
+    "name": "Tianwen-1 orbiter",
+    "agency": "CNSA",
+    "since": 2021,
+    "peri": 265,
+    "apo": 10700,
+    "inc": 86.9,
+    "period_h": 7.05,
+    "status": "active",
+    "note": "China’s first Mars orbiter; it delivered the Zhurong rover.",
+    "url": "https://www.cnsa.gov.cn/"
+   },
+   {
+    "name": "Hope (Al-Amal)",
+    "agency": "UAE / MBRSC",
+    "since": 2021,
+    "peri": 20000,
+    "apo": 43000,
+    "inc": 25,
+    "period_h": 54.96,
+    "status": "active",
+    "note": "A high orbit that watches the whole atmosphere through the day.",
+    "url": "https://www.emiratesmarsmission.ae/"
+   }
+  ],
+  "venus": [
+   {
+    "name": "Akatsuki",
+    "agency": "JAXA",
+    "since": 2015,
+    "peri": 1000,
+    "apo": 370000,
+    "inc": 3,
+    "period_h": 256.72,
+    "status": "silent",
+    "note": "Studied Venus’s winds from orbit; contact was lost in 2024.",
+    "url": "https://global.jaxa.jp/projects/sat/planet_c/"
+   }
+  ],
+  "mercury": [
+   {
+    "name": "BepiColombo MPO",
+    "agency": "ESA",
+    "since": 2026,
+    "peri": 480,
+    "apo": 1500,
+    "inc": 90,
+    "period_h": 2.36,
+    "status": "planned",
+    "note": "Due to enter orbit in late 2026; this is its planned orbit.",
+    "url": "https://www.esa.int/Science_Exploration/Space_Science/BepiColombo"
+   },
+   {
+    "name": "BepiColombo Mio",
+    "agency": "JAXA",
+    "since": 2026,
+    "peri": 590,
+    "apo": 11640,
+    "inc": 90,
+    "period_h": 9.3,
+    "status": "planned",
+    "note": "Due to enter orbit in late 2026; this is its planned orbit.",
+    "url": "https://global.jaxa.jp/projects/sas/bepi/"
+   }
+  ],
+  "jupiter": [
+   {
+    "name": "Juno",
+    "agency": "NASA",
+    "since": 2016,
+    "peri": 4000,
+    "apo": 5850000,
+    "inc": 90,
+    "period_h": 805.13,
+    "status": "active",
+    "note": "Dives close over the poles every 33 days.",
+    "url": "https://science.nasa.gov/mission/juno/"
+   }
+  ],
+  "ceres": [
+   {
+    "name": "Dawn",
+    "agency": "NASA",
+    "since": 2015,
+    "peri": 35,
+    "apo": 4000,
+    "inc": 90,
+    "period_h": 27.36,
+    "status": "silent",
+    "note": "Mission ended in 2018; it stays in orbit, silent.",
+    "url": "https://science.nasa.gov/mission/dawn/"
+   }
+  ]
+ }
+}

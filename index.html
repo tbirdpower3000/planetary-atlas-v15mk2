@@ -893,6 +893,14 @@
       0 0 3px #000,
       0 0 6px #000;
   }
+  #labels span.feat.orb {
+    font: 500 0.72rem var(--sans);
+    font-style: normal;
+    letter-spacing: 0;
+    text-transform: none;
+    opacity: 0.95;
+    text-shadow: 0 1px 2px #000;
+  }
   #labels span.pt {
     font-size: 0.66rem;
     border-color: rgba(160, 220, 240, 0.6);
@@ -2021,7 +2029,7 @@
     <div class="hrow">
       <h1>
         Planetary Modeling Atlas
-        <span class="ver" title="Version v15mk2.29, 4 Nov 2026: All active satellites at once (about 11,000, from CelesTrak), from the satellite list or “Hey Atlas, show all satellites”">v15mk2.29</span>
+        <span class="ver" title="Version v15mk2.30, 4 Nov 2026: the real night sky behind the globes and the Solar System, and constellation figures from five sky cultures to switch on: Western, Norse, Ancient Egyptian, Navajo and Blackfoot; Earth’s large and famous impact craters, as a site category that starts switched off; 🛰 Orbiters: the spacecraft in orbit around the Moon, Mars, Venus, Mercury, Jupiter and Ceres, drawn on their published orbits">v15mk2.30</span>
       </h1>
       <button type="button" id="voiceBtn" aria-pressed="false" title="Voice commands: say “Hey Atlas”, then what you want, e.g. “Hey Atlas, show Mars” or “Hey Atlas, next map”">🎤 Voice</button>
       <p id="howTo">
@@ -2078,6 +2086,8 @@
             aria-pressed="true"
             title="The main asteroid belt and Jupiter's Trojan asteroids: a sample of 6,000 drawn from their real orbit distributions"
           >Asteroids: on</button
+          ><span class="tgroup skyT mapSky" title="The stars are the real night sky (HYG catalogue). Switch on constellation figures from these sky cultures (from Stellarium); each is credited on the Sources page."
+        >✦ Sky lore<label><input type="checkbox" data-sky="western" /> Western</label><label><input type="checkbox" data-sky="norse" /> Norse</label><label><input type="checkbox" data-sky="egyptian" /> Egyptian</label><label><input type="checkbox" data-sky="navajo" /> Navajo</label><label><input type="checkbox" data-sky="blackfoot" /> Blackfoot</label></span
           ><button
             type="button"
             id="mapHand"
@@ -2156,7 +2166,16 @@
       <label class="tgroup" title="Turn the globe at its real rotation rate on the viewer's clock"
         ><input id="spinT" type="checkbox" checked /> Spin</label
       >
+      <span class="tgroup skyT" title="The stars are the real night sky (HYG catalogue). Switch on constellation figures from these sky cultures (from Stellarium); each is credited on the Sources page."
+        >✦ Sky lore<label><input type="checkbox" data-sky="western" /> Western</label><label><input type="checkbox" data-sky="norse" /> Norse</label><label><input type="checkbox" data-sky="egyptian" /> Egyptian</label><label><input type="checkbox" data-sky="navajo" /> Navajo</label><label><input type="checkbox" data-sky="blackfoot" /> Blackfoot</label></span
+      >
       <span id="ptToggles" class="toolbar" style="gap: 10px 18px"></span>
+      <span id="orbT" class="toolbar" style="gap: 10px 18px" hidden
+        ><label class="tgroup" title="Spacecraft in orbit around this world, drawn from their published orbits (the orientation and the position along the orbit are illustrative, not tracked)"
+          ><input id="orbOn" type="checkbox" /> 🛰 <span id="orbLbl">Orbiters</span></label
+        ><span id="orbKey" hidden><i style="--c: #7dff9a"></i>Active <i style="--c: #9aa4b2"></i>Silent <i style="--c: #ffc94d"></i>Planned</span
+        ><span id="orbMsg" class="note" aria-live="polite"></span
+      ></span>
       <span id="liveT" class="toolbar" style="gap: 10px 18px" hidden
         ><label
           class="tgroup"
@@ -2846,7 +2865,9 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
     function setMap(t) {
       mat.uniforms.map.value = t;
     }
-    // stars behind the globe, matching the Solar System view so the hand-off between them is invisible
+    // stars behind the globe, matching the Solar System view so the hand-off between them is invisible (until the real sky
+    // has loaded, which then takes their place)
+    let RANDSTARS = null;
     {
       const n = 1400,
         pos = new Float32Array(n * 3);
@@ -2858,7 +2879,205 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
       }
       const g = new THREE.BufferGeometry();
       g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
-      scene.add(new THREE.Points(g, new THREE.PointsMaterial({ color: 0x8090a8, size: 1.2, sizeAttenuation: false })));
+      scene.add((RANDSTARS = new THREE.Points(g, new THREE.PointsMaterial({ color: 0x8090a8, size: 1.2, sizeAttenuation: false }))));
+    }
+    // ---------- the real night sky, and constellation figures from five sky cultures ----------
+    // Stars brighter than magnitude 5.5 (HYG v4.1, CC BY-SA 4.0) on a sphere around the camera, so they sit at infinity;
+    // the figures come from Stellarium's sky cultures, each its own file with its own licence (sky/*.json). The globe's
+    // sky is turned to match each world's pole (the same rotation the sunlight uses), the Solar System's to the ecliptic.
+    // Both views share one set of switches.
+    window.SKY = (() => {
+      const CUL = ['western', 'norse', 'egyptian', 'navajo', 'blackfoot'],
+        D = Math.PI / 180,
+        views = [], // { grp, r, figs: {id: Group} }
+        data = {};
+      let stars = null,
+        on = {};
+      try {
+        on = JSON.parse(localStorage.getItem('atlasSky') || '{}') || {};
+      } catch (e) {}
+      const eqv = (ra, dec) => [Math.cos(dec * D) * Math.cos(ra * D), Math.cos(dec * D) * Math.sin(ra * D), Math.sin(dec * D)];
+      const bvCol = (bv) => {
+        // B-V colour index to a star colour: hot blue-white through white and yellow to cool orange
+        const k = Math.max(-0.4, Math.min(2, bv));
+        const t = (k + 0.4) / 2.4;
+        return [1 - 0.15 * Math.max(0, 0.35 - t) * 3, 1 - 0.35 * Math.max(0, t - 0.45), 1 - 0.75 * Math.max(0, t - 0.3)];
+      };
+      function starPoints(r) {
+        const g = new THREE.Group(),
+          bands = [
+            [-9, 1.5, 3.4],
+            [1.5, 3, 2.5],
+            [3, 4.5, 1.8],
+            [4.5, 9, 1.2],
+          ];
+        bands.forEach(([lo, hi, size]) => {
+          const pick = stars.s.filter((x) => x[2] > lo && x[2] <= hi);
+          const pos = new Float32Array(pick.length * 3),
+            col = new Float32Array(pick.length * 3);
+          pick.forEach((x, i) => {
+            const v = eqv(x[0], x[1]),
+              c = bvCol(x[3]),
+              b = Math.max(0.35, Math.min(1, 1.15 - (x[2] - lo) * 0.3));
+            pos.set([v[0] * r, v[1] * r, v[2] * r], 3 * i);
+            col.set([c[0] * b, c[1] * b, c[2] * b], 3 * i);
+          });
+          const geo = new THREE.BufferGeometry();
+          geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+          geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
+          g.add(new THREE.Points(geo, new THREE.PointsMaterial({ size: size * Math.min(2, window.devicePixelRatio || 1), vertexColors: true, sizeAttenuation: false, depthWrite: false })));
+        });
+        return g;
+      }
+      function label(text, colour, h) {
+        const c = document.createElement('canvas'),
+          x = c.getContext('2d'),
+          f = 28;
+        x.font = `500 ${f}px system-ui, sans-serif`;
+        const w = Math.ceil(x.measureText(text).width) + 12;
+        c.width = w;
+        c.height = f + 12;
+        x.font = `500 ${f}px system-ui, sans-serif`;
+        x.fillStyle = colour;
+        x.globalAlpha = 0.9;
+        x.textBaseline = 'middle';
+        x.fillText(text, 6, c.height / 2);
+        const t = new THREE.CanvasTexture(c);
+        const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: t, transparent: true, depthWrite: false }));
+        sp.scale.set((h * c.width) / c.height, h, 1);
+        return sp;
+      }
+      function figures(id, r, lh) {
+        const d = data[id],
+          g = new THREE.Group(),
+          pts = [];
+        d.c.forEach((f) => {
+          let cx = 0,
+            cy = 0,
+            cz = 0,
+            n = 0;
+          f.l.forEach((seg) => {
+            for (let i = 0; i + 1 < seg.length; i++) {
+              const a = stars.s[seg[i]],
+                b = stars.s[seg[i + 1]];
+              if (!a || !b) continue;
+              const va = eqv(a[0], a[1]),
+                vb = eqv(b[0], b[1]);
+              pts.push(va[0] * r, va[1] * r, va[2] * r, vb[0] * r, vb[1] * r, vb[2] * r);
+            }
+            seg.forEach((k) => {
+              const a = stars.s[k];
+              if (!a) return;
+              const v = eqv(a[0], a[1]);
+              cx += v[0];
+              cy += v[1];
+              cz += v[2];
+              n++;
+            });
+          });
+          if (n) {
+            const L = Math.hypot(cx, cy, cz) || 1,
+              sp = label(f.n, d.colour, lh);
+            sp.position.set((cx / L) * r * 0.99, (cy / L) * r * 0.99, (cz / L) * r * 0.99);
+            g.add(sp);
+          }
+        });
+        const geo = new THREE.BufferGeometry();
+        geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(pts), 3));
+        g.add(new THREE.LineSegments(geo, new THREE.LineBasicMaterial({ color: d.colour, transparent: true, opacity: 0.55, depthWrite: false })));
+        return g;
+      }
+      function build(v) {
+        if (!stars || v.built) return;
+        v.built = true;
+        v.grp.add(starPoints(v.r));
+        if (v.rand) v.rand.visible = false; // the made-up star field this replaces
+        CUL.forEach((id) => on[id] && show(id, true));
+      }
+      async function loadCulture(id) {
+        if (data[id]) return data[id];
+        const r = await fetch('sky/' + id + '.json');
+        if (!r.ok) throw new Error('sky ' + id);
+        return (data[id] = await r.json());
+      }
+      async function show(id, yes) {
+        on[id] = yes;
+        try {
+          localStorage.setItem('atlasSky', JSON.stringify(on));
+        } catch (e) {}
+        document.querySelectorAll(`input[data-sky="${id}"]`).forEach((b) => (b.checked = yes));
+        if (yes && (!stars || !data[id])) {
+          try {
+            await loadCulture(id);
+          } catch (e) {
+            return;
+          }
+          if (!stars) return;
+        }
+        views.forEach((v) => {
+          if (!v.built) return;
+          if (yes && !v.figs[id] && data[id]) {
+            v.figs[id] = figures(id, v.r * 0.995, v.lh);
+            v.grp.add(v.figs[id]);
+          }
+          if (v.figs[id]) v.figs[id].visible = on[id];
+        });
+        gPoke();
+        if (window.mPoke) window.mPoke();
+      }
+      fetch('sky/stars.json')
+        .then((r) => (r.ok ? r.json() : null))
+        .then((j) => {
+          if (!j || !j.s) return;
+          stars = j;
+          views.forEach(build);
+        })
+        .catch(() => {});
+      document.addEventListener('change', (e) => {
+        const id = e.target && e.target.dataset && e.target.dataset.sky;
+        if (id) show(id, e.target.checked);
+      });
+      CUL.forEach((id) => document.querySelectorAll(`input[data-sky="${id}"]`).forEach((b) => (b.checked = !!on[id])));
+      return {
+        CUL,
+        // a view: its scene, the sky's radius, a label height, and the made-up star field it replaces
+        add(scene, r, lh, rand) {
+          const grp = new THREE.Group();
+          grp.matrixAutoUpdate = false;
+          scene.add(grp);
+          const v = { grp, r, lh, rand, figs: {} };
+          views.push(v);
+          build(v);
+          return grp;
+        },
+        show,
+        on: () => Object.assign({}, on),
+        names: (id) => (data[id] ? data[id].c.map((f) => f.n) : []),
+      };
+    })();
+    const GSKY = window.SKY.add(scene, 120, 1.9, RANDSTARS);
+    // the globe's sky turned to this world's pole and node (as sunScene does for the Sun's direction), centred on the camera
+    const GSKYM = new THREE.Matrix4();
+    let gskyKey = '';
+    function skyOrient(o) {
+      const key = o ? o.ra.toFixed(3) + ',' + o.dec.toFixed(3) : 'none';
+      if (key !== gskyKey) {
+        gskyKey = key;
+        const D = Math.PI / 180,
+          a = o ? (90 + o.ra) * D : 0,
+          b = o ? (90 - o.dec) * D : 0,
+          f = (X, Y, Z) => {
+            const x1 = Math.cos(a) * X + Math.sin(a) * Y,
+              y1 = -Math.sin(a) * X + Math.cos(a) * Y,
+              z1 = Z,
+              y2 = Math.cos(b) * y1 + Math.sin(b) * z1,
+              z2 = -Math.sin(b) * y1 + Math.cos(b) * z1;
+            return new THREE.Vector3(x1, z2, -y2);
+          };
+        GSKYM.makeBasis(f(1, 0, 0), f(0, 1, 0), f(0, 0, 1));
+      }
+      GSKY.matrix.copy(GSKYM).setPosition(camera.position);
+      GSKY.matrixWorldNeedsUpdate = true;
     }
     let FLAT = 0; // polar flattening; the giant planets are visibly squashed
     function toVec(lat, lon, r) {
@@ -3626,7 +3845,7 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
         return { lat: f[1], lon: f[2], el };
       });
       Object.keys(P.categories).forEach((k) => {
-        if (show[k] === undefined) show[k] = true;
+        if (show[k] === undefined) show[k] = !P.categories[k].off; // a category marked off starts hidden, so the globe isn't cluttered
       });
       $('catKeys').innerHTML =
         Object.entries(P.categories)
@@ -4198,6 +4417,7 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
       bodyPanel();
       drawTable();
       LIVE.base = null;
+      orbBuild();
       $('liveT').hidden = P.id !== 'earth'; // the flights and satellites toggles, straight away (not only once the globe draws)
       setLayer(defaultLayer());
       if (!P.grids.length && !P.images.length) {
@@ -5059,6 +5279,7 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
       }
       const jd = window.SIMJD(),
         o = orient(P.id, jd);
+      skyOrient(o);
       if (o && SPIN) {
         const W = (o.W * Math.PI) / 180;
         // game trick: at high time warp the spin would strobe, so hold the globe still once it would turn faster than about two turns a second
@@ -5086,6 +5307,109 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
     $('spinT').onchange = (e) => {
       SPIN = e.target.checked;
     };
+
+    // ---------- spacecraft in orbit around other worlds (orbiters.json) ----------
+    // Each orbit is drawn from its published periapsis, apoapsis and inclination, in the world's equatorial frame (the scene's
+    // axes, which don't spin with the globe); the node's orientation and the starting point along the orbit aren't published
+    // in a form the page can use, so they're set from the name and the clock, and the dot moves at the true period.
+    const ORB = { data: null, grp: new THREE.Group(), items: [], world: null, on: false, labels: [] };
+    scene.add(ORB.grp);
+    try {
+      ORB.on = localStorage.getItem('atlasOrb') === '1';
+    } catch (e) {}
+    $('orbOn').checked = ORB.on;
+    const ORB_COL = { active: '#7dff9a', silent: '#9aa4b2', planned: '#ffc94d' };
+    function orbClear() {
+      clearGrp(ORB.grp);
+      ORB.items = [];
+      ORB.labels.forEach((el) => el.remove());
+      ORB.labels = [];
+    }
+    function orbBuild() {
+      orbClear();
+      ORB.world = P && P.id;
+      const list = ORB.data && P ? ORB.data.worlds[P.id] || [] : [];
+      $('orbT').hidden = !list.length;
+      if (!list.length) return;
+      const act = list.filter((o) => o.status === 'active').length;
+      $('orbLbl').textContent = `Orbiters (${list.length})`;
+      $('orbKey').hidden = !ORB.on;
+      $('orbMsg').textContent = ORB.on ? `${act} active${list.length > act ? `, ${list.length - act} silent or planned` : ''} · orbits to scale, positions illustrative` : '';
+      ORB.grp.visible = ORB.on;
+      const Rk = P.radiusKm || 1;
+      list.forEach((o, k) => {
+        const a = (Rk + (o.peri + o.apo) / 2) / Rk,
+          e = (o.apo - o.peri) / (o.apo + o.peri + 2 * Rk),
+          inc = (o.inc * Math.PI) / 180,
+          node = ((o.name.split('').reduce((h, c) => (h * 31 + c.charCodeAt(0)) % 360, 7) * Math.PI) / 180),
+          col = ORB_COL[o.status] || ORB_COL.active;
+        // orbit frame: periapsis along +x, the plane tilted by the inclination, then turned by the node about the pole (y)
+        const q = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), node).multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), inc));
+        const pts = [];
+        for (let i = 0; i <= 180; i++) {
+          const E = (i / 180) * 2 * Math.PI;
+          pts.push(new THREE.Vector3(a * (Math.cos(E) - e), 0, -a * Math.sqrt(1 - e * e) * Math.sin(E)).applyQuaternion(q));
+        }
+        const ring = new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), new THREE.LineBasicMaterial({ color: col, transparent: true, opacity: o.status === 'active' ? 0.55 : 0.4 }));
+        if (o.status !== 'active') ring.material = new THREE.LineDashedMaterial({ color: col, transparent: true, opacity: 0.5, dashSize: 0.04 * a, gapSize: 0.03 * a });
+        if (o.status !== 'active') ring.computeLineDistances();
+        ORB.grp.add(ring);
+        const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: spriteTex('dot', col), sizeAttenuation: false, depthTest: false }));
+        sp.scale.set(SIZE.dot, SIZE.dot, 1);
+        ORB.grp.add(sp);
+        const el = document.createElement('span');
+        el.className = 'feat orb';
+        el.textContent = o.name;
+        el.style.color = col;
+        el.title = `${o.agency}, since ${o.since}: ${o.note} Orbit ${o.peri.toLocaleString('en-US')} × ${o.apo.toLocaleString('en-US')} km, inclination ${o.inc}°, period ${o.period_h < 48 ? o.period_h.toFixed(1) + ' h' : (o.period_h / 24).toFixed(1) + ' days'}.`;
+        labels.appendChild(el);
+        ORB.labels.push(el);
+        ORB.items.push({ o, a, e, q, sp, el, phase: (k * 0.37 + node) % 1 });
+      });
+    }
+    function orbTick() {
+      if (!ORB.items.length || !ORB.on || !window.SIMJD) return;
+      const jd = window.SIMJD(),
+        cd = camera.position.clone().normalize();
+      ORB.items.forEach((it) => {
+        const M = 2 * Math.PI * ((((jd - 2451545) * 24) / it.o.period_h + it.phase) % 1);
+        let E = M;
+        for (let i = 0; i < 12; i++) E -= (E - it.e * Math.sin(E) - M) / (1 - it.e * Math.cos(E));
+        const p = new THREE.Vector3(it.a * (Math.cos(E) - it.e), 0, -it.a * Math.sqrt(1 - it.e * it.e) * Math.sin(E)).applyQuaternion(it.q);
+        it.sp.position.copy(p);
+        // behind the globe: hide the dot and its name
+        const n = p.clone().normalize(),
+          behind = n.dot(cd) < 0 && p.length() < 1.6 + Math.max(0, -n.dot(cd)) * 2;
+        it.sp.visible = !behind;
+        if (behind) {
+          it.el.hidden = true;
+          return;
+        }
+        v3.copy(p).project(camera);
+        const w = stage.clientWidth,
+          h = stage.clientHeight;
+        it.el.hidden = Math.abs(v3.x) > 1 || Math.abs(v3.y) > 1;
+        it.el.style.left = (((v3.x + 1) / 2) * w + 6).toFixed(1) + 'px';
+        it.el.style.top = (((1 - v3.y) / 2) * h - 6).toFixed(1) + 'px';
+      });
+    }
+    window.ORB_TICK = orbTick;
+    $('orbOn').onchange = (e) => {
+      ORB.on = e.target.checked;
+      try {
+        localStorage.setItem('atlasOrb', ORB.on ? '1' : '0');
+      } catch (er) {}
+      orbBuild();
+      gPoke();
+    };
+    fetch('orbiters.json')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j) => {
+        ORB.data = j;
+        if (P) orbBuild();
+      })
+      .catch(() => {});
+    window.atlasOrb = ORB; // for testing
     // ---------- craters (Moon and Mars): published crater catalogs drawn as rings, a density layer, and counts with model ages ----------
     // Catalogs are packed as int16 lat*360, int16 lon*180, uint16 diameter*20 (base64), largest first, and stream in only when asked for.
     // Production and chronology functions as tabulated in craterstats (Michael, BSD-3 licence; github.com/ggmichael/craterstats).
@@ -6688,6 +7012,7 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
       sunAndSpin(t);
       if (window.LIVE_TICK) window.LIVE_TICK(t);
       if (window.CR_TICK) window.CR_TICK(t);
+      if (window.ORB_TICK) window.ORB_TICK(t);
       renderer.render(scene, camera);
       if (!P) return;
       const cdir = camera.position.clone().normalize(),
@@ -7255,6 +7580,8 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
       const sun = new THREE.Sprite(new THREE.SpriteMaterial({ map: dotTex(0, true), sizeAttenuation: false, depthWrite: false }));
       sun.scale.set(0.09, 0.09, 1);
       msc.add(sun);
+      let MSKY = null;
+      const MSKYM = new THREE.Matrix4();
       // stars
       {
         const n = 1400,
@@ -7267,7 +7594,17 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
         }
         const g = new THREE.BufferGeometry();
         g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
-        msc.add(new THREE.Points(g, new THREE.PointsMaterial({ color: 0x8090a8, size: 1.2, sizeAttenuation: false })));
+        const rs = new THREE.Points(g, new THREE.PointsMaterial({ color: 0x8090a8, size: 1.2, sizeAttenuation: false }));
+        msc.add(rs);
+        // the real sky, turned from the celestial equator to the ecliptic the Solar System is drawn in (x, z, -y)
+        MSKY = window.SKY.add(msc, 900, 19, rs);
+        const e = 23.4392911 * (Math.PI / 180),
+          f = (X, Y, Z) => {
+            const ye = Y * Math.cos(e) + Z * Math.sin(e),
+              ze = -Y * Math.sin(e) + Z * Math.cos(e);
+            return new THREE.Vector3(X, ze, -ye);
+          };
+        MSKYM.makeBasis(f(1, 0, 0), f(0, 1, 0), f(0, 0, 1));
       }
       const B = {}; // id -> {sprite,label,pos,kind,parent}
       function mkBody(id, name, col, size, kind, parent) {
@@ -7793,9 +8130,9 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
       }).observe(ms);
       let mActive = 0,
         mLast = 0;
-      const mPoke = () => {
+      const mPoke = (window.mPoke = () => {
         mActive = performance.now();
-      };
+      });
       ['pointerdown', 'pointermove', 'wheel'].forEach((ev) => mr.domElement.addEventListener(ev, mPoke, { passive: true }));
       new ResizeObserver(mPoke).observe(ms);
       window.SIM_FAST = () => Math.abs(warp) >= 0.01; // faster than about 15 minutes a second: things visibly move
@@ -7858,6 +8195,10 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
           mcam.position.add(dlt);
         } // ride along with the focused body
         if (mco.update()) mPoke();
+        if (MSKY) {
+          MSKY.matrix.copy(MSKYM).setPosition(mcam.position);
+          MSKY.matrixWorldNeedsUpdate = true;
+        }
         mr.render(msc, mcam);
         const cd = mcam.position.distanceTo(mco.target);
         Object.entries(B).forEach(([id, b]) => {
@@ -8582,6 +8923,7 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
         <li>“show live clouds”, “play the last day”, “Earth at night”, “set the date to July 20 1969”, “what’s the date?”</li>
         <li>“be quiet” / “talk to me” (spoken replies off or on), “what about Venus?” after a question</li>
         <li>“I’m 5 foot 7” (your height, which places the waist line below your eyes), “show all satellites”</li>
+        <li>“show the Norse constellations”, “Egyptian constellations”, “all constellations”, “constellations off”, “show impact craters” (Earth), “show the orbiters” (Moon, Mars, Venus, Mercury, Jupiter, Ceres)</li>
         <li>“show Mars”, “go to Titan”, “Solar System”</li>
         <li>“next map”, “previous map”, “show gravity”, “show topography”</li>
         <li>“zoom in”, “zoom out”, “brighter”, “darker”, “brightness 150”</li>
@@ -8970,6 +9312,24 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
           [['satellites'], 'liveSat', 'Satellites'],
           [['asteroids', 'asteroid belt'], 'mapBelt', 'Asteroids'],
         ];
+        // orbiters: "show the orbiters", "orbiters off"
+        if (/\b(orbiters?|spacecraft|probes?)\b/.test(t) && !$('orbT').hidden) return toggle(t, $('orbOn'), 'Orbiters');
+        // Earth's impact craters: a site category that starts hidden
+        if (/\b(impact craters?|craters?|impacts?)\b/.test(t) && P && P.categories && P.categories.impact) {
+          const b = document.querySelector('#catKeys input[data-cat="impact"]');
+          if (b) return toggle(t, b, 'Impact craters');
+        }
+        // sky lore: "show the Norse constellations", "all constellations", "constellations off"
+        if (/\b(constellations?|sky lore|star lore|star pictures)\b/.test(t) && window.SKY) {
+          const S = window.SKY,
+            off = has(t, 'off', 'hide', 'no'),
+            words = { western: ['western', 'greek', 'modern'], norse: ['norse', 'viking'], egyptian: ['egyptian', 'egypt'], navajo: ['navajo', 'dine'], blackfoot: ['blackfoot'] },
+            pick = S.CUL.filter((c) => words[c].some((w) => t.includes(w)));
+          const ids = pick.length ? pick : has(t, 'all', 'every') || off ? S.CUL : ['western'];
+          ids.forEach((c) => S.show(c, !off));
+          const nm = { western: 'Western', norse: 'Norse', egyptian: 'Ancient Egyptian', navajo: 'Navajo', blackfoot: 'Blackfoot' };
+          return off ? `${ids.length === S.CUL.length ? 'All constellations' : ids.map((c) => nm[c]).join(' and ') + ' constellations'} off.` : `${ids.map((c) => nm[c]).join(', ')} constellations on.`;
+        }
         if (has(t, 'all satellites', 'all the satellites', 'every satellite', 'all active satellites') && $('liveSatG')) {
           const sel = $('liveSatG');
           if (sel.value !== 'active') {
