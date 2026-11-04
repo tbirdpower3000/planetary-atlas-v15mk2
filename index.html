@@ -1984,9 +1984,9 @@
     <div class="hrow">
       <h1>
         Planetary Modeling Atlas
-        <span class="ver" title="Version v15mk2.23, 3 Nov 2026: buttons work like lenses for the hand cursor (Snell’s law), so a jitter can’t knock it off a button, as on the training page">v15mk2.23</span>
+        <span class="ver" title="Version v15mk2.24, 3 Nov 2026: fixes the hand cursor, which stopped in v15mk2.23; the wake word is now “Hey Atlas”; buttons work like lenses for the hand cursor (Snell’s law)">v15mk2.24</span>
       </h1>
-      <button type="button" id="voiceBtn" aria-pressed="false" title="Voice commands: say “Atlas”, then what you want, e.g. “Atlas, show Mars” or “Atlas, next map”">🎤 Voice</button>
+      <button type="button" id="voiceBtn" aria-pressed="false" title="Voice commands: say “Hey Atlas”, then what you want, e.g. “Hey Atlas, show Mars” or “Hey Atlas, next map”">🎤 Voice</button>
       <p id="howTo">
         Pick a world on the map or below. Drag to turn, scroll or pinch to zoom, click a site to fly to it. ✋ Hand control (on a
         planet's globe) opens a full-screen view.
@@ -8465,12 +8465,14 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
     window.atlasViews = VIEWS; // for checking hand-control state from the console   // lets you read any map value from the browser console
     boot();
 
-    // ---------- voice commands: say the wake word "Atlas", then a command ----------
+    // ---------- voice commands: say the wake word "Hey Atlas", then a command ----------
     // uses the browser's own speech recognition (Chrome, Edge, Safari); on-device when the browser offers it, otherwise the
     // browser's speech service turns the audio into text. Nothing is recorded or kept by the atlas.
     {
       const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-      const WAKE = /\b(?:hey |ok |okay )?(?:atlas|at ?las|atlus|atlis|atlases)\b[,.!?]?/i;
+      // the wake word is "Hey Atlas" (also heard as "hi Atlas", "hey at las", "a atlas"…); "Atlas" alone no longer wakes it,
+      // so the word in ordinary talk about maps doesn't set it off
+      const WAKE = /\b(?:hey|hay|hi|heh|a|eh|ey)[,]? ?(?:atlas|at ?las|atlus|atlis|atlases|atlast)\b[,.!?]?/i;
       let rec = null,
         on = false,
         armedUntil = 0,
@@ -8487,10 +8489,10 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
         if (!keep) pillT = setTimeout(idle, 6000);
       };
       const idle = () => {
-        if (on) pill('🎤', `Say <b>“Atlas”</b>, then a command. <b>“Atlas, help”</b> lists them.`, '', true);
+        if (on) pill('🎤', `Say <b>“Hey Atlas”</b>, then a command. <b>“Hey Atlas, help”</b> lists them.`, '', true);
         else $('voicePill').hidden = true;
       };
-      const HELP = `<b>Say “Atlas”, then (or hold <kbd>Space</kbd> and just say it):</b><ul>
+      const HELP = `<b>Say “Hey Atlas”, then (or hold <kbd>Space</kbd> and just say it):</b><ul>
         <li>“how big is Mars?”, “how far away is Saturn?”, “what am I looking at?”, “what’s this?” (at the hand cursor)</li>
         <li>“where is the highest point?”, “where did Apollo 11 land?”, “go to Olympus Mons”, “tell me about Europa”</li>
         <li>“show live clouds”, “play the last day”, “Earth at night”, “set the date to July 20 1969”, “what’s the date?”</li>
@@ -8911,7 +8913,7 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
           else go(w.id);
           return 'Going to ' + w.name.replace(/\b\w/g, (c) => c.toUpperCase());
         }
-        return { html: `Didn’t catch a command in “${esc(raw.trim())}”. Say <b>“Atlas, help”</b> for the list.`, err: true };
+        return { html: `Didn’t catch a command in “${esc(raw.trim())}”. Say <b>“Hey Atlas, help”</b> for the list.`, err: true };
       }
       function heard(text) {
         if (performance.now() < quietUntil) return; // that's the atlas's own voice
@@ -9014,7 +9016,7 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
         } catch (e) {}
         pill(
           '🎤',
-          `Say <b>“Atlas”</b>, then a command, e.g. <b>“Atlas, show Mars”</b> or <b>“Atlas, next map”</b>. ${local ? 'Speech is recognised on this device.' : 'Your browser’s speech service turns speech into text; the atlas keeps nothing.'}`,
+          `Say <b>“Hey Atlas”</b>, then a command, e.g. <b>“Hey Atlas, show Mars”</b> or <b>“Hey Atlas, next map”</b>. ${local ? 'Speech is recognised on this device.' : 'Your browser’s speech service turns speech into text; the atlas keeps nothing.'}`,
           '',
           false,
         );
@@ -10679,7 +10681,7 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
         placeCursor(g);
         // the lenses: every frame, over the buttons found by the last hover test (not while turning the view)
         const turning = tap0 && tap0.drag,
-          fl = turning ? null : FLD.step({ x: cx, y: cy, pr: R.pr == null ? 1 : R.pr, pinch: R.mode === 'pinch' }, (hoverAt.btns || []).map(lensItem), now, BASE.snap, ADAPT.lens);
+          fl = turning ? null : FLD.step({ x: cx, y: cy, pr: R.pr == null ? 1 : R.pr, pinch: R.mode === 'pinch' }, (hoverAt.btns || []).map(lensItem), now, 28, ADAPT.lens); // 28 px: the default button pull (each button's own span overrides it)
         if (turning) FLD.reset();
         const lx = fl ? fl.x : cx,
           ly = fl ? fl.y : cy;
