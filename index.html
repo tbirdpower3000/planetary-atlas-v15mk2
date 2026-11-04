@@ -893,6 +893,14 @@
       0 0 3px #000,
       0 0 6px #000;
   }
+  #labels span.feat.orb {
+    font: 500 0.72rem var(--sans);
+    font-style: normal;
+    letter-spacing: 0;
+    text-transform: none;
+    opacity: 0.95;
+    text-shadow: 0 1px 2px #000;
+  }
   #labels span.pt {
     font-size: 0.66rem;
     border-color: rgba(160, 220, 240, 0.6);
@@ -2021,7 +2029,7 @@
     <div class="hrow">
       <h1>
         Planetary Modeling Atlas
-        <span class="ver" title="Version v15mk2.30, 4 Nov 2026: the real night sky behind the globes and the Solar System, and constellation figures from five sky cultures to switch on: Western, Norse, Ancient Egyptian, Navajo and Blackfoot">v15mk2.30</span>
+        <span class="ver" title="Version v15mk2.30, 4 Nov 2026: the real night sky behind the globes and the Solar System, and constellation figures from five sky cultures to switch on: Western, Norse, Ancient Egyptian, Navajo and Blackfoot; Earth’s large and famous impact craters, as a site category that starts switched off; 🛰 Orbiters: the spacecraft in orbit around the Moon, Mars, Venus, Mercury, Jupiter and Ceres, drawn on their published orbits">v15mk2.30</span>
       </h1>
       <button type="button" id="voiceBtn" aria-pressed="false" title="Voice commands: say “Hey Atlas”, then what you want, e.g. “Hey Atlas, show Mars” or “Hey Atlas, next map”">🎤 Voice</button>
       <p id="howTo">
@@ -2162,6 +2170,12 @@
         >✦ Sky lore<label><input type="checkbox" data-sky="western" /> Western</label><label><input type="checkbox" data-sky="norse" /> Norse</label><label><input type="checkbox" data-sky="egyptian" /> Egyptian</label><label><input type="checkbox" data-sky="navajo" /> Navajo</label><label><input type="checkbox" data-sky="blackfoot" /> Blackfoot</label></span
       >
       <span id="ptToggles" class="toolbar" style="gap: 10px 18px"></span>
+      <span id="orbT" class="toolbar" style="gap: 10px 18px" hidden
+        ><label class="tgroup" title="Spacecraft in orbit around this world, drawn from their published orbits (the orientation and the position along the orbit are illustrative, not tracked)"
+          ><input id="orbOn" type="checkbox" /> 🛰 <span id="orbLbl">Orbiters</span></label
+        ><span id="orbKey" hidden><i style="--c: #7dff9a"></i>Active <i style="--c: #9aa4b2"></i>Silent <i style="--c: #ffc94d"></i>Planned</span
+        ><span id="orbMsg" class="note" aria-live="polite"></span
+      ></span>
       <span id="liveT" class="toolbar" style="gap: 10px 18px" hidden
         ><label
           class="tgroup"
@@ -3831,7 +3845,7 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
         return { lat: f[1], lon: f[2], el };
       });
       Object.keys(P.categories).forEach((k) => {
-        if (show[k] === undefined) show[k] = true;
+        if (show[k] === undefined) show[k] = !P.categories[k].off; // a category marked off starts hidden, so the globe isn't cluttered
       });
       $('catKeys').innerHTML =
         Object.entries(P.categories)
@@ -4403,6 +4417,7 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
       bodyPanel();
       drawTable();
       LIVE.base = null;
+      orbBuild();
       $('liveT').hidden = P.id !== 'earth'; // the flights and satellites toggles, straight away (not only once the globe draws)
       setLayer(defaultLayer());
       if (!P.grids.length && !P.images.length) {
@@ -5292,6 +5307,109 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
     $('spinT').onchange = (e) => {
       SPIN = e.target.checked;
     };
+
+    // ---------- spacecraft in orbit around other worlds (orbiters.json) ----------
+    // Each orbit is drawn from its published periapsis, apoapsis and inclination, in the world's equatorial frame (the scene's
+    // axes, which don't spin with the globe); the node's orientation and the starting point along the orbit aren't published
+    // in a form the page can use, so they're set from the name and the clock, and the dot moves at the true period.
+    const ORB = { data: null, grp: new THREE.Group(), items: [], world: null, on: false, labels: [] };
+    scene.add(ORB.grp);
+    try {
+      ORB.on = localStorage.getItem('atlasOrb') === '1';
+    } catch (e) {}
+    $('orbOn').checked = ORB.on;
+    const ORB_COL = { active: '#7dff9a', silent: '#9aa4b2', planned: '#ffc94d' };
+    function orbClear() {
+      clearGrp(ORB.grp);
+      ORB.items = [];
+      ORB.labels.forEach((el) => el.remove());
+      ORB.labels = [];
+    }
+    function orbBuild() {
+      orbClear();
+      ORB.world = P && P.id;
+      const list = ORB.data && P ? ORB.data.worlds[P.id] || [] : [];
+      $('orbT').hidden = !list.length;
+      if (!list.length) return;
+      const act = list.filter((o) => o.status === 'active').length;
+      $('orbLbl').textContent = `Orbiters (${list.length})`;
+      $('orbKey').hidden = !ORB.on;
+      $('orbMsg').textContent = ORB.on ? `${act} active${list.length > act ? `, ${list.length - act} silent or planned` : ''} · orbits to scale, positions illustrative` : '';
+      ORB.grp.visible = ORB.on;
+      const Rk = P.radiusKm || 1;
+      list.forEach((o, k) => {
+        const a = (Rk + (o.peri + o.apo) / 2) / Rk,
+          e = (o.apo - o.peri) / (o.apo + o.peri + 2 * Rk),
+          inc = (o.inc * Math.PI) / 180,
+          node = ((o.name.split('').reduce((h, c) => (h * 31 + c.charCodeAt(0)) % 360, 7) * Math.PI) / 180),
+          col = ORB_COL[o.status] || ORB_COL.active;
+        // orbit frame: periapsis along +x, the plane tilted by the inclination, then turned by the node about the pole (y)
+        const q = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), node).multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), inc));
+        const pts = [];
+        for (let i = 0; i <= 180; i++) {
+          const E = (i / 180) * 2 * Math.PI;
+          pts.push(new THREE.Vector3(a * (Math.cos(E) - e), 0, -a * Math.sqrt(1 - e * e) * Math.sin(E)).applyQuaternion(q));
+        }
+        const ring = new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), new THREE.LineBasicMaterial({ color: col, transparent: true, opacity: o.status === 'active' ? 0.55 : 0.4 }));
+        if (o.status !== 'active') ring.material = new THREE.LineDashedMaterial({ color: col, transparent: true, opacity: 0.5, dashSize: 0.04 * a, gapSize: 0.03 * a });
+        if (o.status !== 'active') ring.computeLineDistances();
+        ORB.grp.add(ring);
+        const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: spriteTex('dot', col), sizeAttenuation: false, depthTest: false }));
+        sp.scale.set(SIZE.dot, SIZE.dot, 1);
+        ORB.grp.add(sp);
+        const el = document.createElement('span');
+        el.className = 'feat orb';
+        el.textContent = o.name;
+        el.style.color = col;
+        el.title = `${o.agency}, since ${o.since}: ${o.note} Orbit ${o.peri.toLocaleString('en-US')} × ${o.apo.toLocaleString('en-US')} km, inclination ${o.inc}°, period ${o.period_h < 48 ? o.period_h.toFixed(1) + ' h' : (o.period_h / 24).toFixed(1) + ' days'}.`;
+        labels.appendChild(el);
+        ORB.labels.push(el);
+        ORB.items.push({ o, a, e, q, sp, el, phase: (k * 0.37 + node) % 1 });
+      });
+    }
+    function orbTick() {
+      if (!ORB.items.length || !ORB.on || !window.SIMJD) return;
+      const jd = window.SIMJD(),
+        cd = camera.position.clone().normalize();
+      ORB.items.forEach((it) => {
+        const M = 2 * Math.PI * ((((jd - 2451545) * 24) / it.o.period_h + it.phase) % 1);
+        let E = M;
+        for (let i = 0; i < 12; i++) E -= (E - it.e * Math.sin(E) - M) / (1 - it.e * Math.cos(E));
+        const p = new THREE.Vector3(it.a * (Math.cos(E) - it.e), 0, -it.a * Math.sqrt(1 - it.e * it.e) * Math.sin(E)).applyQuaternion(it.q);
+        it.sp.position.copy(p);
+        // behind the globe: hide the dot and its name
+        const n = p.clone().normalize(),
+          behind = n.dot(cd) < 0 && p.length() < 1.6 + Math.max(0, -n.dot(cd)) * 2;
+        it.sp.visible = !behind;
+        if (behind) {
+          it.el.hidden = true;
+          return;
+        }
+        v3.copy(p).project(camera);
+        const w = stage.clientWidth,
+          h = stage.clientHeight;
+        it.el.hidden = Math.abs(v3.x) > 1 || Math.abs(v3.y) > 1;
+        it.el.style.left = (((v3.x + 1) / 2) * w + 6).toFixed(1) + 'px';
+        it.el.style.top = (((1 - v3.y) / 2) * h - 6).toFixed(1) + 'px';
+      });
+    }
+    window.ORB_TICK = orbTick;
+    $('orbOn').onchange = (e) => {
+      ORB.on = e.target.checked;
+      try {
+        localStorage.setItem('atlasOrb', ORB.on ? '1' : '0');
+      } catch (er) {}
+      orbBuild();
+      gPoke();
+    };
+    fetch('orbiters.json')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j) => {
+        ORB.data = j;
+        if (P) orbBuild();
+      })
+      .catch(() => {});
+    window.atlasOrb = ORB; // for testing
     // ---------- craters (Moon and Mars): published crater catalogs drawn as rings, a density layer, and counts with model ages ----------
     // Catalogs are packed as int16 lat*360, int16 lon*180, uint16 diameter*20 (base64), largest first, and stream in only when asked for.
     // Production and chronology functions as tabulated in craterstats (Michael, BSD-3 licence; github.com/ggmichael/craterstats).
@@ -6894,6 +7012,7 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
       sunAndSpin(t);
       if (window.LIVE_TICK) window.LIVE_TICK(t);
       if (window.CR_TICK) window.CR_TICK(t);
+      if (window.ORB_TICK) window.ORB_TICK(t);
       renderer.render(scene, camera);
       if (!P) return;
       const cdir = camera.position.clone().normalize(),
@@ -8804,7 +8923,7 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
         <li>“show live clouds”, “play the last day”, “Earth at night”, “set the date to July 20 1969”, “what’s the date?”</li>
         <li>“be quiet” / “talk to me” (spoken replies off or on), “what about Venus?” after a question</li>
         <li>“I’m 5 foot 7” (your height, which places the waist line below your eyes), “show all satellites”</li>
-        <li>“show the Norse constellations”, “Egyptian constellations”, “all constellations”, “constellations off”</li>
+        <li>“show the Norse constellations”, “Egyptian constellations”, “all constellations”, “constellations off”, “show impact craters” (Earth), “show the orbiters” (Moon, Mars, Venus, Mercury, Jupiter, Ceres)</li>
         <li>“show Mars”, “go to Titan”, “Solar System”</li>
         <li>“next map”, “previous map”, “show gravity”, “show topography”</li>
         <li>“zoom in”, “zoom out”, “brighter”, “darker”, “brightness 150”</li>
@@ -9193,6 +9312,13 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
           [['satellites'], 'liveSat', 'Satellites'],
           [['asteroids', 'asteroid belt'], 'mapBelt', 'Asteroids'],
         ];
+        // orbiters: "show the orbiters", "orbiters off"
+        if (/\b(orbiters?|spacecraft|probes?)\b/.test(t) && !$('orbT').hidden) return toggle(t, $('orbOn'), 'Orbiters');
+        // Earth's impact craters: a site category that starts hidden
+        if (/\b(impact craters?|craters?|impacts?)\b/.test(t) && P && P.categories && P.categories.impact) {
+          const b = document.querySelector('#catKeys input[data-cat="impact"]');
+          if (b) return toggle(t, b, 'Impact craters');
+        }
         // sky lore: "show the Norse constellations", "all constellations", "constellations off"
         if (/\b(constellations?|sky lore|star lore|star pictures)\b/.test(t) && window.SKY) {
           const S = window.SKY,
