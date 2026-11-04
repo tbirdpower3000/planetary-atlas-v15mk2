@@ -1975,7 +1975,7 @@
     <div class="hrow">
       <h1>
         Planetary Modeling Atlas
-        <span class="ver" title="Version v15mk2.19, 3 Nov 2026: while you turn the view by hand, the cursor stays where you pinched and a dot inside it shows the movement, like a joystick; and no more pressing by hovering, only by pinching">v15mk2.19</span>
+        <span class="ver" title="Version v15mk2.19, 3 Nov 2026: while you turn the view by hand, the cursor stays where you pinched and a dot inside it shows the movement, like a joystick; and no more pressing by hovering; the buttons at the top press only on a full pinch, when you let go">v15mk2.19</span>
       </h1>
       <button type="button" id="voiceBtn" aria-pressed="false" title="Voice commands: say “Atlas”, then what you want, e.g. “Atlas, show Mars” or “Atlas, next map”">🎤 Voice</button>
       <p id="howTo">
@@ -8552,7 +8552,7 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
       }
       const showHelp = () => {
         hmsg(
-          `<b>Move your open hand</b> and the cursor follows; it snaps onto planets and buttons. <b>Pinch</b> (thumb to index finger) to press: the gold ring fills as your fingers close. ${V === VIEWS.map ? '<b>Pinch a planet or moon to land on it</b>, or pinch and hold on it for half a second. ' : '<b>‹ 🗺 ›</b> at the top change the map; <b>↑ Solar System</b> takes you back out. '}<b>Pinch on empty space and move</b> to turn the view (<b>↻</b> at the top switches to tilting your palm, or resting at the edges). <b>To zoom</b>, hold a pinch on <b>＋ or −</b> at the top, or pinch with both hands and pull them apart or push them together. Nothing is pressed until you pinch. 🎯 Adaptive aim learns as you go: if a button takes a few tries, it gets easier to grab${ADAPT.trained ? '' : ", and a one-minute <a href='https://tbirdpower3000.github.io/hand-control-training/'>training session</a> teaches it your reach and pinch"}. <button type='button' id='handHide' class='linkish'>Hide tips</button>`,
+          `<b>Move your open hand</b> and the cursor follows; it snaps onto planets and buttons. <b>Pinch</b> (thumb to index finger) to press: the gold ring fills as your fingers close. ${V === VIEWS.map ? '<b>Pinch a planet or moon to land on it</b>, or pinch and hold on it for half a second. ' : '<b>‹ 🗺 ›</b> at the top change the map; <b>↑ Solar System</b> takes you back out. '}<b>Pinch on empty space and move</b> to turn the view (<b>↻</b> at the top switches to tilting your palm, or resting at the edges). <b>The buttons at the top</b> press on a full, firm pinch when you let go. <b>To zoom</b>, hold a full pinch on <b>＋ or −</b> at the top, or pinch with both hands and pull them apart or push them together. Nothing is pressed until you pinch. 🎯 Adaptive aim learns as you go: if a button takes a few tries, it gets easier to grab${ADAPT.trained ? '' : ", and a one-minute <a href='https://tbirdpower3000.github.io/hand-control-training/'>training session</a> teaches it your reach and pinch"}. <button type='button' id='handHide' class='linkish'>Hide tips</button>`,
         );
         const h = $('handHide');
         if (h) h.addEventListener('click', () => hmsg(''));
@@ -9483,6 +9483,10 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
             if (this === R) ADAPT.pinchEdge(this.pinchOn, t);
           }
           this.p = Math.max(0, Math.min(1, (0.75 - pr) / 0.45)); // how close the fingers are to a pinch, for the meter on the cursor
+          // a full pinch: the fingers 20% further closed than where a pinch switches on, two frames running. The buttons at the
+          // top of the view only press on a full pinch, so a half-closed hand passing over them never presses one
+          this.fullN = this.pinchOn && pr < ADAPT.pOn * 0.8 ? (this.fullN || 0) + 1 : 0;
+          this.full = this.fullN >= 2;
           // the cursor follows the wrist and knuckles, which barely move when you pinch, so pressing doesn't knock it off target
           const ax = (L[0].x + L[5].x + L[9].x + L[13].x + L[17].x) / 5,
             ay = (L[0].y + L[5].y + L[9].y + L[13].y + L[17].y) / 5;
@@ -9914,18 +9918,14 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
               lock: { x: sx, y: sy, hx: cx, hy: cy }, // where the cursor is held if this pinch becomes a turn
               fresh: (R.lastOpen || 0) > 200, // the hand was open long enough before this pinch for it to be deliberate
               zoom: back && back.btn ? (back.btn.id === 'fsZin' ? -2.8 : back.btn.id === 'fsZout' ? 2.8 : 0) : 0,
+              top: !!(back && back.btn && back.btn.closest('#fsBar')), // a top-bar button: presses only on a full pinch
+              full: false,
             };
-            if (tap0.zoom) {
-              V.stop();
-              grabGoal();
-              zoomRate = tap0.zoom;
-              zoomHeld = now;
-            }
           } else {
             tilt0 = null;
             turnLock = null;
             drawStick(0, 0);
-            if (tap0 && !tap0.drag && !tap0.done && !tap0.zoom && tap0.fresh) click(tap0.hv, now);
+            if (tap0 && !tap0.drag && !tap0.done && !tap0.zoom && tap0.fresh && (!tap0.top || tap0.full)) click(tap0.hv, now);
             if (tap0 && tap0.zoom) zoomRate = 0;
             tap0 = null;
           } // released: a tap
@@ -9933,6 +9933,26 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
           dwell = null;
         }
         if (R.mode === 'pinch' && tap0) {
+          if (R.full) tap0.full = true;
+          if (tap0.top) {
+            // a top-bar button locks on only once the pinch is full; ＋ and − then zoom for as long as you hold it
+            if (!tap0.full) {
+              cursorState('hot', 'Pinch fully to press');
+              return;
+            }
+            if (tap0.zoom && !zoomRate && tap0.fresh) {
+              V.stop();
+              grabGoal();
+              zoomRate = tap0.zoom;
+              zoomHeld = now;
+            }
+            if (tap0.zoom) {
+              cursorState('press', tap0.zoom < 0 ? 'Zooming in' : 'Zooming out');
+              return;
+            }
+            cursorState('press', (tap0.hv && tap0.hv.label) || 'Let go to press');
+            return; // no press-by-holding and no turning from a top button: it presses when you let go
+          }
           if (tap0.zoom) {
             cursorState('press', tap0.zoom < 0 ? 'Zooming in' : 'Zooming out');
             return;
