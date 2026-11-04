@@ -1431,6 +1431,15 @@
     text-decoration: underline;
     text-underline-offset: 2px;
   }
+  #handBox[data-dist]::after {
+    content: attr(data-dist);
+    position: absolute;
+    left: 6px;
+    top: 4px;
+    font: 600 0.7rem var(--mono, monospace);
+    color: #fff;
+    text-shadow: 0 1px 2px #000;
+  }
   #handBox {
     z-index: 70 !important;
     position: fixed;
@@ -1975,7 +1984,7 @@
     <div class="hrow">
       <h1>
         Planetary Modeling Atlas
-        <span class="ver" title="Version v15mk2.20, 3 Nov 2026: Earth has Live clouds from five weather satellites (GOES-East, GOES-West, Himawari, Meteosat 0° and Indian Ocean) with a 24-hour slider">v15mk2.20</span>
+        <span class="ver" title="Version v15mk2.21, 3 Nov 2026: smoother hand cursor (it glides between camera frames and onto buttons instead of jumping), and the distance between your eyes tells it how far you sit from the camera">v15mk2.21</span>
       </h1>
       <button type="button" id="voiceBtn" aria-pressed="false" title="Voice commands: say “Atlas”, then what you want, e.g. “Atlas, show Mars” or “Atlas, next map”">🎤 Voice</button>
       <p id="howTo">
@@ -8745,6 +8754,9 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
     {
       let stream = null,
         landmarker = null,
+        faceLm = null,
+        HandLandmarkerFace = null,
+        faceT = 0,
         raf = 0,
         lastT = -1;
       const MP = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14';
@@ -9068,6 +9080,19 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
               runningMode: 'VIDEO',
               numHands: 2,
             });
+            // the face, only for the distance between the eyes (its iris points); optional, and it runs five times a second
+            HandLandmarkerFace = (async () => {
+              try {
+                const { FaceLandmarker } = await import(MP + '/vision_bundle.mjs');
+                return await FaceLandmarker.createFromOptions(fs, {
+                  baseOptions: { modelAssetPath: 'https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task', delegate: 'GPU' },
+                  runningMode: 'VIDEO',
+                  numFaces: 1,
+                });
+              } catch (e) {
+                return null;
+              }
+            })().then((f) => (faceLm = f));
           }
         } catch (e) {
           starting = false;
@@ -9287,11 +9312,42 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
             }
           }
         }
+        // ---- distance from your eyes: the gap between your pupils is about 63 mm for most adults and, unlike the palm, doesn't
+        // change with how you hold your hand, so when your face is in view it is the steadier gauge. Its size in the picture,
+        // against the size when the reach was learned (the first seconds, as for the palm), scales the reach box; the
+        // distance in centimetres assumes a typical webcam's 63° wide view, so it is only approximate.
+        let eyeAvg = null,
+          eyeT = 0,
+          eyeRef = null;
+        const firstEyes = [];
+        try {
+          eyeRef = +localStorage.getItem('atlasEyeRef') || null;
+        } catch (e) {}
+        function eyes(ipd, now) {
+          if (!(ipd > 0.005)) return;
+          const dt = Math.min(0.5, (now - (eyeT || now)) / 1000);
+          eyeT = now;
+          eyeAvg = eyeAvg == null ? ipd : eyeAvg + (ipd - eyeAvg) * (1 - Math.exp(-dt / 1.2));
+          if (!eyeRef) {
+            firstEyes.push(ipd);
+            if (firstEyes.length >= 15) {
+              eyeRef = [...firstEyes].sort((x, y) => x - y)[7];
+              firstEyes.length = 0;
+              try {
+                localStorage.setItem('atlasEyeRef', eyeRef.toFixed(5));
+              } catch (e) {}
+            }
+          }
+        }
+        // distance = focal length (in picture widths, for a 63° wide view) × 6.3 cm ÷ the pupils' gap (in picture widths)
+        const eyeCm = () => (eyeAvg ? Math.round(((0.5 / Math.tan((31.5 * Math.PI) / 180)) * 6.3) / eyeAvg) : null);
         function reachNow() {
           const h = cur(),
             r = on ? h.reach : BASE_REACH;
-          if (!on || !h.sizeRef || !sizeAvg) return r;
-          const f = Math.max(0.6, Math.min(1.6, sizeAvg / h.sizeRef)),
+          const eyeOk = eyeRef && eyeAvg && performance.now() - eyeT < 1500;
+          if (!on || (!eyeOk && (!h.sizeRef || !sizeAvg))) return r;
+          // the eyes when they are in view, else the palm
+          const f = Math.max(0.6, Math.min(1.6, eyeOk ? eyeAvg / eyeRef : sizeAvg / h.sizeRef)),
             cx = r.x0 + r.xs / 2,
             cy = r.y0 + r.ys / 2,
             xs = Math.min(1, r.xs * f),
@@ -9456,6 +9512,16 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
           pinchEdge,
           see,
           size,
+          eyes,
+          get eyeCm() {
+            return eyeCm();
+          },
+          resetEyes() {
+            eyeRef = eyeAvg = null;
+            try {
+              localStorage.removeItem('atlasEyeRef');
+            } catch (e) {}
+          },
           reachNow,
           apply,
           setOn,
@@ -9821,10 +9887,48 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
         cx = r.left + soft((1 - g.x - q.x0) / q.xs) * r.width;
         cy = r.top + soft((g.y - q.y0) / q.ys) * r.height;
       }
+      // the camera gives a new hand position about 30 times a second, the screen redraws 60 or more, and a snap onto a button
+      // moves the target in one go; so the cursor doesn't jump, it glides: every screen frame it moves toward the target
+      // (taking about 25 ms normally, longer for a big jump such as a snap), and between camera frames it carries on along
+      // the hand's last velocity for up to 40 ms so a steady move looks steady
+      const GLIDE = { x: null, y: null, tx: 0, ty: 0, vx: 0, vy: 0, tT: 0, jump: 0 };
       function drawCursor(x, y) {
-        CUR.style.left = x + 'px';
-        CUR.style.top = y + 'px';
+        const now = performance.now();
+        if (GLIDE.x == null || CUR.hidden) {
+          GLIDE.x = GLIDE.tx = x;
+          GLIDE.y = GLIDE.ty = y;
+          GLIDE.vx = GLIDE.vy = 0;
+        } else {
+          const dtt = Math.max(0.008, (now - GLIDE.tT) / 1000),
+            jx = x - GLIDE.tx,
+            jy = y - GLIDE.ty,
+            j = Math.hypot(jx, jy);
+          // a big step (a snap, or the magnet letting go) isn't a velocity: glide over it instead
+          if (j > 40) {
+            GLIDE.vx = GLIDE.vy = 0;
+            GLIDE.jump = now;
+          } else {
+            GLIDE.vx += (jx / dtt - GLIDE.vx) * 0.5;
+            GLIDE.vy += (jy / dtt - GLIDE.vy) * 0.5;
+          }
+          GLIDE.tx = x;
+          GLIDE.ty = y;
+        }
+        GLIDE.tT = now;
       }
+      function glide(now, dt) {
+        if (GLIDE.x == null || CUR.hidden) return;
+        const ahead = Math.min(0.04, (now - GLIDE.tT) / 1000),
+          px = GLIDE.tx + GLIDE.vx * ahead,
+          py = GLIDE.ty + GLIDE.vy * ahead,
+          tau = now - GLIDE.jump < 160 ? 0.07 : 0.025,
+          k = 1 - Math.exp(-dt / tau);
+        GLIDE.x += (px - GLIDE.x) * k;
+        GLIDE.y += (py - GLIDE.y) * k;
+        CUR.style.left = GLIDE.x.toFixed(1) + 'px';
+        CUR.style.top = GLIDE.y.toFixed(1) + 'px';
+      }
+      window.atlasGlide = { draw: drawCursor, tick: glide, state: GLIDE }; // for testing
       function cursorState(cls, label) {
         CUR.className = cls || '';
         CUR.querySelector('span').textContent = label || '';
@@ -10020,6 +10124,7 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
           dt = Math.min(0.1, (now - lastF) / 1000);
         lastF = now;
         ease(dt);
+        glide(now, dt);
         // pause while the steered view is mostly off screen, so nothing reacts to hands you aren't using for it
         const vis = shown(V.stage) / Math.max(1, V.stage.clientWidth * V.stage.clientHeight);
         if (vis < 0.2) {
@@ -10046,6 +10151,20 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
         const v = $('handVid');
         if (!landmarker || v.readyState < 2 || v.currentTime === lastT) return;
         lastT = v.currentTime;
+        if (faceLm && now - faceT > 200) {
+          faceT = now;
+          try {
+            const fr = faceLm.detectForVideo(v, now + 0.5),
+              F = fr.faceLandmarks && fr.faceLandmarks[0];
+            // the two iris centres (points 468 and 473), as a share of the picture's width
+            if (F && F.length > 473) {
+              const ar = (v.videoHeight || 3) / (v.videoWidth || 4);
+              ADAPT.eyes(Math.hypot(F[468].x - F[473].x, (F[468].y - F[473].y) * ar), now);
+              const cm = ADAPT.eyeCm;
+              if (cm) $('handBox').dataset.dist = '≈ ' + cm + ' cm';
+            }
+          } catch (e) {}
+        }
         const r = landmarker.detectForVideo(v, now),
           // each hand with its world landmarks and which hand MediaPipe says it is, then left to right as you see yourself
           HH = (r.landmarks || [])
@@ -10070,7 +10189,8 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
         $('handBox').classList.toggle('lost', !hands.length);
         $('handBox').classList.toggle('busy', hands.length > 0 && (R.mode === 'pinch' || (hands.length === 2 && !!zoom0)));
         if (!hands.length) {
-          CUR.hidden = true;
+          if (now - missN > 300) CUR.hidden = true;
+          else CUR.style.opacity = '0.5';
           toneStop();
           if (handLoop.rest) {
             if (!handLoop.restNote) {
@@ -10092,6 +10212,7 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
         }
         seenHand = true;
         missN = now;
+        CUR.style.opacity = '';
         if (hands.length === 2) {
           CUR.hidden = true;
           tap0 = null;
@@ -10135,6 +10256,7 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
           sx = hv && hv.x != null ? hv.x : cx,
           sy = hv && hv.y != null ? hv.y : cy;
         drawCursor(sx, sy);
+        if (hv && hv.x != null) GLIDE.vx = GLIDE.vy = 0;
         hist.push([now, hv]);
         while (hist.length && now - hist[0][0] > 400) hist.shift();
         CUR.style.setProperty('--p', R.mode === 'pinch' ? 1 : R.p);
@@ -10208,6 +10330,7 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
             // the cursor stays where the turn began
             if (!turnLock) turnLock = tap0.lock || { x: sx, y: sy, hx: cx, hy: cy };
             drawCursor(turnLock.x, turnLock.y);
+            GLIDE.vx = GLIDE.vy = 0;
             const dx = -(g.x - R.prev.x),
               dy = g.y - R.prev.y;
             R.prev = { x: g.x, y: g.y };
