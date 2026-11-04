@@ -1431,6 +1431,15 @@
     text-decoration: underline;
     text-underline-offset: 2px;
   }
+  #handBox[data-dist]::after {
+    content: attr(data-dist);
+    position: absolute;
+    left: 6px;
+    top: 4px;
+    font: 600 0.7rem var(--mono, monospace);
+    color: #fff;
+    text-shadow: 0 1px 2px #000;
+  }
   #handBox {
     z-index: 70 !important;
     position: fixed;
@@ -1975,7 +1984,7 @@
     <div class="hrow">
       <h1>
         Planetary Modeling Atlas
-        <span class="ver" title="Version v15mk2.20, 3 Nov 2026: Earth has Live clouds from three weather satellites (GOES-East, GOES-West, Himawari) with a 24-hour slider">v15mk2.20</span>
+        <span class="ver" title="Version v15mk2.21, 3 Nov 2026: smoother hand cursor (it glides between camera frames and onto buttons instead of jumping), and the distance between your eyes tells it how far you sit from the camera">v15mk2.21</span>
       </h1>
       <button type="button" id="voiceBtn" aria-pressed="false" title="Voice commands: say “Atlas”, then what you want, e.g. “Atlas, show Mars” or “Atlas, next map”">🎤 Voice</button>
       <p id="howTo">
@@ -3194,18 +3203,20 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
     }
 
     // ---------- live clouds over Earth, from three weather satellites ----------
-    // GOES-East (75.2° W), GOES-West (137.2° W) and Himawari (140.7° E) each see their side of the Earth every 10 minutes.
-    // NASA GIBS serves their 10.3 µm "clean infrared" pictures, already on a latitude/longitude grid, and they load straight
-    // into the browser. Cold cloud tops are bright in infrared, by day and by night. Each pixel takes the satellite that sees
+    // Five weather satellites ring the equator: GOES-East (75.2° W), GOES-West (137.2° W) and Himawari (140.7° E), whose
+    // 10.3 µm "clean infrared" pictures NASA GIBS serves every 10 minutes, and Meteosat at 0° (Europe and Africa) and at
+    // 45.5° E (the Indian Ocean), whose 10.8 µm infrared pictures EUMETSAT's EUMETView serves every 15 minutes. All come
+    // already on a latitude/longitude grid and load straight into the browser. Cold cloud tops are bright in infrared, by day and by night. Each pixel takes the satellite that sees
     // it most nearly overhead (within 72° of arc, beyond which the view is too slanted); the brightness is stretched per
-    // satellite between its median and its 93rd percentile, so the clear ground drops out and the clouds remain. Europe,
-    // Africa and the Indian Ocean are outside all three views (that is Meteosat's area, not in this feed), so no live clouds
-    // are drawn there. The slider steps back through the last 24 hours in half hours; ▶ plays them.
+    // satellite between its median and its 93rd percentile, so the clear ground drops out and the clouds remain. Between
+    // them they cover the whole Earth except near the poles (beyond about 70° latitude). The slider steps back through the last 24 hours in half hours; ▶ plays them.
     const LIVE = {
       sats: [
         ['GOES-East_ABI_Band13_Clean_Infrared', -75.2, 'GOES-East'],
         ['GOES-West_ABI_Band13_Clean_Infrared', -137.2, 'GOES-West'],
         ['Himawari_AHI_Band13_Clean_Infrared', 140.7, 'Himawari'],
+        ['msg_fes:ir108', 0, 'Meteosat 0°', 'eum'],
+        ['msg_iodc:ir108', 45.5, 'Meteosat Indian Ocean', 'eum'],
       ],
       W: 2048,
       H: 1024,
@@ -3217,8 +3228,10 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
       play: null,
       shown: null,
     };
-    const liveUrl = (layer, iso) =>
-      `https://gibs.earthdata.nasa.gov/wms/epsg4326/best/wms.cgi?SERVICE=WMS&REQUEST=GetMap&VERSION=1.3.0&LAYERS=${layer}&STYLES=&CRS=EPSG:4326&BBOX=-90,-180,90,180&WIDTH=${LIVE.W}&HEIGHT=${LIVE.H}&FORMAT=image/jpeg&TIME=${iso}`;
+    const liveUrl = (layer, iso, src) =>
+      src === 'eum'
+        ? `https://view.eumetsat.int/geoserver/wms?SERVICE=WMS&REQUEST=GetMap&VERSION=1.3.0&LAYERS=${layer}&STYLES=&CRS=EPSG:4326&BBOX=-90,-180,90,180&WIDTH=${LIVE.W}&HEIGHT=${LIVE.H}&FORMAT=image/jpeg&TIME=${iso}`
+        : `https://gibs.earthdata.nasa.gov/wms/epsg4326/best/wms.cgi?SERVICE=WMS&REQUEST=GetMap&VERSION=1.3.0&LAYERS=${layer}&STYLES=&CRS=EPSG:4326&BBOX=-90,-180,90,180&WIDTH=${LIVE.W}&HEIGHT=${LIVE.H}&FORMAT=image/jpeg&TIME=${iso}`;
     // the newest picture is usually ready about half an hour after it was taken; slot 0 is that, slot -n is n half hours earlier
     function liveSlot(n) {
       const t = Date.now() - 35 * 60000,
@@ -3226,20 +3239,23 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
       return n === 0 ? tenMin : Math.floor(t / 1800000) * 1800000 + n * 1800000;
     }
     const liveIso = (ms) => new Date(ms).toISOString().slice(0, 19) + 'Z';
-    function liveImg(layer, ms) {
+    function liveImg(layer, ms, src) {
       return new Promise((res, rej) => {
         const im = new Image();
         im.crossOrigin = 'anonymous';
         im.onload = () => res(im);
         im.onerror = () => rej(new Error('live image'));
-        im.src = liveUrl(layer, liveIso(ms));
+        im.src = liveUrl(layer, liveIso(ms), src);
       });
     }
     // one satellite's picture: as luminance, or null if it didn't load or was blank (try up to two slots earlier)
     async function liveSat(sat, ms) {
-      for (const back of [0, 600000, 1200000]) {
+      // Meteosat pictures come every 15 minutes, the others every 10: round down to the satellite's own step
+      const step = sat[3] === 'eum' ? 900000 : 600000,
+        t0 = Math.floor(ms / step) * step;
+      for (const back of [0, step, 2 * step]) {
         try {
-          const im = await liveImg(sat[0], ms - back),
+          const im = await liveImg(sat[0], t0 - back, sat[3]),
             c = document.createElement('canvas');
           c.width = LIVE.W;
           c.height = LIVE.H;
@@ -3292,7 +3308,7 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
             j = y * W + x;
           let best = -1,
             bc = MAXC;
-          for (let k = 0; k < 3; k++) {
+          for (let k = 0; k < lums.length; k++) {
             if (!lums[k] || lums[k][j] <= 8) continue;
             const c = cl * Math.cos(lon - sub[k]); // cosine of the arc from the point below the satellite
             if (c > bc) {
@@ -3353,10 +3369,10 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
       LIVE.shown = ms;
       const when = new Date(cl.ms).toUTCString().slice(5, 22) + ' UTC';
       $('liveN').textContent = cl.ok.length
-        ? `${when} · ${cl.ok.join(', ')}${cl.ok.length < 3 ? ' (the others didn’t answer)' : ''}`
+        ? `${when} · ${cl.ok.join(', ')}${cl.ok.length < LIVE.sats.length ? ' (the others didn’t answer)' : ''}`
         : 'The satellite pictures couldn’t be loaded (offline, or the service is busy). Showing the surface without clouds.';
       $('legN').textContent =
-        'Live clouds from GOES-East, GOES-West (NOAA) and Himawari (JMA) infrared pictures via NASA GIBS, every 10 minutes. No live feed covers Europe, Africa and the Indian Ocean here, so those areas show no clouds.';
+        'Live clouds from five weather satellites’ infrared pictures: GOES-East and GOES-West (NOAA) and Himawari (JMA) via NASA GIBS every 10 minutes, and Meteosat 0° and Indian Ocean (© EUMETSAT ' + new Date().getUTCFullYear() + ', via EUMETView) every 15 minutes. Near the poles, beyond the satellites’ view, no clouds are drawn.';
     }
     $('liveS').oninput = (e) => layer === 'live' && livePaint(+e.target.value);
     $('liveNow').onclick = () => {
@@ -3972,7 +3988,8 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
     // what each world's sources are used for (worked out from its pack by code/source_uses.py), and the sources of the features on top
     const SRC_USE = {"mercury": [["Konopliv et al. (2020), JGMESS_160A gravity, Ica", "The Free-air gravity and Geoid maps, summed from the spherical-harmonic field on this page’s grid."], ["Celestia Content: Mercury texture and normal map", "The Visible colour map on the globe."]], "venus": [["Konopliv, Banerdt & Sjogren (1999), SHGJ180U gra", "The Free-air gravity and Geoid maps, summed from the spherical-harmonic field on this page’s grid."], ["Celestia Content: Venus surface texture and norm", "The Surface map on the globe."], ["Lander coordinates: List of artificial objects o", "The positions of the 17 landing sites, on the globe and in the sites table."]], "earth": [["Amante & Eakins (2009), ETOPO1, via Fatiando a T", "The Topography map and the globe’s relief, which every map is draped on."], ["Förste et al. (2014), EIGEN-6C4 gravity, via Fat", "The Gravity disturbance map, summed from the spherical-harmonic field on this page’s grid."], ["EIGEN-6C4 geoid via Fatiando a Terra earth-geoid", "The Geoid map."], ["WGS84 normal gravity from Boule (Fatiando a Terr", "The normal gravity of the WGS84 ellipsoid, subtracted from EIGEN-6C4 to make the Gravity disturbance map."], ["Celestia Content: Earth colour, cloud and night ", "The Visible colour, Visible colour with clouds and Night lights maps, as prepared for Celestia."], ["NASA Earth Observatory, Blue Marble and Night Li", "The NASA imagery behind the cloud cover and the night lights."]], "moon": [["Wieczorek (2015), LOLA shape MoonTopo2600p, grid", "The Topography map and the globe’s relief, which every map is draped on."], ["Goossens et al. (2020), GRGM1200L, NASA PDS GRAI", "The Free-air gravity, Bouguer gravity and Selenoid maps, summed from the spherical-harmonic field on this page’s grid. Bouguer gravity also uses the topography."], ["Lognonné, Gagnepain-Beyneix & Chenet (2003), moo", "The Moonquakes and impacts points (Apollo seismic network)."], ["Tai Udovicic et al. (2023), MoonPIES polar crate", "The south-polar cold-trap craters."], ["LRO Wide Angle Camera colour, NASA SVS CGI Moon ", "The Visible colour map on the globe (Imagery + relief uses it too)."], ["Landing coordinates: List of artificial objects ", "The positions of the 41 landing sites, on the globe and in the sites table."]], "mars": [["Smith et al. (2001), MOLA, as gridded in the Mar", "The Topography map and the globe’s relief, which every map is draped on."], ["Genova et al. (2016), GMM-3 gravity field (SHTOO", "The Free-air gravity, Bouguer gravity and Areoid maps, summed from the spherical-harmonic field on this page’s grid. Bouguer gravity also uses the topography."], ["Wieczorek (2015), MarsTopo719 shape model (SHTOO", "The shape of Mars, used to take the pull of the topography out of the free-air gravity for the Bouguer gravity map."], ["Viking MDIM colour mosaic, USGS", "The Imagery map on the globe (Imagery + relief uses it too)."], ["Landing coordinates: List of artificial objects ", "The positions of the 16 landing sites, on the globe and in the sites table."]], "phobos": [["Celestia Content, phobos.jpg (CC-BY-3.0)", "The Colour map on the globe."], ["Feature names and positions: IAU Gazetteer of Pl", "The 14 feature names on the globe: IAU names at their official positions."]], "deimos": [["Celestia Content, deimos.jpg (CC0-1.0)", "The Colour map on the globe."], ["Feature names and positions: IAU Gazetteer of Pl", "The 2 feature names on the globe: IAU names at their official positions."]], "jupiter": [["Celestia Content, jupiter.jpg (CC-BY-3.0); shape", "The Cloud tops map on the globe. Also the shape: the radius and the polar flattening."], ["Entry points: NASA/JPL (Cassini, PIA21896) and t", "Where the probes entered the atmosphere, marked on the globe."]], "io": [["Celestia Content, textures/hires/io.png (CC-BY-4", "The Colour map on the globe."], ["Feature names and positions: IAU Gazetteer of Pl", "The 14 feature names on the globe: IAU names at their official positions."]], "europa": [["Celestia Content, textures/hires/europa.jpg (see", "The Colour map on the globe."], ["Feature names and positions: IAU Gazetteer of Pl", "The 14 feature names on the globe: IAU names at their official positions."]], "ganymede": [["Celestia Content, textures/hires/ganymede.jpg (C", "The Colour map on the globe."], ["Feature names and positions: IAU Gazetteer of Pl", "The 14 feature names on the globe: IAU names at their official positions."]], "callisto": [["Celestia Content, textures/hires/callisto.jpg (s", "The Colour map on the globe."], ["Feature names and positions: IAU Gazetteer of Pl", "The 14 feature names on the globe: IAU names at their official positions."]], "saturn": [["Celestia Content, saturn.jpg (CC-BY-3.0); shape ", "The Cloud tops map on the globe. Also the shape: the radius and the polar flattening."], ["Entry points: NASA/JPL (Cassini, PIA21896) and t", "Where the probes entered the atmosphere, marked on the globe."]], "mimas": [["Celestia Content, mimas.jpg (see repository)", "The Colour map on the globe."], ["Feature names and positions: IAU Gazetteer of Pl", "The 14 feature names on the globe: IAU names at their official positions."]], "enceladus": [["Celestia Content, textures/hires/enceladus.jpg (", "The Colour map on the globe."], ["Feature names and positions: IAU Gazetteer of Pl", "The 14 feature names on the globe: IAU names at their official positions."]], "tethys": [["Celestia Content, tethys.jpg (see repository)", "The Colour map on the globe."], ["Feature names and positions: IAU Gazetteer of Pl", "The 14 feature names on the globe: IAU names at their official positions."]], "dione": [["Celestia Content, dione.jpg (see repository)", "The Colour map on the globe."], ["Feature names and positions: IAU Gazetteer of Pl", "The 14 feature names on the globe: IAU names at their official positions."]], "rhea": [["Celestia Content, rhea.jpg (see repository)", "The Colour map on the globe."], ["Feature names and positions: IAU Gazetteer of Pl", "The 14 feature names on the globe: IAU names at their official positions."]], "titan": [["Celestia Content, textures/hires/titan.png (CC-B", "The Colour map on the globe."], ["Feature names and positions: IAU Gazetteer of Pl", "The 14 feature names on the globe: IAU names at their official positions."]], "hyperion": [["Celestia Content, hyperion.jpg (CC-BY-4.0)", "The Colour map on the globe."], ["Feature names and positions: IAU Gazetteer of Pl", "The 5 feature names on the globe: IAU names at their official positions."]], "iapetus": [["Celestia Content, iapetus.jpg (see repository)", "The Colour map on the globe."], ["Feature names and positions: IAU Gazetteer of Pl", "The 14 feature names on the globe: IAU names at their official positions."]], "uranus": [["Celestia Content, uranus.jpg (CC-BY-NC-SA-3.0); ", "The Cloud tops map on the globe. Also the shape: the radius and the polar flattening."], ["Entry points: NASA/JPL (Cassini, PIA21896) and t", "The giant planets’ probe entry sites; no probe has entered this world, so none is marked."]], "miranda": [["Celestia Content, miranda.jpg (CC-BY-SA-4.0)", "The Colour map on the globe."], ["Feature names and positions: IAU Gazetteer of Pl", "The 14 feature names on the globe: IAU names at their official positions."]], "ariel": [["Celestia Content, ariel.jpg (CC-BY-SA-4.0)", "The Colour map on the globe."], ["Feature names and positions: IAU Gazetteer of Pl", "The 14 feature names on the globe: IAU names at their official positions."]], "umbriel": [["Celestia Content, umbriel.jpg (CC-BY-SA-4.0)", "The Colour map on the globe."], ["Feature names and positions: IAU Gazetteer of Pl", "The 13 feature names on the globe: IAU names at their official positions."]], "titania": [["Celestia Content, titania.jpg (CC-BY-SA-4.0)", "The Colour map on the globe."], ["Feature names and positions: IAU Gazetteer of Pl", "The 14 feature names on the globe: IAU names at their official positions."]], "oberon": [["Celestia Content, oberon.jpg (CC-BY-SA-4.0)", "The Colour map on the globe."], ["Feature names and positions: IAU Gazetteer of Pl", "The 10 feature names on the globe: IAU names at their official positions."]], "neptune": [["Celestia Content, neptune.jpg (CC-BY-3.0); shape", "The Cloud tops map on the globe. Also the shape: the radius and the polar flattening."], ["Entry points: NASA/JPL (Cassini, PIA21896) and t", "The giant planets’ probe entry sites; no probe has entered this world, so none is marked."]], "triton": [["Celestia Content, textures/hires/triton.jpg (CC-", "The Colour map on the globe."], ["Feature names and positions: IAU Gazetteer of Pl", "The 14 feature names on the globe: IAU names at their official positions."]], "ceres": [["Celestia Content, textures/hires/ceres.jpg (see ", "The Colour map on the globe."], ["Feature names and positions: IAU Gazetteer of Pl", "The 14 feature names on the globe: IAU names at their official positions."]], "vesta": [["Celestia Content, textures/hires/vesta.jpg (see ", "The Colour map on the globe."], ["Feature names and positions: IAU Gazetteer of Pl", "The 14 feature names on the globe: IAU names at their official positions."]], "pluto": [["Celestia Content, textures/hires/pluto.jpg (CC-B", "The Colour map on the globe."], ["Feature names and positions: IAU Gazetteer of Pl", "The 14 feature names on the globe: IAU names at their official positions."]], "charon": [["Celestia Content, charon.jpg (CC-BY-NC-SA-3.0)", "The Colour map on the globe."], ["Feature names and positions: IAU Gazetteer of Pl", "The 14 feature names on the globe: IAU names at their official positions."]], "_extra": {"earth": [["Kelso, T.S. CelesTrak general perturbations element sets", "https://celestrak.org/NORAD/elements/", "The live satellites: each one’s orbit, read in the browser."], ["Vallado, D.A. et al. (2006). Revisiting Spacetrack Report #3. AIAA 2006-6753; satellite.js", "https://github.com/shashwatak/satellite-js", "The SGP4 model that places each satellite at the time shown."], ["Schäfer, M. et al. (2014). OpenSky Network", "https://opensky-network.org", "The live flights, through the atlas’s own GitHub job that takes a worldwide snapshot every few minutes."]], "moon": [["Robbins, S.J. (2019). A new global database of lunar impact craters >1–2 km. JGR Planets 124, 871–892", "https://doi.org/10.1029/2018JE005592", "The crater rings, crater density and crater counts (1.3 million craters)."], ["Povilaitis, R.Z. et al. (2018). Crater density differences. Planetary and Space Science 162, 41–51", "https://doi.org/10.1016/j.pss.2017.05.006", "The alternative 5–20 km crater catalog (22,746 craters)."], ["Neukum, G., Ivanov, B.A. & Hartmann, W.K. (2001). Space Science Reviews 96, 55–86", "https://doi.org/10.1023/A:1011989004263", "The lunar production and chronology functions for model ages."], ["Michael, G.G. craterstats", "https://github.com/ggmichael/craterstats", "The production and chronology function coefficients for crater model ages (BSD-3 licence)."], ["Michael, G.G., Kneissl, T. & Neesemann, A. (2016). Poisson timing analysis. Icarus 277, 279–285", "https://doi.org/10.1016/j.icarus.2016.05.019", "The Poisson fit behind each crater model age."]], "mars": [["Robbins, S.J. & Hynek, B.M. (2012). A new global database of Mars impact craters ≥1 km. JGR 117, E05004", "https://doi.org/10.1029/2011JE003966", "The crater rings, crater density and crater counts (384,343 craters)."], ["Ivanov, B.A. (2001); Hartmann, W.K. & Neukum, G. (2001). Space Science Reviews 96", "https://doi.org/10.1023/A:1011945222010", "The Mars production and chronology functions for model ages."], ["Michael, G.G. craterstats", "https://github.com/ggmichael/craterstats", "The production and chronology function coefficients for crater model ages (BSD-3 licence)."], ["Michael, G.G., Kneissl, T. & Neesemann, A. (2016). Poisson timing analysis. Icarus 277, 279–285", "https://doi.org/10.1016/j.icarus.2016.05.019", "The Poisson fit behind each crater model age."], ["Ody, A. et al. (2012). Global maps of anhydrous minerals at the surface of Mars from OMEGA/MEx. JGR 117, E00J14", "https://doi.org/10.1029/2012JE004117", "The five mineral maps: ferric oxides, dust, pyroxene, olivine and near-infrared albedo."], ["ESA Planetary Science Archive: Mars Express OMEGA global maps (MEX-M-OMEGA-5-DDR-GLOBAL-MAPS-V1.0)", "https://archives.esac.esa.int/psa/ftp/MARS-EXPRESS/OMEGA/MEX-M-OMEGA-5-DDR-GLOBAL-MAPS-V1.0/", "The 40 pixel-per-degree map files, averaged to 1° cells in the Mars Planetary Modeling Atlas."], ["Wordsworth, R. et al. (2021). Nature Geoscience 14, 127–132 (Fig. 1a)", "https://doi.org/10.1038/s41561-021-00701-8", "The geologic timeline and the dates of Tharsis, Hellas and Argyre."], ["Andrews-Hanna, J.C., Zuber, M.T. & Banerdt, W.B. (2008). The Borealis basin. Nature 453, 1212–1215", "https://doi.org/10.1038/nature07011", "The Borealis ellipse and its alternative fits, the Hellas axes, and how Ancient Mars removes Tharsis."], ["Melosh, H.J. (2008). Did an impact blast away half of the martian crust? Nature Geoscience 1, 412–414", "", "The 4.4 Ga date of the Borealis impact."], ["Bouley, S. et al. (2016). Late Tharsis formation and implications for early Mars. Nature 531, 344–347", "https://doi.org/10.1038/nature17171", "The alternative ancient spin axis."], ["Konopliv, A.S. et al. (2016). Icarus 274, 253–260", "", "Mars’s moment of inertia, which sets the rotational bulge Ancient Mars is measured against."], ["Robbins, S.J., Hynek, B.M., Lillis, R.J. & Bottke, W.F. (2013). Large impact crater histories of Mars. Icarus 225, 173–184", "https://doi.org/10.1016/j.icarus.2013.03.019", "The ages of the major impacts."], ["Bottke, W.F. & Andrews-Hanna, J.C. (2017), Nature Geoscience 10; Frey, H.V. (2004)", "", "Utopia’s age and Ladon’s size."], ["Citron, R.I., Manga, M. & Hemingway, D.J. (2018). Timing of oceans on Mars from shoreline deformation. Nature 555, 643–646", "https://doi.org/10.1038/nature26144", "The Tharsis correction for the ocean and the shoreline ages."], ["Carr, M.H. & Head, J.W. (2003); Sholes, S.F. et al. (2021), JGR Planets 126, e2020JE006486", "https://doi.org/10.1029/2020JE006486", "The Arabia and Deuteronilus shorelines and their mean heights."], ["Scheller, E.L. et al. (2021). Long-term drying of Mars. Science 372, 56–62", "https://doi.org/10.1126/science.abc7717", "When the ocean dries out on the timeline."]]}};
     SRC_USE._extra.earth = (SRC_USE._extra.earth || []).concat([
-      ['NASA GIBS: GOES-East and GOES-West ABI (NOAA) and Himawari AHI (JMA) Band 13 clean infrared, near real time', 'https://earthdata.nasa.gov/news/blog/view-earth-every-10-minutes-geostationary-imagery', 'The Live clouds layer: the three satellites’ infrared pictures every 10 minutes, loaded in your browser and blended into one cloud map over the Visible colour map.'],
+      ['NASA GIBS: GOES-East and GOES-West ABI (NOAA) and Himawari AHI (JMA) Band 13 clean infrared, near real time', 'https://earthdata.nasa.gov/news/blog/view-earth-every-10-minutes-geostationary-imagery', 'The Live clouds layer over the Americas and the Pacific: the three satellites’ infrared pictures every 10 minutes, loaded in your browser and blended into one cloud map over the Visible colour map.'],
+      ['© EUMETSAT: Meteosat SEVIRI IR10.8 images, 0° and Indian Ocean (msg_fes:ir108, msg_iodc:ir108), via EUMETView', 'https://view.eumetsat.int/geoserver/wms?service=WMS&version=1.3.0&request=GetCapabilities', 'The Live clouds layer over Europe, Africa and the Indian Ocean, every 15 minutes.'],
     ]);
     function buildLayerSeg() {
       const photos = blendPhotos(),
@@ -8737,6 +8754,9 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
     {
       let stream = null,
         landmarker = null,
+        faceLm = null,
+        HandLandmarkerFace = null,
+        faceT = 0,
         raf = 0,
         lastT = -1;
       const MP = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14';
@@ -9060,6 +9080,19 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
               runningMode: 'VIDEO',
               numHands: 2,
             });
+            // the face, only for the distance between the eyes (its iris points); optional, and it runs five times a second
+            HandLandmarkerFace = (async () => {
+              try {
+                const { FaceLandmarker } = await import(MP + '/vision_bundle.mjs');
+                return await FaceLandmarker.createFromOptions(fs, {
+                  baseOptions: { modelAssetPath: 'https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task', delegate: 'GPU' },
+                  runningMode: 'VIDEO',
+                  numFaces: 1,
+                });
+              } catch (e) {
+                return null;
+              }
+            })().then((f) => (faceLm = f));
           }
         } catch (e) {
           starting = false;
@@ -9279,11 +9312,42 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
             }
           }
         }
+        // ---- distance from your eyes: the gap between your pupils is about 63 mm for most adults and, unlike the palm, doesn't
+        // change with how you hold your hand, so when your face is in view it is the steadier gauge. Its size in the picture,
+        // against the size when the reach was learned (the first seconds, as for the palm), scales the reach box; the
+        // distance in centimetres assumes a typical webcam's 63° wide view, so it is only approximate.
+        let eyeAvg = null,
+          eyeT = 0,
+          eyeRef = null;
+        const firstEyes = [];
+        try {
+          eyeRef = +localStorage.getItem('atlasEyeRef') || null;
+        } catch (e) {}
+        function eyes(ipd, now) {
+          if (!(ipd > 0.005)) return;
+          const dt = Math.min(0.5, (now - (eyeT || now)) / 1000);
+          eyeT = now;
+          eyeAvg = eyeAvg == null ? ipd : eyeAvg + (ipd - eyeAvg) * (1 - Math.exp(-dt / 1.2));
+          if (!eyeRef) {
+            firstEyes.push(ipd);
+            if (firstEyes.length >= 15) {
+              eyeRef = [...firstEyes].sort((x, y) => x - y)[7];
+              firstEyes.length = 0;
+              try {
+                localStorage.setItem('atlasEyeRef', eyeRef.toFixed(5));
+              } catch (e) {}
+            }
+          }
+        }
+        // distance = focal length (in picture widths, for a 63° wide view) × 6.3 cm ÷ the pupils' gap (in picture widths)
+        const eyeCm = () => (eyeAvg ? Math.round(((0.5 / Math.tan((31.5 * Math.PI) / 180)) * 6.3) / eyeAvg) : null);
         function reachNow() {
           const h = cur(),
             r = on ? h.reach : BASE_REACH;
-          if (!on || !h.sizeRef || !sizeAvg) return r;
-          const f = Math.max(0.6, Math.min(1.6, sizeAvg / h.sizeRef)),
+          const eyeOk = eyeRef && eyeAvg && performance.now() - eyeT < 1500;
+          if (!on || (!eyeOk && (!h.sizeRef || !sizeAvg))) return r;
+          // the eyes when they are in view, else the palm
+          const f = Math.max(0.6, Math.min(1.6, eyeOk ? eyeAvg / eyeRef : sizeAvg / h.sizeRef)),
             cx = r.x0 + r.xs / 2,
             cy = r.y0 + r.ys / 2,
             xs = Math.min(1, r.xs * f),
@@ -9448,6 +9512,16 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
           pinchEdge,
           see,
           size,
+          eyes,
+          get eyeCm() {
+            return eyeCm();
+          },
+          resetEyes() {
+            eyeRef = eyeAvg = null;
+            try {
+              localStorage.removeItem('atlasEyeRef');
+            } catch (e) {}
+          },
           reachNow,
           apply,
           setOn,
@@ -9813,10 +9887,48 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
         cx = r.left + soft((1 - g.x - q.x0) / q.xs) * r.width;
         cy = r.top + soft((g.y - q.y0) / q.ys) * r.height;
       }
+      // the camera gives a new hand position about 30 times a second, the screen redraws 60 or more, and a snap onto a button
+      // moves the target in one go; so the cursor doesn't jump, it glides: every screen frame it moves toward the target
+      // (taking about 25 ms normally, longer for a big jump such as a snap), and between camera frames it carries on along
+      // the hand's last velocity for up to 40 ms so a steady move looks steady
+      const GLIDE = { x: null, y: null, tx: 0, ty: 0, vx: 0, vy: 0, tT: 0, jump: 0 };
       function drawCursor(x, y) {
-        CUR.style.left = x + 'px';
-        CUR.style.top = y + 'px';
+        const now = performance.now();
+        if (GLIDE.x == null || CUR.hidden) {
+          GLIDE.x = GLIDE.tx = x;
+          GLIDE.y = GLIDE.ty = y;
+          GLIDE.vx = GLIDE.vy = 0;
+        } else {
+          const dtt = Math.max(0.008, (now - GLIDE.tT) / 1000),
+            jx = x - GLIDE.tx,
+            jy = y - GLIDE.ty,
+            j = Math.hypot(jx, jy);
+          // a big step (a snap, or the magnet letting go) isn't a velocity: glide over it instead
+          if (j > 40) {
+            GLIDE.vx = GLIDE.vy = 0;
+            GLIDE.jump = now;
+          } else {
+            GLIDE.vx += (jx / dtt - GLIDE.vx) * 0.5;
+            GLIDE.vy += (jy / dtt - GLIDE.vy) * 0.5;
+          }
+          GLIDE.tx = x;
+          GLIDE.ty = y;
+        }
+        GLIDE.tT = now;
       }
+      function glide(now, dt) {
+        if (GLIDE.x == null || CUR.hidden) return;
+        const ahead = Math.min(0.04, (now - GLIDE.tT) / 1000),
+          px = GLIDE.tx + GLIDE.vx * ahead,
+          py = GLIDE.ty + GLIDE.vy * ahead,
+          tau = now - GLIDE.jump < 160 ? 0.07 : 0.025,
+          k = 1 - Math.exp(-dt / tau);
+        GLIDE.x += (px - GLIDE.x) * k;
+        GLIDE.y += (py - GLIDE.y) * k;
+        CUR.style.left = GLIDE.x.toFixed(1) + 'px';
+        CUR.style.top = GLIDE.y.toFixed(1) + 'px';
+      }
+      window.atlasGlide = { draw: drawCursor, tick: glide, state: GLIDE }; // for testing
       function cursorState(cls, label) {
         CUR.className = cls || '';
         CUR.querySelector('span').textContent = label || '';
@@ -10012,6 +10124,7 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
           dt = Math.min(0.1, (now - lastF) / 1000);
         lastF = now;
         ease(dt);
+        glide(now, dt);
         // pause while the steered view is mostly off screen, so nothing reacts to hands you aren't using for it
         const vis = shown(V.stage) / Math.max(1, V.stage.clientWidth * V.stage.clientHeight);
         if (vis < 0.2) {
@@ -10038,6 +10151,20 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
         const v = $('handVid');
         if (!landmarker || v.readyState < 2 || v.currentTime === lastT) return;
         lastT = v.currentTime;
+        if (faceLm && now - faceT > 200) {
+          faceT = now;
+          try {
+            const fr = faceLm.detectForVideo(v, now + 0.5),
+              F = fr.faceLandmarks && fr.faceLandmarks[0];
+            // the two iris centres (points 468 and 473), as a share of the picture's width
+            if (F && F.length > 473) {
+              const ar = (v.videoHeight || 3) / (v.videoWidth || 4);
+              ADAPT.eyes(Math.hypot(F[468].x - F[473].x, (F[468].y - F[473].y) * ar), now);
+              const cm = ADAPT.eyeCm;
+              if (cm) $('handBox').dataset.dist = '≈ ' + cm + ' cm';
+            }
+          } catch (e) {}
+        }
         const r = landmarker.detectForVideo(v, now),
           // each hand with its world landmarks and which hand MediaPipe says it is, then left to right as you see yourself
           HH = (r.landmarks || [])
@@ -10062,7 +10189,8 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
         $('handBox').classList.toggle('lost', !hands.length);
         $('handBox').classList.toggle('busy', hands.length > 0 && (R.mode === 'pinch' || (hands.length === 2 && !!zoom0)));
         if (!hands.length) {
-          CUR.hidden = true;
+          if (now - missN > 300) CUR.hidden = true;
+          else CUR.style.opacity = '0.5';
           toneStop();
           if (handLoop.rest) {
             if (!handLoop.restNote) {
@@ -10084,6 +10212,7 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
         }
         seenHand = true;
         missN = now;
+        CUR.style.opacity = '';
         if (hands.length === 2) {
           CUR.hidden = true;
           tap0 = null;
@@ -10127,6 +10256,7 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
           sx = hv && hv.x != null ? hv.x : cx,
           sy = hv && hv.y != null ? hv.y : cy;
         drawCursor(sx, sy);
+        if (hv && hv.x != null) GLIDE.vx = GLIDE.vy = 0;
         hist.push([now, hv]);
         while (hist.length && now - hist[0][0] > 400) hist.shift();
         CUR.style.setProperty('--p', R.mode === 'pinch' ? 1 : R.p);
@@ -10200,6 +10330,7 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
             // the cursor stays where the turn began
             if (!turnLock) turnLock = tap0.lock || { x: sx, y: sy, hx: cx, hy: cy };
             drawCursor(turnLock.x, turnLock.y);
+            GLIDE.vx = GLIDE.vy = 0;
             const dx = -(g.x - R.prev.x),
               dy = g.y - R.prev.y;
             R.prev = { x: g.x, y: g.y };
