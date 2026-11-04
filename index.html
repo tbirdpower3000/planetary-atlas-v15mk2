@@ -2021,7 +2021,7 @@
     <div class="hrow">
       <h1>
         Planetary Modeling Atlas
-        <span class="ver" title="Version v15mk2.27, 4 Nov 2026: a pinch registers only once your fingers are about two-thirds closed, measured against your own hand, and the gold ring fills exactly to that point; the waist line is placed from your eye line and height">v15mk2.27</span>
+        <span class="ver" title="Version v15mk2.28, 4 Nov 2026: brings back the live flights and satellites toggles on Earth (hidden since v15mk2.20); a safety box for the hand in use, placed from your eyes and height with standard body proportions (shoulder to elbow height, a forearm’s sweep wide), used as your reach area until you train">v15mk2.28</span>
       </h1>
       <button type="button" id="voiceBtn" aria-pressed="false" title="Voice commands: say “Hey Atlas”, then what you want, e.g. “Hey Atlas, show Mars” or “Hey Atlas, next map”">🎤 Voice</button>
       <p id="howTo">
@@ -2125,7 +2125,7 @@
           </select></label
         ><label class="tgroup" id="blendIL" hidden>Photo<select id="blendI" aria-label="Which photo map"></select></label></span
       >
-      <span id="liveT" class="toolbar" style="gap: 8px 14px" hidden
+      <span id="cloudT" class="toolbar" style="gap: 8px 14px" hidden
         ><button type="button" id="livePlay" title="Play back the last 24 hours">▶ 24 h</button
         ><input id="liveS" type="range" min="-47" max="0" step="1" value="0" aria-label="Time of the cloud picture, back to 24 hours ago" style="width: min(260px, 40vw)" /><output id="liveO">latest</output
         ><button type="button" id="liveNow" title="Jump to the latest picture">Now</button><span id="liveN" class="muted" style="font-size: 0.8rem"></span></span
@@ -3483,7 +3483,7 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
       $('minT').hidden = !id.startsWith('min_');
       if (P && $('readout')) buildReadout();
       $('blendT').hidden = id !== 'blend';
-      $('liveT').hidden = id !== 'live';
+      $('cloudT').hidden = id !== 'live'; // the live clouds' time bar (#liveT is the flights and satellites bar)
       if (id !== 'live') liveStop();
       if (id === 'live') {
         nightFor({ id: 'live' });
@@ -4197,6 +4197,7 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
       bodyPanel();
       drawTable();
       LIVE.base = null;
+      $('liveT').hidden = P.id !== 'earth'; // the flights and satellites toggles, straight away (not only once the globe draws)
       setLayer(defaultLayer());
       if (!P.grids.length && !P.images.length) {
         tctx.fillStyle = '#777';
@@ -10295,9 +10296,42 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
           x = (ax + bx) / 2 + nx * off,
           y = (ay + by) / 2 + ny * off,
           k = EYEW && now - EYEW.t < 1500 ? 0.25 : 1; // smoothed, so a blink or a nod doesn't make the line jump
-        EYEW = EYEW && k < 1 ? { x: EYEW.x + (x - EYEW.x) * k, y: EYEW.y + (y - EYEW.y) * k, nx: EYEW.nx + (nx - EYEW.nx) * k, ny: EYEW.ny + (ny - EYEW.ny) * k, ux: EYEW.ux + (ux - EYEW.ux) * k, uy: EYEW.uy + (uy - EYEW.uy) * k, t: now, W, H } : { x, y, nx, ny, ux, uy, t: now, W, H };
+        EYEW =
+          EYEW && k < 1
+            ? { x: EYEW.x + (x - EYEW.x) * k, y: EYEW.y + (y - EYEW.y) * k, nx: EYEW.nx + (nx - EYEW.nx) * k, ny: EYEW.ny + (ny - EYEW.ny) * k, ux: EYEW.ux + (ux - EYEW.ux) * k, uy: EYEW.uy + (uy - EYEW.uy) * k, d: EYEW.d + (d - EYEW.d) * k, off: EYEW.off + (off - EYEW.off) * k, t: now, W, H }
+            : { x, y, nx, ny, ux, uy, d, off, t: now, W, H };
       }
       const eyeOk = () => EYEW && performance.now() - EYEW.t < 1500;
+      // ---- the safety box: where the hand in use works, placed from your eyes and height with standard body proportions,
+      // in the low, elbow-down zone that tires the shoulder least. Top: about shoulder height (0.09 × your height below your
+      // eyes). Bottom: about elbow height with the arm relaxed (0.30 × height). Side to side: centred on that hand's shoulder
+      // (0.13 × height out from the middle of your face), 0.34 × height wide, roughly a forearm's sweep with the elbow down.
+      // Scaled by your pupils' gap, so it follows you as you move; until you train, it is the area mapped to the screen.
+      function bodyBox(side) {
+        if (!eyeOk()) return null;
+        const E = EYEW,
+          Hc = heightCm(),
+          sc = E.d / 6.3, // pixels per centimetre at your face
+          mx = E.x - E.nx * E.off, // the point between your eyes
+          my = E.y - E.ny * E.off,
+          sign = side === 'Left' ? 1 : -1, // the raw camera picture isn't mirrored: your right hand is on its left
+          cx = mx + sign * 0.13 * Hc * sc,
+          hw = 0.17 * Hc * sc,
+          top = my + 0.09 * Hc * sc,
+          bot = my + 0.3 * Hc * sc;
+        let x0 = 1 - (cx + hw) / E.W,
+          xs = (2 * hw) / E.W,
+          y0 = top / E.H,
+          ys = (bot - top) / E.H;
+        // keep it inside the picture (close up, the bottom is often below the view)
+        if (x0 < 0) x0 = 0;
+        if (x0 + xs > 1) x0 = Math.max(0, 1 - xs);
+        xs = Math.min(xs, 1 - x0);
+        y0 = Math.max(0, Math.min(0.9, y0));
+        ys = Math.max(0.12, Math.min(ys, 0.98 - y0));
+        return { x0, xs, y0, ys };
+      }
+      window.atlasBodyBox = bodyBox; // for testing
       const resting = (L) => {
         const px = (L[0].x + L[5].x + L[9].x + L[13].x + L[17].x) / 5,
           py = (L[0].y + L[5].y + L[9].y + L[13].y + L[17].y) / 5;
@@ -10346,6 +10380,15 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
           ctx.fillRect(0, wy, cv.width, cv.height - wy);
         }
         ctx.setLineDash([]);
+        // the safety box for the hand in use, as a dashed green frame (drawn in the raw picture, which the preview mirrors)
+        const bb = bodyBox((hands[0] && hands[0].side) || ADAPT.side);
+        if (bb) {
+          ctx.strokeStyle = ADAPT.trained ? 'rgba(6, 214, 160, 0.45)' : 'rgba(6, 214, 160, 0.9)';
+          ctx.lineWidth = 2;
+          ctx.setLineDash([6, 6]);
+          ctx.strokeRect((1 - bb.x0 - bb.xs) * cv.width, bb.y0 * cv.height, bb.xs * cv.width, bb.ys * cv.height);
+          ctx.setLineDash([]);
+        }
         hands.forEach(({ L, st }) => {
           ctx.fillStyle = st.mode === 'pinch' ? '#ffd166' : st.mode === 'fist' ? '#ef476f' : '#06d6a0';
           L.forEach((p) => {
@@ -10363,7 +10406,8 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
       function placeCursor(g) {
         const r = V.stage.getBoundingClientRect(),
           clamp = (v) => Math.max(0, Math.min(1, v));
-        const q = ADAPT.reach; // your comfortable area of the camera view, from training (or the default)
+        // your comfortable area of the camera view: from training; before you train, the safety box from your eyes; else the default
+        const q = (!ADAPT.trained && bodyBox(ADAPT.side)) || ADAPT.reach;
         // eased into the last 4% at each edge, so the cursor settles into a corner instead of jittering against a wall
         const soft = (u) => {
           u = Math.max(-0.2, Math.min(1.2, u));
