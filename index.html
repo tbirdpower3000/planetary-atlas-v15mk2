@@ -1034,6 +1034,55 @@
     display: inline-flex;
     gap: 6px;
   }
+  /* the map stepper: a blue edge sets it apart from the time controls */
+  #voiceBtn[aria-pressed='true'] {
+    background: var(--chipon);
+    color: var(--chiptx);
+    border-color: var(--chipon);
+  }
+  /* what voice control heard and did: a small card at the bottom left, above the full-screen views too */
+  #voicePill {
+    position: fixed;
+    left: max(12px, env(safe-area-inset-left, 0px));
+    bottom: max(12px, env(safe-area-inset-bottom, 0px));
+    z-index: 80;
+    display: flex;
+    gap: 8px;
+    align-items: baseline;
+    max-width: min(34rem, calc(100vw - 24px));
+    padding: 8px 14px;
+    border-radius: 14px;
+    background: rgba(14, 18, 28, 0.92);
+    color: #e9eef5;
+    border: 1px solid rgba(201, 212, 227, 0.35);
+    font-size: 0.9rem;
+    line-height: 1.35;
+  }
+  #voicePill.armed {
+    border-color: #ffd88a;
+    box-shadow: 0 0 0 3px rgba(255, 216, 138, 0.25);
+  }
+  #voicePill.err {
+    border-color: #f07a6e;
+  }
+  #voicePill ul {
+    margin: 4px 0 0;
+    padding-left: 18px;
+  }
+  #fsLyr button {
+    border-color: rgba(127, 182, 230, 0.7);
+  }
+  #fsLyPrev,
+  #fsLyNext {
+    font-size: 1.6rem !important;
+    line-height: 1;
+  }
+  #fsLy {
+    max-width: 15em;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
   #fsDate {
     font-family: var(--mono);
     font-size: 1rem;
@@ -1380,6 +1429,18 @@
     overflow: hidden;
     border: 1px solid var(--rule);
     background: #000;
+    /* see-through, so it doesn't cover the globe; it fades further while a gesture is in progress, back up when a hand is lost */
+    opacity: 0.55;
+    transition: opacity 0.35s;
+  }
+  #handBox.busy {
+    opacity: 0.3;
+  }
+  #handBox.lost {
+    opacity: 0.9;
+  }
+  #handBox:hover {
+    opacity: 1;
   }
   #handVid {
     display: block;
@@ -1883,8 +1944,9 @@
     <div class="hrow">
       <h1>
         Planetary Modeling Atlas
-        <span class="ver" title="Version v15mk2.15, 3 Nov 2026: your workspace (worlds and data you load are kept in this browser), map images, tidier world buttons">v15mk2.15</span>
+        <span class="ver" title="Version v15mk2.16, 3 Nov 2026: voice commands, brightness, changing the map and adaptive aim in hand control, and a hand-control training page">v15mk2.16</span>
       </h1>
+      <button type="button" id="voiceBtn" aria-pressed="false" title="Voice commands: say “Atlas”, then what you want, e.g. “Atlas, show Mars” or “Atlas, next map”">🎤 Voice</button>
       <p id="howTo">
         Pick a world on the map or below. Drag to turn, scroll or pinch to zoom, click a site to fly to it. ✋ Hand control (on a
         planet's globe) opens a full-screen view.
@@ -2000,6 +2062,9 @@
       <label class="tgroup" for="exag"
         >Relief ×<input id="exag" type="range" min="0" max="20" step="1" value="4" /><output id="exagO">4</output></label
       >
+      <label class="tgroup" for="briT" title="Make the globe brighter or darker"
+        >Brightness<input id="briT" type="range" min="40" max="250" step="10" value="100" /><output id="briO">100%</output></label
+      >
       <label class="tgroup"><input id="gridT" type="checkbox" checked /> Lat/lon grid</label>
       <label class="tgroup"><input id="featT" type="checkbox" checked /> Feature names</label>
       <label class="tgroup"><input id="namesT" type="checkbox" /> All site names</label>
@@ -2051,7 +2116,9 @@
         aria-pressed="false"
         title="Turn and zoom the globe with your hand, using your computer's camera"
       >✋ Hand control</button
-      ><button id="handSnd" type="button" aria-pressed="true" hidden title="Turn hand-control sounds on or off">🔊 Sound</button>
+      ><button id="handSnd" type="button" aria-pressed="true" hidden title="Turn hand-control sounds on or off">🔊 Sound</button
+      ><button id="handAssist" type="button" aria-pressed="true" hidden title="Adaptive aim: learns from your movements and makes buttons easier to hit when you're having trouble. Press to switch it off and reset what it learned.">🎯 Adaptive aim</button
+      ><a id="handTrain" class="srclink" href="https://tbirdpower3000.github.io/hand-control-training/" title="A one-minute exercise that teaches hand control your reach, pinch and steadiness">Train hand control →</a>
       <span id="viewBtns" class="row"></span>
     </div>
   </header>
@@ -2070,6 +2137,11 @@
     <div id="handCur" hidden><i></i><span></span></div>
     <div id="fsBar" hidden role="toolbar" aria-label="Hand control">
       <button type="button" id="fsMap">↑ Solar System</button><button type="button" id="fsLand" hidden>Land</button
+      ><span class="fsTime" id="fsLyr" role="group" aria-label="Map layer" hidden
+        ><button type="button" id="fsLyPrev" title="Previous map" aria-label="Previous map">‹</button
+        ><button type="button" id="fsLy" title="Next map">🗺</button
+        ><button type="button" id="fsLyNext" title="Next map" aria-label="Next map">›</button></span
+      ><button type="button" id="fsBri" title="Brightness: each press steps it up, then back round">☀ 100%</button
       ><span class="fsTime"
         ><button type="button" id="fsZin" title="Zoom in: pinch and hold">＋</button
         ><button type="button" id="fsZout" title="Zoom out: pinch and hold">−</button></span
@@ -2081,6 +2153,7 @@
         ><button type="button" data-fw="36525" title="Forward fast">▶▶</button></span
       ><span id="fsDate"></span><button type="button" id="fsExit">✕ Exit hand control</button>
     </div>
+    <div id="voicePill" role="status" aria-live="polite" hidden><b id="voiceState">🎤</b><span id="voiceText"></span></div>
     <div id="handBox" hidden><video id="handVid" playsinline muted></video><canvas id="handCv"></canvas></div>
     <div class="panel">
       <div class="box">
@@ -2634,6 +2707,7 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
         uH: { value: null },
         uHsz: { value: new THREE.Vector2(1, 1) },
         uHasH: { value: 0 },
+        uBri: { value: 1 },
         uHk: { value: 0 },
         uHmin: { value: 0 },
         uHr: { value: 1 },
@@ -2655,12 +2729,12 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
     void main(){vUv=uv;vN=normalize(position);vec3 p=position;if(uHasH>.5)p*=1.+uHk*(uHmin+uHr*hgt(uv));vec4 mv=modelViewMatrix*vec4(p,1.);vV=normalize(mv.xyz);vVN=normalize(normalMatrix*vN);gl_Position=projectionMatrix*mv;}`,
       fragmentShader:
         GLSL_H +
-        `uniform sampler2D map,uNight,uClear;uniform vec3 uSunL;uniform float uSun,uAmb,uShade,uHasH,uHr,uRm,uNightOn,uNightSelf,uCloudOn,uRim;varying vec2 vUv;varying vec3 vN,vV,vVN;
+        `uniform sampler2D map,uNight,uClear;uniform vec3 uSunL;uniform float uBri,uSun,uAmb,uShade,uHasH,uHr,uRm,uNightOn,uNightSelf,uCloudOn,uRim;varying vec2 vUv;varying vec3 vN,vV,vVN;
     // city lights: a warm sodium glow with whiter cores where they're brightest
     vec3 glow(vec3 c,vec3 h){float l=dot(c,vec3(.3,.5,.2)),b=dot(h,vec3(.3,.5,.2));return vec3(1.,.79,.46)*pow(l,1.1)*2.4+vec3(1.,.96,.88)*pow(l,3.)*1.6+vec3(1.,.66,.3)*b*1.5;}   // core, white-hot centres, and a soft halo from a blurred copy
     void main(){vec3 col=texture2D(map,vUv).rgb;
       // the Night lights layer on its own: glowing cities over faintly moonlit continents
-      if(uNightSelf>.5){gl_FragColor=vec4(texture2D(uNight,vUv).rgb*vec3(.08,.11,.17)+glow(col,texture2D(map,vUv,3.5).rgb),1.);return;}
+      if(uNightSelf>.5){gl_FragColor=vec4((texture2D(uNight,vUv).rgb*vec3(.08,.11,.17)+glow(col,texture2D(map,vUv,3.5).rgb))*uBri,1.);return;}
       if(uSun>.5){vec3 n0=normalize(vN),n=n0;
         if(uHasH>.5){float cl=max(sqrt(1.-n0.y*n0.y),.05);vec2 du=vec2(1./uHsz.x,0.),dv=vec2(0.,1./uHsz.y);
           float sE=(hgt(vUv+du)-hgt(vUv-du))*uHr*uHsz.x/(2.*6.2831853*uRm*cl)*uShade;
@@ -2680,7 +2754,7 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
         else col*=uAmb+(1.-uAmb)*term*clamp(.12+1.05*dif,0.,1.2);}
       // a thin blue atmosphere at the edge, brighter on the day side
       if(uRim>0.){float r=1.-max(dot(-vV,normalize(vVN)),0.),sdl=uSun>.5?dot(normalize(vN),uSunL):1.;col+=vec3(.32,.58,1.)*pow(r,5.)*uRim*(.15+.85*smoothstep(-.25,.35,sdl));}
-      gl_FragColor=vec4(col,1.);}`,
+      gl_FragColor=vec4(col*uBri,1.);}`,
     });
     const globe = new THREE.Mesh(geom, mat);
     globe.frustumCulled = false;
@@ -3110,6 +3184,7 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
       document.querySelectorAll('#layerSeg button').forEach((b) =>
         b.setAttribute('aria-pressed', b.dataset.id === id || (b.dataset.id === 'minerals' && id.startsWith('min_'))),
       );
+      if (FS) fsLayer();
       $('minT').hidden = !id.startsWith('min_');
       if (P && $('readout')) buildReadout();
       $('blendT').hidden = id !== 'blend';
@@ -4113,7 +4188,11 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
       if (!f) return;
       try {
         const p = JSON.parse(await f.text());
-        if (p && p.format === WS_FORMAT) {
+        if (p && p.format === 'planetary-atlas-hand-profile') {
+          if (!window.atlasAdapt) throw new Error('Hand control isn’t available in this copy.');
+          window.atlasAdapt.useProfile(p);
+          msg(`Loaded your hand-control profile${p.trained ? ` (trained ${new Date(p.trained).toLocaleDateString()})` : ''}. It’s used the next time you start hand control.`);
+        } else if (p && p.format === WS_FORMAT) {
           const ws = (p.worlds || []).filter((w) => {
             try {
               checkPack(w);
@@ -6370,7 +6449,47 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
     function updFs() {
       if (!FS) return;
       $('fsMap').hidden = MODE !== 'globe';
+      fsLayer();
     }
+    // hand control: step through this world's maps from the top bar
+    const layerBtns = () => [...document.querySelectorAll('#layerSeg button')].filter((b) => !b.disabled);
+    // brightness of the globe, kept in this browser
+    let BRI = 100;
+    try {
+      BRI = +localStorage.getItem('atlasBright') || 100;
+    } catch (e) {}
+    function setBright(v) {
+      BRI = Math.round(Math.max(40, Math.min(250, +v || 100)) / 10) * 10;
+      mat.uniforms.uBri.value = BRI / 100;
+      $('briT').value = BRI;
+      $('briO').textContent = BRI + '%';
+      $('fsBri').textContent = '☀ ' + BRI + '%';
+      try {
+        localStorage.setItem('atlasBright', BRI);
+      } catch (e) {}
+      gPoke();
+      return BRI;
+    }
+    $('briT').addEventListener('input', (e) => setBright(e.target.value));
+    const BSTEPS = [100, 140, 180, 220, 60, 80];
+    $('fsBri').onclick = () => setBright(BSTEPS[(BSTEPS.indexOf(BRI) + 1) % BSTEPS.length] || 100);
+    setBright(BRI);
+    function fsLayer() {
+      const bs = layerBtns(),
+        on = bs.find((b) => b.getAttribute('aria-pressed') === 'true');
+      $('fsLyr').hidden = !FS || MODE !== 'globe' || bs.length < 2;
+      $('fsBri').hidden = !FS || MODE !== 'globe';
+      $('fsLy').textContent = '🗺 ' + (on ? on.textContent : 'Map');
+    }
+    function stepLayer(d) {
+      const bs = layerBtns();
+      if (bs.length < 2) return;
+      const i = bs.findIndex((b) => b.getAttribute('aria-pressed') === 'true');
+      bs[(((i < 0 ? 0 : i) + d) % bs.length + bs.length) % bs.length].click();
+    }
+    $('fsLyPrev').onclick = () => stepLayer(-1);
+    $('fsLy').onclick = () => stepLayer(1);
+    $('fsLyNext').onclick = () => stepLayer(1);
     function enterFS(k) {
       if (DIVE) undiveNow();
       FS = true;
@@ -8070,6 +8189,292 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
     window.atlasViews = VIEWS; // for checking hand-control state from the console   // lets you read any map value from the browser console
     boot();
 
+    // ---------- voice commands: say the wake word "Atlas", then a command ----------
+    // uses the browser's own speech recognition (Chrome, Edge, Safari); on-device when the browser offers it, otherwise the
+    // browser's speech service turns the audio into text. Nothing is recorded or kept by the atlas.
+    {
+      const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+      const WAKE = /\b(?:hey |ok |okay )?(?:atlas|at ?las|atlus|atlis|atlases)\b[,.!?]?/i;
+      let rec = null,
+        on = false,
+        armedUntil = 0,
+        fails = 0,
+        lastStart = 0,
+        local = false,
+        pillT = 0;
+      const pill = (state, html, cls, keep) => {
+        $('voicePill').hidden = false;
+        $('voicePill').className = cls || '';
+        $('voiceState').textContent = state;
+        $('voiceText').innerHTML = html;
+        clearTimeout(pillT);
+        if (!keep) pillT = setTimeout(idle, 6000);
+      };
+      const idle = () => {
+        if (on) pill('🎤', `Say <b>“Atlas”</b>, then a command. <b>“Atlas, help”</b> lists them.`, '', true);
+        else $('voicePill').hidden = true;
+      };
+      const HELP = `<b>Say “Atlas”, then:</b><ul>
+        <li>“show Mars”, “go to Titan”, “Solar System”</li>
+        <li>“next map”, “previous map”, “show gravity”, “show topography”</li>
+        <li>“zoom in”, “zoom out”, “brighter”, “darker”, “brightness 150”</li>
+        <li>“sunlight off”, “spin on”, “grid off”, “names on”, “asteroids off”, “flights on”, “satellites on”</li>
+        <li>“pause”, “play”, “faster”, “slower”, “today”</li>
+        <li>“hand control”, “stop listening”</li></ul>`;
+      const has = (t, ...w) => w.some((x) => new RegExp('\\b' + x + '\\b').test(t));
+      // which view a command is for: the full-screen view, the globe dived into the map, or whichever fills more of the screen
+      const area = (el) => {
+        const r = el.getBoundingClientRect();
+        return Math.max(0, Math.min(r.bottom, innerHeight) - Math.max(r.top, 0)) * Math.max(0, Math.min(r.right, innerWidth) - Math.max(r.left, 0));
+      };
+      const view = () => (FS ? MODE : DIVE ? 'globe' : area(stage) > area($('mapStage')) ? 'globe' : 'map');
+      function zoom(f) {
+        const V = VIEWS[view()];
+        if (!V) return;
+        const t = V.ctl.target,
+          d = V.cam.position.distanceTo(t),
+          nd = Math.max(V.floor || V.ctl.minDistance, Math.min(V.ctl.maxDistance, d * f));
+        V.cam.position.sub(t).setLength(nd).add(t);
+        V.ctl.update();
+        gPoke();
+      }
+      function toggle(t, el, label) {
+        const want = has(t, 'off', 'hide', 'disable', 'stop', 'no') ? false : has(t, 'on', 'show', 'enable', 'start') ? true : null;
+        if (el.type === 'checkbox') {
+          if (el.closest('[hidden]')) return `${label} isn't available on this world.`;
+          const v = want === null ? !el.checked : want;
+          if (el.checked !== v) el.click();
+          return `${label} ${v ? 'on' : 'off'}`;
+        }
+        const pressed = el.getAttribute('aria-pressed') === 'true',
+          v = want === null ? !pressed : want;
+        if (pressed !== v) el.click();
+        return `${label} ${v ? 'on' : 'off'}`;
+      }
+      const worlds = () =>
+        [...INDEX, ...custom]
+          .map((b) => ({ id: b.id, name: String(b.name || '').toLowerCase(), re: new RegExp('\\b' + String(b.name || '').toLowerCase().replace(/[^a-z0-9 ]+/g, ' ').trim().replace(/\s+/g, ' ') + '\\b') }))
+          .sort((a, b) => b.name.length - a.name.length);
+      function layerFor(t) {
+        const bs = [...document.querySelectorAll('#layerSeg button')];
+        let best = null,
+          bsc = 0;
+        bs.forEach((b) => {
+          const words = b.textContent
+            .toLowerCase()
+            .replace(/colour/g, 'color')
+            .split(/[^a-z]+/)
+            .filter((w) => w.length > 3);
+          const sc = words.filter((w) => t.includes(w)).length / Math.max(1, words.length);
+          if (sc > bsc) {
+            bsc = sc;
+            best = b;
+          }
+        });
+        return best;
+      }
+      // one spoken command; returns what was done, for the card
+      function run(raw) {
+        const t = raw
+          .toLowerCase()
+          .replace(/colour/g, 'color')
+          .replace(/[^a-z0-9%+ ]+/g, ' ')
+          .replace(/\s+/g, ' ')
+          .trim();
+        if (!t) return null;
+        if (has(t, 'stop listening', 'stop voice', 'voice off', 'goodbye', 'go to sleep')) {
+          stop();
+          return 'Stopped listening.';
+        }
+        if (has(t, 'help', 'what can i say', 'commands')) return { html: HELP, keep: 15000 };
+        if (has(t, 'solar system', 'map view', 'back to the map', 'go back', 'leave')) {
+          exitToMap();
+          return 'Back to the Solar System';
+        }
+        if (has(t, 'next map', 'next layer')) {
+          stepLayer(1);
+          return 'Map: ' + ($('cap').textContent || '');
+        }
+        if (has(t, 'previous map', 'previous layer', 'last map')) {
+          stepLayer(-1);
+          return 'Map: ' + ($('cap').textContent || '');
+        }
+        let m = t.match(/brightness (\d{2,3})/);
+        if (m) return 'Brightness ' + setBright(+m[1]) + '%';
+        if (has(t, 'normal brightness', 'reset brightness')) return 'Brightness ' + setBright(100) + '%';
+        if (has(t, 'brighter', 'more light', 'lighter')) return 'Brightness ' + setBright(BRI + 20) + '%';
+        if (has(t, 'darker', 'dimmer', 'less light')) return 'Brightness ' + setBright(BRI - 20) + '%';
+        if (has(t, 'zoom in', 'closer')) {
+          zoom(0.7);
+          return 'Zoomed in';
+        }
+        if (has(t, 'zoom out', 'further', 'farther')) {
+          zoom(1 / 0.7);
+          return 'Zoomed out';
+        }
+        const TG = [
+          [['grid'], 'gridT', 'Lat/lon grid'],
+          [['site names', 'all names'], 'namesT', 'All site names'],
+          [['names', 'labels', 'feature names'], 'featT', 'Feature names'],
+          [['sunlight', 'sun light', 'lighting'], 'sunT', 'Sunlight'],
+          [['spin', 'rotation', 'spinning'], 'spinT', 'Spin'],
+          [['flights', 'planes', 'aircraft'], 'liveFl', 'Live flights'],
+          [['satellites'], 'liveSat', 'Satellites'],
+          [['asteroids', 'asteroid belt'], 'mapBelt', 'Asteroids'],
+        ];
+        for (const [w, id, label] of TG) if (has(t, ...w) && $(id)) return toggle(t, $(id), label);
+        if (has(t, 'hand control', 'hands')) {
+          $(FS && MODE === 'map' ? 'mapHand' : 'handBtn').click();
+          return 'Hand control';
+        }
+        const WB = [...document.querySelectorAll('#warp button')],
+          wi = WB.findIndex((b) => b.getAttribute('aria-pressed') === 'true');
+        if (has(t, 'pause', 'freeze')) {
+          WB.find((b) => +b.dataset.w === 0).click();
+          return 'Paused';
+        }
+        if (has(t, 'play', 'resume', 'real time')) {
+          WB.find((b) => +b.dataset.w > 0 && +b.dataset.w < 0.001).click();
+          return 'Real time';
+        }
+        if (has(t, 'faster', 'speed up')) {
+          const b = WB[Math.min(WB.length - 1, Math.max(wi + 1, WB.findIndex((x) => +x.dataset.w > 0)))];
+          b.click();
+          return 'Time: ' + b.textContent.trim();
+        }
+        if (has(t, 'slower', 'slow down')) {
+          const b = WB[Math.max(0, wi - 1)];
+          b.click();
+          return 'Time: ' + b.textContent.trim();
+        }
+        if (has(t, 'today', 'right now')) {
+          $('mapNow').click();
+          return 'Today';
+        }
+        // a map layer of this world, by name ("show gravity"), before world names, so "show topography" isn't read as a world
+        const w = worlds().find((x) => x.name && x.re.test(t)),
+          lb = layerFor(t);
+        if (lb && (!w || w.id === current)) {
+          lb.click();
+          return 'Map: ' + ($('cap').textContent || lb.textContent);
+        }
+        if (w) {
+          if (view() === 'map' && !FS) enterGlobe(w.id);
+          else go(w.id);
+          return 'Going to ' + w.name.replace(/\b\w/g, (c) => c.toUpperCase());
+        }
+        return { html: `Didn’t catch a command in “${esc(raw.trim())}”. Say <b>“Atlas, help”</b> for the list.`, err: true };
+      }
+      function heard(text) {
+        let cmd = null;
+        const m = text.match(WAKE);
+        if (m) cmd = text.slice(m.index + m[0].length);
+        else if (performance.now() < armedUntil) cmd = text;
+        else return; // not for the atlas
+        armedUntil = 0;
+        if (!cmd.trim()) {
+          armedUntil = performance.now() + 7000;
+          pill('🎤', 'Listening…', 'armed', true);
+          return;
+        }
+        const r = run(cmd);
+        if (!r) return;
+        if (typeof r === 'string') pill('✓', esc(r));
+        else {
+          pill(r.err ? '?' : '🎤', r.html, r.err ? 'err' : '');
+          if (r.keep) {
+            clearTimeout(pillT);
+            pillT = setTimeout(idle, r.keep);
+          }
+        }
+      }
+      async function start() {
+        if (!SR) {
+          pill('🎤', 'Voice commands need Chrome, Edge or Safari.', 'err');
+          return;
+        }
+        rec = new SR();
+        rec.lang = 'en-US';
+        rec.continuous = true;
+        rec.interimResults = false;
+        rec.maxAlternatives = 1;
+        // prefer recognition on this device when the browser has it
+        local = false;
+        try {
+          if (SR.available && 'processLocally' in rec) {
+            const a = await SR.available({ langs: ['en-US'], processLocally: true });
+            if (a === 'available') local = rec.processLocally = true;
+            else if (a === 'downloadable' && SR.install) SR.install({ langs: ['en-US'], processLocally: true }).catch(() => {});
+          }
+        } catch (e) {}
+        rec.onresult = (e) => {
+          fails = 0;
+          for (let i = e.resultIndex; i < e.results.length; i++) if (e.results[i].isFinal) heard(e.results[i][0].transcript);
+        };
+        rec.onerror = (e) => {
+          if (e.error === 'not-allowed' || e.error === 'service-not-allowed') {
+            stop();
+            pill(
+              '🎤',
+              window.parent !== window
+                ? 'The microphone is blocked inside this preview. Open the atlas on its GitHub page to use voice commands.'
+                : 'The microphone is blocked. Allow it for this site in the browser’s address bar, then press 🎤 Voice again.',
+              'err',
+            );
+          } else if (e.error === 'network') pill('🎤', 'The browser’s speech service can’t be reached. Check the connection.', 'err');
+          else if (e.error === 'language-not-supported') {
+            stop();
+            pill('🎤', 'This browser can’t recognise English speech.', 'err');
+          }
+        };
+        rec.onend = () => {
+          if (!on) return;
+          // the browser stops listening after a pause; start again, unless it keeps failing straight away
+          if (performance.now() - lastStart < 1500 && ++fails > 4) {
+            stop();
+            pill('🎤', 'Voice commands keep stopping in this browser. Press 🎤 Voice to try again.', 'err');
+            return;
+          }
+          setTimeout(() => {
+            if (!on) return;
+            try {
+              lastStart = performance.now();
+              rec.start();
+            } catch (er) {}
+          }, 250);
+        };
+        on = true;
+        $('voiceBtn').setAttribute('aria-pressed', 'true');
+        $('voiceBtn').textContent = '🎤 Listening';
+        try {
+          lastStart = performance.now();
+          rec.start();
+        } catch (e) {}
+        pill(
+          '🎤',
+          `Say <b>“Atlas”</b>, then a command, e.g. <b>“Atlas, show Mars”</b> or <b>“Atlas, next map”</b>. ${local ? 'Speech is recognised on this device.' : 'Your browser’s speech service turns speech into text; the atlas keeps nothing.'}`,
+          '',
+          false,
+        );
+        clearTimeout(pillT);
+        pillT = setTimeout(idle, 9000);
+      }
+      function stop() {
+        on = false;
+        armedUntil = 0;
+        $('voiceBtn').setAttribute('aria-pressed', 'false');
+        $('voiceBtn').textContent = '🎤 Voice';
+        if (rec)
+          try {
+            rec.abort();
+          } catch (e) {}
+        rec = null;
+        $('voicePill').hidden = true;
+      }
+      $('voiceBtn').onclick = () => (on ? stop() : start());
+      window.atlasVoice = run; // for testing: run a command as if it was spoken after the wake word
+      window.atlasHeard = heard;
+    }
     // ---------- hand control (camera + MediaPipe hand tracking, all on this computer) ----------
     {
       let stream = null,
@@ -8115,7 +8520,7 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
       }
       const showHelp = () => {
         hmsg(
-          `<b>Move your open hand</b> and the cursor follows; it snaps onto planets and buttons. <b>Pinch</b> (thumb to index finger) to press: the gold ring fills as your fingers close. ${V === VIEWS.map ? '<b>Pinch a planet or moon to land on it</b>, or pinch and hold on it for half a second. ' : '<b>↑ Solar System</b> at the top takes you back out. '}<b>Pinch on empty space and move</b> to turn the view. <b>To zoom</b>, hold a pinch on <b>＋ or −</b> at the top, or pinch with both hands and pull them apart or push them together. Hovering on a top button for a second also presses it. <button type='button' id='handHide' class='linkish'>Hide tips</button>`,
+          `<b>Move your open hand</b> and the cursor follows; it snaps onto planets and buttons. <b>Pinch</b> (thumb to index finger) to press: the gold ring fills as your fingers close. ${V === VIEWS.map ? '<b>Pinch a planet or moon to land on it</b>, or pinch and hold on it for half a second. ' : '<b>‹ 🗺 ›</b> at the top change the map; <b>↑ Solar System</b> takes you back out. '}<b>Pinch on empty space and move</b> to turn the view. <b>To zoom</b>, hold a pinch on <b>＋ or −</b> at the top, or pinch with both hands and pull them apart or push them together. Hovering on a top button for a second also presses it. 🎯 Adaptive aim learns as you go: if a button takes a few tries, it gets easier to grab${ADAPT.trained ? '' : ", and a one-minute <a href='https://tbirdpower3000.github.io/hand-control-training/'>training session</a> teaches it your reach and pinch"}. <button type='button' id='handHide' class='linkish'>Hide tips</button>`,
         );
         const h = $('handHide');
         if (h) h.addEventListener('click', () => hmsg(''));
@@ -8134,8 +8539,34 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
         if (ac && ac.state === 'suspended') ac.resume();
         return ac;
       }
+      // one soft mallet note: a warm fundamental with a quiet octave and a little attack, fading like a marimba key
+      function mallet(f, at, vol, dur) {
+        if (!sndOn || !ac) return;
+        const t = ac.currentTime + (at || 0);
+        [
+          [1, 1, dur || 0.5],
+          [2, 0.22, (dur || 0.5) * 0.5],
+          [3.99, 0.06, 0.12],
+        ].forEach(([m, a, d]) => {
+          const o = ac.createOscillator(),
+            g = ac.createGain();
+          o.type = m === 1 ? 'triangle' : 'sine';
+          o.frequency.value = f * m;
+          g.gain.setValueAtTime(0, t);
+          g.gain.linearRampToValueAtTime((vol || 0.1) * a, t + 0.008);
+          g.gain.exponentialRampToValueAtTime(0.0001, t + d);
+          o.connect(g).connect(ac.destination);
+          o.start(t);
+          o.stop(t + d + 0.05);
+        });
+      }
       function chime(up) {
         if (!sndOn || !ac) return;
+        // grab: a soft two-note lift (G5 then C6); let go: the same two notes falling
+        const [a, b] = up ? [783.99, 1046.5] : [1046.5, 783.99];
+        mallet(a, 0, 0.09, 0.4);
+        mallet(b, 0.07, 0.07, 0.5);
+        return;
         const t = ac.currentTime,
           f0 = up ? 880 : 523.25;
         [
@@ -8186,6 +8617,10 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
       }
       function outSound() {
         if (!sndOn || !ac) return;
+        // the hand left the picture: two gentle falling notes, E5 then C5
+        mallet(659.25, 0, 0.07, 0.45);
+        mallet(523.25, 0.14, 0.06, 0.6);
+        return;
         const t = ac.currentTime;
         [
           [587.33, 0],
@@ -8208,6 +8643,9 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
         missN = 0;
       function chord() {
         if (!sndOn || !ac) return;
+        // landing on a world: a rising pentatonic arpeggio, C E G A C, like a music box
+        [523.25, 659.25, 783.99, 880, 1046.5].forEach((f, i) => mallet(f, i * 0.09, 0.08, 1.1));
+        return;
         const t = ac.currentTime;
         [523.25, 659.25, 783.99, 1046.5].forEach((f, i) => {
           const o = ac.createOscillator(),
@@ -8301,6 +8739,7 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
         paused = false;
         $('handBox').style.opacity = '';
         $('handSnd').hidden = true;
+        $('handAssist').hidden = true;
         cancelAnimationFrame(raf);
         goal = null;
         zoomRate = 0;
@@ -8378,10 +8817,404 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
         useView(k);
         setBtn(true);
         $('handSnd').hidden = false;
+        $('handAssist').hidden = false;
         showHelp();
         handLoop();
       }
       const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
+      // ---- the hand as a plane (multivariable calculus): the palm's centroid, its unit normal from the cross product of two palm
+      // edges, an in-plane frame (u toward the middle finger, v = n × u) and the palm length as the scale. Measured in MediaPipe's
+      // world landmarks (metres, centred on the hand) when they're there, so a pinch reads the same near or far and turned or flat.
+      const V3 = {
+        sub: (a, b) => ({ x: a.x - b.x, y: a.y - b.y, z: (a.z || 0) - (b.z || 0) }),
+        dot: (a, b) => a.x * b.x + a.y * b.y + a.z * b.z,
+        cross: (a, b) => ({ x: a.y * b.z - a.z * b.y, y: a.z * b.x - a.x * b.z, z: a.x * b.y - a.y * b.x }),
+        len: (a) => Math.hypot(a.x, a.y, a.z),
+        unit: (a) => {
+          const l = Math.hypot(a.x, a.y, a.z) || 1e-9;
+          return { x: a.x / l, y: a.y / l, z: a.z / l };
+        },
+        scale: (a, k) => ({ x: a.x * k, y: a.y * k, z: a.z * k }),
+      };
+      function handPlane(Pt, side) {
+        const ids = [0, 5, 9, 13, 17],
+          o = ids.reduce((s, i) => ({ x: s.x + Pt[i].x / 5, y: s.y + Pt[i].y / 5, z: s.z + (Pt[i].z || 0) / 5 }), { x: 0, y: 0, z: 0 });
+        let n = V3.unit(V3.cross(V3.sub(Pt[5], Pt[0]), V3.sub(Pt[17], Pt[0])));
+        if (side === 'Left') n = V3.scale(n, -1); // a left hand is a mirror image: flip so n always points out of the palm
+        const m = V3.sub(Pt[9], Pt[0]),
+          s = V3.len(m) || 1e-6,
+          u = V3.unit(V3.sub(m, V3.scale(n, V3.dot(m, n)))), // the wrist-to-middle-knuckle direction, projected into the plane
+          v = V3.cross(n, u);
+        // a point in the hand's own coordinates: across the palm, along it, and out of it, in palm lengths
+        const local = (p) => {
+          const d = V3.sub(p, o);
+          return { x: V3.dot(d, v) / s, y: V3.dot(d, u) / s, z: V3.dot(d, n) / s };
+        };
+        // how far the palm's long axis tilts out of the picture: its apparent length shrinks by the cosine of that angle
+        const tiltOut = Math.asin(Math.min(0.95, Math.abs(V3.unit(m).z)));
+        return { o, n, u, v, s, local, tiltOut };
+      }
+      // ---- adaptive aim: learns separately for each hand, from how you actually do, and checks its own changes
+      const ADAPT = (() => {
+        const BASE = { snap: 28, minCut: 0.8, beta: 3, pOn: 0.3, pOff: 0.48 },
+          BASE_REACH = { x0: 0.22, xs: 0.56, y0: 0.18, ys: 0.52 };
+        const mk = () => ({ k: Object.assign({}, BASE), reach: Object.assign({}, BASE_REACH), sizeRef: null, trained: null });
+        let on = true,
+          H = { Left: mk(), Right: mk() },
+          side = 'Right',
+          trained = null;
+        const cur = () => H[side];
+        const okReach = (r) => r && ['x0', 'xs', 'y0', 'ys'].every((n) => isFinite(r[n]));
+        // the profile: what it learned for each hand, plus what the training page measured (training.html)
+        function load(v) {
+          if (!v) return;
+          if (v.on === false) on = false;
+          const put = (h, src) => {
+            if (!src) return;
+            if (src.k) Object.keys(BASE).forEach((n) => isFinite(src.k[n]) && (h.k[n] = +src.k[n]));
+            if (okReach(src.reach)) h.reach = Object.assign({}, src.reach);
+            if (isFinite(src.sizeRef) && src.sizeRef > 0) h.sizeRef = +src.sizeRef;
+            if (src.trained) h.trained = src.trained;
+          };
+          if (v.hands) ['Left', 'Right'].forEach((sd) => put(H[sd], v.hands[sd]));
+          else {
+            // an older one-hand profile: it applies to the hand it was trained with, or to both
+            const sd = v.hand === 'left' ? ['Left'] : v.hand === 'right' ? ['Right'] : ['Left', 'Right'];
+            sd.forEach((x) => put(H[x], v));
+          }
+          trained = v.trained || H.Right.trained || H.Left.trained || null;
+        }
+        try {
+          load(JSON.parse(localStorage.getItem('atlasHandAssist') || 'null'));
+        } catch (e) {}
+        // the shared starting settings built from results people chose to share from the training page; only used once at
+        // least 10 results are in, and only for a hand with no training of its own (your own profile always wins)
+        const untouched = (h) => !h.trained && Object.keys(BASE).every((n) => h.k[n] === BASE[n]);
+        fetch('https://tbirdpower3000.github.io/hand-control-training/data/defaults.json', { cache: 'no-cache' })
+          .then((r) => (r.ok ? r.json() : null))
+          .then((d) => {
+            const g = d && d.format === 'hand-control-defaults' && d.groups && d.groups.all;
+            if (!g || !(g.n >= 10)) return;
+            ['Left', 'Right'].forEach((sd) => {
+              if (!untouched(H[sd])) return;
+              Object.keys(BASE).forEach((n) => isFinite(g[n]) && (H[sd].k[n] = Math.max(LIM[n][0], Math.min(LIM[n][1], +g[n]))));
+            });
+            apply();
+          })
+          .catch(() => {});
+        const LIM = { snap: [28, 72], minCut: [0.25, 0.8], beta: [1, 3], pOn: [0.24, 0.3], pOff: [0.48, 0.6] };
+        const clamp = (n, v) => Math.max(LIM[n][0], Math.min(LIM[n][1], v));
+        let saveT = 0,
+          noteT = -1e9;
+        const save = () => {
+          clearTimeout(saveT);
+          saveT = setTimeout(() => {
+            try {
+              localStorage.setItem('atlasHandAssist', JSON.stringify({ v: 2, on, hands: H, k: H.Right.k, reach: H.Right.trained ? H.Right.reach : null, trained }));
+            } catch (e) {}
+          }, 1500);
+        };
+        // a short note when it changes something, at most every 20 s; it never asks you anything
+        function note(t, force) {
+          const now = performance.now();
+          if (!force && now - noteT < 20000) return;
+          noteT = now;
+          const m = $('handMsg');
+          if (!m.hidden && m.textContent.length > 160 && !m.textContent.startsWith('🎯')) return; // the tips are showing: don't cover them
+          hmsg('🎯 ' + t);
+          setTimeout(() => $('handMsg').textContent.startsWith('🎯') && hmsg(''), 4000);
+        }
+        // ---- checking itself: every change is a trial. It compares your next six presses with the eight before it
+        // (tries per press × time per press); if they got worse by more than 15%, the change is undone and that kind of change rests.
+        const perf = [],
+          rest = {};
+        let trial = null;
+        const score = (L) => {
+          if (L.length < 3) return null;
+          const tries = L.reduce((a, p) => a + p.tries, 0) / L.length,
+            ms = [...L].map((p) => p.ms).sort((a, b) => a - b)[Math.floor(L.length / 2)];
+          return tries * (ms + 500);
+        };
+        function judge(now) {
+          if (!trial) return;
+          const after = perf.filter((p) => p.t > trial.t0 && p.side === trial.side);
+          if (after.length < 6) {
+            if (now - trial.t0 > 180000) trial = null; // too few presses to tell: keep it
+            return;
+          }
+          const a = score(after);
+          if (trial.before != null && a != null && a > trial.before * 1.15) {
+            H[trial.side].k = trial.prev;
+            rest[trial.cause] = now + 180000;
+            apply();
+            save();
+            note('That last change didn’t help, so it’s undone.', true);
+          }
+          trial = null;
+        }
+        function nudge(ch, why, cause) {
+          if (!on) return;
+          const now = performance.now();
+          if (cause && now < (rest[cause] || 0)) return;
+          if (trial && cause) return; // one experiment at a time
+          const h = cur(),
+            prev = Object.assign({}, h.k);
+          let moved = false;
+          Object.entries(ch).forEach(([n, d]) => {
+            const v = clamp(n, h.k[n] + d);
+            if (Math.abs(v - h.k[n]) > 1e-6) moved = true;
+            h.k[n] = v;
+          });
+          if (!moved) return;
+          apply();
+          save();
+          if (why) {
+            trial = { cause, prev, side, t0: now, before: score(perf.filter((p) => p.side === side).slice(-8)) };
+            note(why);
+          }
+        }
+        // ---- which hand: MediaPipe names it (on the unmirrored camera picture it names your own hand); it switches after
+        // most of the last dozen frames agree, so a single wrong label doesn't flip your settings
+        const votes = [];
+        function see(label) {
+          if (label !== 'Left' && label !== 'Right') return;
+          votes.push(label);
+          if (votes.length > 12) votes.shift();
+          const n = votes.filter((x) => x !== side).length;
+          if (votes.length >= 8 && n >= 9) {
+            side = side === 'Left' ? 'Right' : 'Left';
+            votes.length = 0;
+            sizeAvg = null;
+            apply();
+            note(`${side} hand: using its own settings.`, true);
+          }
+        }
+        // ---- distance: how big the palm looks, corrected for tilt; when you sit further back than when it learned your reach,
+        // the reach box shrinks with your hand so the cursor still crosses the whole screen
+        let sizeAvg = null,
+          sizeT = 0;
+        const firstSizes = [];
+        function size(a, now) {
+          if (!(a > 0)) return;
+          const dt = Math.min(0.2, (now - (sizeT || now)) / 1000);
+          sizeT = now;
+          sizeAvg = sizeAvg == null ? a : sizeAvg + (a - sizeAvg) * (1 - Math.exp(-dt / 1.5));
+          const h = cur();
+          if (!h.sizeRef) {
+            // no reference yet: take the first few seconds of this hand as it
+            firstSizes.push(a);
+            if (firstSizes.length >= 60) {
+              h.sizeRef = [...firstSizes].sort((x, y) => x - y)[30];
+              firstSizes.length = 0;
+              save();
+            }
+          }
+        }
+        function reachNow() {
+          const h = cur(),
+            r = on ? h.reach : BASE_REACH;
+          if (!on || !h.sizeRef || !sizeAvg) return r;
+          const f = Math.max(0.6, Math.min(1.6, sizeAvg / h.sizeRef)),
+            cx = r.x0 + r.xs / 2,
+            cy = r.y0 + r.ys / 2,
+            xs = Math.min(1, r.xs * f),
+            ys = Math.min(1, r.ys * f);
+          return { x0: cx - xs / 2, xs, y0: cy - ys / 2, ys };
+        }
+        // ---- steadiness: how far the cursor wobbles around where it is heading, measured while it is nearly still
+        let sx = null,
+          sy = null,
+          tre = 0,
+          tLast = 0,
+          steadyT = 0,
+          shakyT = 0;
+        function frame(now, x, y, mode) {
+          const dt = Math.min(0.1, (now - (tLast || now)) / 1000);
+          tLast = now;
+          if (sx === null) {
+            sx = x;
+            sy = y;
+            return;
+          }
+          const a = 1 - Math.exp(-dt / 0.35);
+          sx += (x - sx) * a;
+          sy += (y - sy) * a;
+          const off = Math.hypot(x - sx, y - sy);
+          if (mode !== 'idle' || off > 60) return; // moving on purpose, or pinching
+          tre += (off - tre) * (1 - Math.exp(-dt / 1.2));
+          if (tre > 7) {
+            steadyT = 0;
+            if ((shakyT += dt) > 2) {
+              shakyT = 0;
+              nudge({ minCut: -0.1, beta: -0.3, snap: 4 }, 'Smoothing the cursor: it was wobbling a lot.', 'smooth');
+            }
+          } else if (tre < 3) {
+            shakyT = 0;
+            if ((steadyT += dt) > 20) {
+              steadyT = 0;
+              nudge({ minCut: 0.05, beta: 0.15 }); // steady for a while: ease back so the cursor stays quick
+            }
+          }
+        }
+        // ---- tries: arriving at a button (coming close from further away, landing on it, or overshooting it: the distance's
+        // rate of change flips from approaching to receding while close) without pressing it. A normal press is about two;
+        // five within six seconds means you keep coming back.
+        const T = new Map(); // button -> { st, back: [arrival times], boostUntil, d, v, t }
+        const tr = (b) => T.get(b) || (T.set(b, { st: 0, back: [], boostUntil: 0, d: null, v: 0, t: 0 }), T.get(b));
+        const arrive = (b, t, now) => {
+          t.back = t.back.filter((w) => now - w < 6000);
+          t.back.push(now);
+          if (t.back.length >= 5) struggle(b, now);
+        };
+        function sample(now, x, y, hv, btns) {
+          let nb = null,
+            nd = 1e9;
+          btns.forEach((b) => {
+            const r = b.getBoundingClientRect(),
+              d = Math.hypot(Math.max(r.left - x, 0, x - r.right), Math.max(r.top - y, 0, y - r.bottom));
+            if (d < nd) {
+              nd = d;
+              nb = b;
+            }
+          });
+          T.forEach((t, b) => {
+            if (b !== nb) {
+              t.st = 0;
+              t.d = null;
+            }
+          });
+          if (!nb) return;
+          const t = tr(nb),
+            snap = cur().k.snap,
+            st = hv && hv.btn === nb ? 2 : nd < snap * 3 ? 1 : 0;
+          if ((st === 2 && t.st !== 2) || (st === 1 && t.st === 0)) arrive(nb, t, now);
+          // dd/dt of the distance to the button: approaching then receding near it is an overshoot
+          if (t.d != null && now > t.t) {
+            const v = (nd - t.d) / ((now - t.t) / 1000);
+            if (t.v < -60 && v > 60 && nd < snap * 3 && st !== 2) arrive(nb, t, now);
+            t.v = v;
+          }
+          t.d = nd;
+          t.t = now;
+          t.st = st;
+        }
+        function struggle(b, now) {
+          const t = tr(b);
+          t.back = [];
+          t.boostUntil = now + 20000;
+          nudge({ snap: 6 }, `Making buttons easier to grab: you came back to “${esc(b.textContent.trim().slice(0, 24))}” a few times.`, 'snap');
+        }
+        // a press that lands just beside a button counts as missed tries at it
+        function missPress(now, x, y, btns) {
+          let nb = null,
+            nd = 1e9;
+          btns.forEach((b) => {
+            const r = b.getBoundingClientRect(),
+              d = Math.hypot(Math.max(r.left - x, 0, x - r.right), Math.max(r.top - y, 0, y - r.bottom));
+            if (d < nd) {
+              nd = d;
+              nb = b;
+            }
+          });
+          if (!nb || nd > cur().k.snap * 3) return;
+          const t = tr(nb);
+          arrive(nb, t, now);
+          arrive(nb, t, now);
+        }
+        function success(b, now) {
+          const t = tr(b),
+            tries = Math.max(1, Math.ceil(t.back.length / 2)),
+            ms = t.back.length ? now - t.back[0] : 0;
+          perf.push({ t: now, side, tries, ms });
+          if (perf.length > 200) perf.shift();
+          if (t.back.length <= 2 && now > t.boostUntil) nudge({ snap: -1 }); // got it first time: give a little of the help back
+          t.back = [];
+          judge(now);
+        }
+        // pinches that switch on and off within a moment: the fingers hover near the threshold, so widen the gap
+        let lastOn = 0,
+          flicks = [];
+        function pinchEdge(isOn, now) {
+          if (isOn) lastOn = now;
+          else if (now - lastOn < 160) {
+            flicks = flicks.filter((w) => now - w < 10000);
+            flicks.push(now);
+            if (flicks.length >= 3) {
+              flicks = [];
+              nudge({ pOn: -0.02, pOff: 0.04 }, 'Steadier pinch: your pinches were flickering on and off.', 'pinch');
+            }
+          }
+        }
+        const extra = (b) => {
+          const t = T.get(b);
+          return on && t && performance.now() < t.boostUntil ? 16 : 0;
+        };
+        function apply() {
+          const k = on ? cur().k : BASE;
+          [R, R2].forEach((h) => {
+            if (!h) return;
+            [h.fx, h.fy].forEach((f) => {
+              f.minCut = k.minCut;
+              f.beta = k.beta;
+            });
+          });
+        }
+        function setOn(v) {
+          on = v;
+          if (!on) {
+            H = { Left: mk(), Right: mk() };
+            T.clear();
+            trial = null;
+          }
+          apply();
+          save();
+          $('handAssist').setAttribute('aria-pressed', on);
+          $('handAssist').textContent = on ? '🎯 Adaptive aim' : '🎯 Adaptive aim: off';
+        }
+        return {
+          frame,
+          sample,
+          missPress,
+          success,
+          pinchEdge,
+          see,
+          size,
+          reachNow,
+          apply,
+          setOn,
+          get on() {
+            return on;
+          },
+          get side() {
+            return side;
+          },
+          snapFor: (b) => (on ? cur().k.snap : BASE.snap) + extra(b),
+          get reach() {
+            return reachNow();
+          },
+          get trained() {
+            return trained;
+          },
+          get hands() {
+            return H;
+          },
+          // a profile file downloaded from the training page
+          useProfile(v) {
+            on = true;
+            H = { Left: mk(), Right: mk() };
+            load(v);
+            apply();
+            save();
+            setOn(on);
+          },
+          get pOn() {
+            return on ? cur().k.pOn : BASE.pOn;
+          },
+          get pOff() {
+            return on ? cur().k.pOff : BASE.pOff;
+          },
+        };
+      })();
       class OneEuro {
         constructor(minCut = 1.0, beta = 4, dCut = 1.0) {
           this.minCut = minCut;
@@ -8434,10 +9267,18 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
           this.prev = null;
           this.p = 0;
         }
-        update(L, t) {
-          // thumb tip to index tip, in palm lengths and in 3D, so turning the hand doesn't fake or break a pinch; other fingers can do anything
-          const pr = this.fp.f(d3(L[4], L[8]) / (d3(L[0], L[9]) || 1e-3), t);
-          if (this.pinchOn ? pr > 0.48 : pr < 0.3) this.pinchOn = !this.pinchOn;
+        update(L, t, W, side) {
+          // thumb tip to index tip, in palm lengths and in 3D (world landmarks in metres when there are any), so turning the hand
+          // or moving nearer the camera doesn't fake or break a pinch; other fingers can do anything
+          const Q = W && W.length === 21 ? W : L;
+          const pr = this.fp.f(d3(Q[4], Q[8]) / (d3(Q[0], Q[9]) || 1e-3), t);
+          this.plane = handPlane(Q, side);
+          // how big the palm looks on camera, divided by the cosine of its tilt out of the picture: a distance gauge
+          this.size = Math.hypot(L[9].x - L[0].x, L[9].y - L[0].y) / Math.cos(this.plane.tiltOut);
+          if (this.pinchOn ? pr > ADAPT.pOff : pr < ADAPT.pOn) {
+            this.pinchOn = !this.pinchOn;
+            if (this === R) ADAPT.pinchEdge(this.pinchOn, t);
+          }
           this.p = Math.max(0, Math.min(1, (0.75 - pr) / 0.45)); // how close the fingers are to a pinch, for the meter on the cursor
           // the cursor follows the wrist and knuckles, which barely move when you pinch, so pressing doesn't knock it off target
           const ax = (L[0].x + L[5].x + L[9].x + L[13].x + L[17].x) / 5,
@@ -8457,6 +9298,18 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
       }
       const R = new HandState(),
         R2 = new HandState();
+      ADAPT.apply();
+      ADAPT.setOn(ADAPT.on);
+      window.atlasAdapt = ADAPT; // for testing
+      $('handAssist').onclick = () => {
+        ADAPT.setOn(!ADAPT.on);
+        hmsg(
+          ADAPT.on
+            ? '🎯 Adaptive aim is on: it learns from your movements and makes buttons easier to hit when you’re having trouble.'
+            : '🎯 Adaptive aim is off, and what it learned is reset.',
+        );
+        setTimeout(() => $('handMsg').textContent.startsWith('🎯') && hmsg(''), 4000);
+      };
       let goal = null,
         zoomRate = 0,
         anchor = null,
@@ -8486,8 +9339,9 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
       function placeCursor(g) {
         const r = V.stage.getBoundingClientRect(),
           clamp = (v) => Math.max(0, Math.min(1, v));
-        cx = r.left + clamp((1 - g.x - 0.22) / 0.56) * r.width;
-        cy = r.top + clamp((g.y - 0.18) / 0.52) * r.height;
+        const q = ADAPT.reach; // your comfortable area of the camera view, from training (or the default)
+        cx = r.left + clamp((1 - g.x - q.x0) / q.xs) * r.width;
+        cy = r.top + clamp((g.y - q.y0) / q.ys) * r.height;
       }
       function drawCursor(x, y) {
         CUR.style.left = x + 'px';
@@ -8508,18 +9362,22 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
           ...V.stage.querySelectorAll('button:not([hidden])'),
         ].filter((b) => !b.disabled && b.offsetParent !== null && getComputedStyle(b).visibility !== 'hidden');
         let best = null,
-          bd = 1e9;
+          bd = 1e9,
+          bs = 1e9;
         btns.forEach((b) => {
           const r = b.getBoundingClientRect(),
             dx = Math.max(r.left - x, 0, x - r.right),
             dy = Math.max(r.top - y, 0, y - r.bottom),
-            d = Math.hypot(dx, dy);
-          if (d < bd) {
+            d = Math.hypot(dx, dy),
+            sc = d - ADAPT.snapFor(b); // the button with the most reach to spare wins
+          if (sc < bs) {
+            bs = sc;
             bd = d;
             best = b;
           }
         });
-        if (best && bd < 28) {
+        hoverAt.btns = btns;
+        if (best && bd < ADAPT.snapFor(best)) {
           const [bx, by] = center(best);
           return { btn: best, label: best.textContent.trim().slice(0, 28), x: bx, y: by };
         }
@@ -8534,6 +9392,9 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
       let tap0 = null,
         lastTap = null;
       function tick() {
+        // a press: one soft high wooden tap
+        mallet(1318.5, 0, 0.07, 0.18);
+        return;
         if (!sndOn || !ac) return;
         const t = ac.currentTime,
           o = ac.createOscillator(),
@@ -8549,6 +9410,8 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
       }
       function click(hv, now) {
         tick();
+        if (hv && hv.btn) ADAPT.success(hv.btn, now);
+        else ADAPT.missPress(now, cx, cy, hoverAt.btns || []);
         if (!hv) return;
         if (hv.btn) {
           const id = hv.btn.id;
@@ -8658,7 +9521,12 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
         if (!landmarker || v.readyState < 2 || v.currentTime === lastT) return;
         lastT = v.currentTime;
         const r = landmarker.detectForVideo(v, now),
-          Ls = (r.landmarks || []).slice(0, 2).sort((a, b) => palmPt(b).x - palmPt(a).x); // left to right as you see yourself
+          // each hand with its world landmarks and which hand MediaPipe says it is, then left to right as you see yourself
+          HH = (r.landmarks || [])
+            .slice(0, 2)
+            .map((L, i) => ({ L, W: (r.worldLandmarks || [])[i], side: (((r.handedness || r.handednesses || [])[i] || [])[0] || {}).categoryName }))
+            .sort((a, b) => palmPt(b.L).x - palmPt(a.L).x),
+          Ls = HH.map((h) => h.L);
         if (!Ls.length && handLoop.n && now - missN < 300) return; // a dropout under 0.3 s keeps the gesture going
         if (Ls.length !== (handLoop.n || 0)) {
           R.reset();
@@ -8669,8 +9537,10 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
           zoomRate = 0;
           handLoop.n = Ls.length;
         }
-        const hands = Ls.map((L, i) => ({ L, st: i ? R2 : R }));
+        const hands = HH.map((h, i) => ({ L: h.L, W: h.W, side: h.side, st: i ? R2 : R }));
         drawHand(hands);
+        $('handBox').classList.toggle('lost', !hands.length);
+        $('handBox').classList.toggle('busy', hands.length > 0 && (R.mode === 'pinch' || (hands.length === 2 && !!zoom0)));
         if (!hands.length) {
           CUR.hidden = true;
           toneStop();
@@ -8685,8 +9555,8 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
         if (hands.length === 2) {
           CUR.hidden = true;
           tap0 = null;
-          R.update(hands[0].L, now);
-          R2.update(hands[1].L, now);
+          R.update(hands[0].L, now, hands[0].W, hands[0].side);
+          R2.update(hands[1].L, now, hands[1].W, hands[1].side);
           const gr = (m) => m === 'pinch';
           if (gr(R.mode) && gr(R2.mode)) {
             const d = dist(palmPt(hands[0].L), palmPt(hands[1].L));
@@ -8710,13 +9580,17 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
         // one hand: cursor, taps and grab-to-turn
         clapN = 0;
         zoom0 = null;
-        const { g, changed } = R.update(hands[0].L, now);
+        ADAPT.see(hands[0].side);
+        const { g, changed } = R.update(hands[0].L, now, hands[0].W, ADAPT.side);
+        ADAPT.size(R.size, now);
         CUR.hidden = false;
         placeCursor(g);
         if (now - (handLoop.ht || 0) > 90) {
           handLoop.ht = now;
           handLoop.hv = hoverAt(cx, cy);
+          if (R.mode === 'idle') ADAPT.sample(now, cx, cy, handLoop.hv, hoverAt.btns || []);
         } // hover-test about ten times a second; aiming into the globe is costly
+        ADAPT.frame(now, cx, cy, R.mode);
         const hv = handLoop.hv,
           sx = hv && hv.x != null ? hv.x : cx,
           sy = hv && hv.y != null ? hv.y : cy;
