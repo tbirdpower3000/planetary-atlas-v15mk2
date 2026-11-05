@@ -1,10 +1,10 @@
-# Planetary Modeling Atlas · v15mk2.34
+# Planetary Modeling Atlas · v15mk2.35
 
 **This is not my data.** None of the maps, gravity models, images or coordinates in this repository were made by me, and I make no claim of ownership over them. They were produced by NASA, ESA, JPL, USGS, the IAU and the researchers and artists credited below. This repository holds reformatted copies of their published work, so that the Planetary Modeling Atlas (a personal, non-commercial viewer) can load it from the web.
 
 ## The atlas
 
-`index.html` is the Planetary Modeling Atlas, version **v15mk2.34**, built with Claude. It is v15 (the Solar System map and globes in one view, real lighting and spin, and hand control on a planet's globe) with these added:
+`index.html` is the Planetary Modeling Atlas, version **v15mk2.35**, built with Claude. It is v15 (the Solar System map and globes in one view, real lighting and spin, and hand control on a planet's globe) with these added:
 
 - Earth's photo layers: Visible colour, Visible colour with clouds, and Night lights.
 - Earth by night: a moonlit blue night side, warm city lights that dim under clouds, an orange band at dusk, and a thin atmosphere at the edge of the photo layers.
@@ -51,6 +51,7 @@ The live layers come straight from their providers in your browser, not from thi
 - **v15mk2.32**: five refinements from the hand research bot: presses are resolved by a short vote over where the cursor was just before the pinch (the pinch itself drags the cursor); buttons hold more lightly while the hand moves fast, so a button on the way doesn't snag; the two-thirds pinch's open reference updates only while the hand is flat and steady; the rest line has hysteresis; and only the visible part of the safety box is mapped to the screen. ⋯ Less in the hand-control bar tidies the screen (on by default on phones).
 - **v15mk2.33**: tidier hand-control code; no change to behaviour.
 - **v15mk2.34**: a button's highlight no longer flickers when the hand cursor sits at its edge (it goes off only once the cursor is clearly outside, by about the hand's own wobble), and the extra hold while the fingers close lasts only while they are closing or opening, not for the whole held pinch (the same change as the training page's v0.38).
+- **v15mk2.35**: the hand cursor keeps up with ordinary reaches: its look-ahead now starts at everyday hand speeds and reads the speed over 80 ms instead of 150, cutting the lag from about 133 to 33 ms in simulation, with the same steadiness when still. Shared starting settings from the training page are used only once five different people have shared results; until then the atlas keeps its built-in ones.
 
 ## The bots
 
