@@ -2085,7 +2085,7 @@
     <div class="hrow">
       <h1>
         Planetary Modeling Atlas
-        <span class="ver" title="Version v15mk2.36, 5 Nov 2026: six more sky cultures (Chinese, Arabic, Hawaiian, Inuit, Aztec, Sami) with native names; tap a constellation to see its lore; constellation labels fade toward the centre of the view to cut clutter; v15mk2.35, 4 Nov 2026: the hand cursor keeps up with ordinary reaches (about 100 ms less lag); shared starting settings only once five people have shared; v15mk2.34: button highlights no longer flicker at the edge, and a held pinch keeps up with the hand; v15mk2.33: tidier hand-control code; v15mk2.32: five refinements from the hand research bot: presses resolved by a short vote over where the cursor was, steadier button holds, a steadier two-thirds pinch, a rest line with hysteresis, and only the visible part of the safety box mapped; ⋯ Less in the hand-control bar tidies the screen (on by default on phones)">v15mk2.36</span>
+        <span class="ver" title="Version v15mk2.37, 5 Nov 2026: clearer, more colour-blind-safe colours for the sky-lore labels, with a thin dark shadow so small label text stays legible; v15mk2.36, 5 Nov 2026: six more sky cultures (Chinese, Arabic, Hawaiian, Inuit, Aztec, Sami) with native names; tap a constellation to see its lore; constellation labels fade toward the centre of the view to cut clutter; v15mk2.35, 4 Nov 2026: the hand cursor keeps up with ordinary reaches (about 100 ms less lag); shared starting settings only once five people have shared; v15mk2.34: button highlights no longer flicker at the edge, and a held pinch keeps up with the hand; v15mk2.33: tidier hand-control code; v15mk2.32: five refinements from the hand research bot: presses resolved by a short vote over where the cursor was, steadier button holds, a steadier two-thirds pinch, a rest line with hysteresis, and only the visible part of the safety box mapped; ⋯ Less in the hand-control bar tidies the screen (on by default on phones)">v15mk2.37</span>
       </h1>
       <button type="button" id="voiceBtn" aria-pressed="false" title="Voice commands: say “Hey Atlas”, then what you want, e.g. “Hey Atlas, show Mars” or “Hey Atlas, next map”">🎤 Voice</button>
       <p id="howTo">
@@ -3003,13 +3003,16 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
         c.height = hh;
         x.textAlign = 'center';
         x.textBaseline = 'middle';
+        x.shadowColor = 'rgba(0,0,0,0.9)'; // a thin dark shadow keeps small label text legible over the tan starfield
+        x.shadowBlur = 2;
+        x.shadowOffsetY = 1;
         x.font = `500 ${f}px system-ui, sans-serif`;
         x.fillStyle = colour;
         x.globalAlpha = 0.95;
         x.fillText(text, w / 2, native ? f / 2 + 5 : hh / 2);
         if (native) {
           x.font = `400 ${f2}px system-ui, sans-serif`;
-          x.globalAlpha = 0.72;
+          x.globalAlpha = 0.82;
           x.fillText(native, w / 2, f + f2 / 2 + 7);
         }
         const t = new THREE.CanvasTexture(c);
