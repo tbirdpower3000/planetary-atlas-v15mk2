@@ -2085,7 +2085,7 @@
     <div class="hrow">
       <h1>
         Planetary Modeling Atlas
-        <span class="ver" title="Version v15mk2.34, 4 Nov 2026: button highlights no longer flicker at the edge, and a held pinch keeps up with the hand; v15mk2.33: tidier hand-control code; v15mk2.32: five refinements from the hand research bot: presses resolved by a short vote over where the cursor was, steadier button holds, a steadier two-thirds pinch, a rest line with hysteresis, and only the visible part of the safety box mapped; ⋯ Less in the hand-control bar tidies the screen (on by default on phones)">v15mk2.34</span>
+        <span class="ver" title="Version v15mk2.36, 5 Nov 2026: six more sky cultures (Chinese, Arabic, Hawaiian, Inuit, Aztec, Sami) with native names; tap a constellation to see its lore; constellation labels fade toward the centre of the view to cut clutter; v15mk2.34, 4 Nov 2026: button highlights no longer flicker at the edge, and a held pinch keeps up with the hand; v15mk2.33: tidier hand-control code; v15mk2.32: five refinements from the hand research bot: presses resolved by a short vote over where the cursor was, steadier button holds, a steadier two-thirds pinch, a rest line with hysteresis, and only the visible part of the safety box mapped; ⋯ Less in the hand-control bar tidies the screen (on by default on phones)">v15mk2.36</span>
       </h1>
       <button type="button" id="voiceBtn" aria-pressed="false" title="Voice commands: say “Hey Atlas”, then what you want, e.g. “Hey Atlas, show Mars” or “Hey Atlas, next map”">🎤 Voice</button>
       <p id="howTo">
@@ -2143,7 +2143,7 @@
             title="The main asteroid belt and Jupiter's Trojan asteroids: a sample of 6,000 drawn from their real orbit distributions"
           >Asteroids: on</button
           ><span class="tgroup skyT mapSky" title="The stars are the real night sky (HYG catalogue). Switch on constellation figures from these sky cultures (from Stellarium); each is credited on the Sources page."
-        >✦ Sky lore<label><input type="checkbox" data-sky="western" /> Western</label><label><input type="checkbox" data-sky="norse" /> Norse</label><label><input type="checkbox" data-sky="egyptian" /> Egyptian</label><label><input type="checkbox" data-sky="navajo" /> Navajo</label><label><input type="checkbox" data-sky="blackfoot" /> Blackfoot</label></span
+        >✦ Sky lore<label><input type="checkbox" data-sky="western" /> Western</label><label><input type="checkbox" data-sky="norse" /> Norse</label><label><input type="checkbox" data-sky="egyptian" /> Egyptian</label><label><input type="checkbox" data-sky="navajo" /> Navajo</label><label><input type="checkbox" data-sky="blackfoot" /> Blackfoot</label><label><input type="checkbox" data-sky="chinese" /> Chinese</label><label><input type="checkbox" data-sky="arabic_lunar_stations" /> Arabic</label><label><input type="checkbox" data-sky="hawaiian_starlines" /> Hawaiian</label><label><input type="checkbox" data-sky="inuit" /> Inuit</label><label><input type="checkbox" data-sky="aztec" /> Aztec</label><label><input type="checkbox" data-sky="sami" /> Sámi</label></span
           ><button
             type="button"
             id="mapHand"
@@ -2222,7 +2222,7 @@
         ><input id="spinT" type="checkbox" checked /> Spin</label
       >
       <span class="tgroup skyT" title="The stars are the real night sky (HYG catalogue). Switch on constellation figures from these sky cultures (from Stellarium); each is credited on the Sources page."
-        >✦ Sky lore<label><input type="checkbox" data-sky="western" /> Western</label><label><input type="checkbox" data-sky="norse" /> Norse</label><label><input type="checkbox" data-sky="egyptian" /> Egyptian</label><label><input type="checkbox" data-sky="navajo" /> Navajo</label><label><input type="checkbox" data-sky="blackfoot" /> Blackfoot</label></span
+        >✦ Sky lore<label><input type="checkbox" data-sky="western" /> Western</label><label><input type="checkbox" data-sky="norse" /> Norse</label><label><input type="checkbox" data-sky="egyptian" /> Egyptian</label><label><input type="checkbox" data-sky="navajo" /> Navajo</label><label><input type="checkbox" data-sky="blackfoot" /> Blackfoot</label><label><input type="checkbox" data-sky="chinese" /> Chinese</label><label><input type="checkbox" data-sky="arabic_lunar_stations" /> Arabic</label><label><input type="checkbox" data-sky="hawaiian_starlines" /> Hawaiian</label><label><input type="checkbox" data-sky="inuit" /> Inuit</label><label><input type="checkbox" data-sky="aztec" /> Aztec</label><label><input type="checkbox" data-sky="sami" /> Sámi</label></span
       >
       <span id="ptToggles" class="toolbar" style="gap: 10px 18px"></span>
       <span id="orbT" class="toolbar" style="gap: 10px 18px" hidden
@@ -2360,6 +2360,7 @@
       <div class="box">
         <p class="lbl">Under the pointer</p>
         <dl class="read" id="readout"></dl>
+      <div id="skyInfo" hidden style="position:fixed;left:12px;bottom:12px;z-index:30;max-width:300px;background:rgba(10,14,22,0.92);border:1px solid rgba(255,255,255,0.15);border-radius:10px;padding:12px 32px 12px 14px;color:#e8eef6;font:14px/1.45 system-ui,sans-serif;-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);box-shadow:0 6px 24px rgba(0,0,0,0.4)"><button id="skyInfoX" type="button" aria-label="Close" style="position:absolute;top:4px;right:8px;background:none;border:none;color:#9fb0c0;font-size:20px;line-height:1;cursor:pointer">&times;</button><div id="skyInfoName" style="font-weight:600;font-size:16px"></div><div id="skyInfoNat" style="color:#b9c6d4;margin-top:2px"></div><div id="skyInfoCul" style="margin-top:8px;font-size:13px;color:#cdd8e2"></div><div id="skyInfoCredit" style="color:#8a9aac;margin-top:4px;font-size:12px"></div></div>
       </div>
       <div class="box">
         <p class="lbl">Sites</p>
@@ -2942,10 +2943,13 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
     // sky is turned to match each world's pole (the same rotation the sunlight uses), the Solar System's to the ecliptic.
     // Both views share one set of switches.
     window.SKY = (() => {
-      const CUL = ['western', 'norse', 'egyptian', 'navajo', 'blackfoot'],
+      const CUL = ['western', 'norse', 'egyptian', 'navajo', 'blackfoot', 'chinese', 'arabic_lunar_stations', 'hawaiian_starlines', 'inuit', 'aztec', 'sami'],
         D = Math.PI / 180,
         views = [], // { grp, r, figs: {id: Group} }
         data = {};
+      const _v0 = new THREE.Vector3(),
+        _v1 = new THREE.Vector3(),
+        _v2 = new THREE.Vector3();
       let stars = null,
         on = {};
       try {
@@ -2984,29 +2988,45 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
         });
         return g;
       }
-      function label(text, colour, h) {
+      function label(text, native, colour, h) {
         const c = document.createElement('canvas'),
           x = c.getContext('2d'),
-          f = 28;
+          f = 28,
+          f2 = 19;
         x.font = `500 ${f}px system-ui, sans-serif`;
-        const w = Math.ceil(x.measureText(text).width) + 12;
+        const w1 = x.measureText(text).width;
+        let w2 = 0;
+        if (native) {
+          x.font = `400 ${f2}px system-ui, sans-serif`;
+          w2 = x.measureText(native).width;
+        }
+        const w = Math.ceil(Math.max(w1, w2)) + 12,
+          hh = native ? f + f2 + 14 : f + 12;
         c.width = w;
-        c.height = f + 12;
+        c.height = hh;
+        x.textAlign = 'center';
+        x.textBaseline = 'middle';
         x.font = `500 ${f}px system-ui, sans-serif`;
         x.fillStyle = colour;
-        x.globalAlpha = 0.9;
-        x.textBaseline = 'middle';
-        x.fillText(text, 6, c.height / 2);
+        x.globalAlpha = 0.95;
+        x.fillText(text, w / 2, native ? f / 2 + 5 : hh / 2);
+        if (native) {
+          x.font = `400 ${f2}px system-ui, sans-serif`;
+          x.globalAlpha = 0.72;
+          x.fillText(native, w / 2, f + f2 / 2 + 7);
+        }
         const t = new THREE.CanvasTexture(c);
         const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: t, transparent: true, depthWrite: false }));
-        sp.scale.set((h * c.width) / c.height, h, 1);
+        const k = h / 40; // 40 = the old single-line canvas height, so a one-line label keeps its former size
+        sp.scale.set(c.width * k, c.height * k, 1);
         return sp;
       }
       function figures(id, r, lh) {
         const d = data[id],
-          g = new THREE.Group(),
-          pts = [];
+          g = new THREE.Group();
+        g.userData.labels = [];
         d.c.forEach((f) => {
+          const pts = [];
           let cx = 0,
             cy = 0,
             cz = 0,
@@ -3030,16 +3050,22 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
               n++;
             });
           });
+          // each figure is its own object, tagged with its lore so a tap can identify it
+          const info = { cul: id, name: d.name, colour: d.colour, credit: d.credit, source: d.source, licence: d.licence, n: f.n, nat: f.nat || null };
+          const geo = new THREE.BufferGeometry();
+          geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(pts), 3));
+          const line = new THREE.LineSegments(geo, new THREE.LineBasicMaterial({ color: d.colour, transparent: true, opacity: 0.55, depthWrite: false }));
+          line.userData.sky = info;
+          g.add(line);
           if (n) {
             const L = Math.hypot(cx, cy, cz) || 1,
-              sp = label(f.n, d.colour, lh);
+              sp = label(f.n, f.nat, d.colour, lh);
             sp.position.set((cx / L) * r * 0.99, (cy / L) * r * 0.99, (cz / L) * r * 0.99);
+            sp.userData.sky = info;
             g.add(sp);
+            g.userData.labels.push(sp);
           }
         });
-        const geo = new THREE.BufferGeometry();
-        geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(pts), 3));
-        g.add(new THREE.LineSegments(geo, new THREE.LineBasicMaterial({ color: d.colour, transparent: true, opacity: 0.55, depthWrite: false })));
         return g;
       }
       function build(v) {
@@ -3108,6 +3134,31 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
         show,
         on: () => Object.assign({}, on),
         names: (id) => (data[id] ? data[id].c.map((f) => f.n) : []),
+        // the nearest figure a ray crosses, with its lore (null if none)
+        pickFrom(grp, rc) {
+          if (!grp) return null;
+          const hits = rc.intersectObject(grp, true);
+          for (const h of hits) {
+            if (h.object && h.object.userData && h.object.userData.sky) return h.object.userData.sky;
+          }
+          return null;
+        },
+        // fade each figure label by how far it sits from the centre of the view, so a full sky isn't a wall of text
+        fadeView(grp, cam, target) {
+          if (!grp || !cam) return;
+          const cp = cam.position,
+            fwd = _v1.copy(target || _v0).sub(cp);
+          if (fwd.lengthSq() < 1e-9) return;
+          fwd.normalize();
+          grp.children.forEach((cg) => {
+            if (!cg.visible || !cg.userData || !cg.userData.labels) return;
+            cg.userData.labels.forEach((sp) => {
+              sp.getWorldPosition(_v2);
+              const c = _v2.sub(cp).normalize().dot(fwd); // cos(angle from view centre)
+              sp.material.opacity = c <= 0.829 ? 0.08 : c >= 0.978 ? 0.95 : 0.08 + 0.87 * ((c - 0.829) / 0.149);
+            });
+          });
+        },
       };
     })();
     const GSKY = window.SKY.add(scene, 120, 1.9, RANDSTARS);
@@ -4106,6 +4157,31 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
       }
       return { site, ll };
     }
+    const skyRay = new THREE.Raycaster();
+    skyRay.params.Line.threshold = 2.5; // ~1.2 deg tolerance so a constellation line is tappable
+    function skyPick(ev) {
+      if (!window.SKY || !SKY.pickFrom) return null;
+      const r = renderer.domElement.getBoundingClientRect();
+      mouse.x = ((ev.clientX - r.left) / r.width) * 2 - 1;
+      mouse.y = (-(ev.clientY - r.top) / r.height) * 2 + 1;
+      skyRay.setFromCamera(mouse, camera);
+      return SKY.pickFrom(GSKY, skyRay);
+    }
+    function skyInfoClose() {
+      const e = $('skyInfo');
+      if (e) e.hidden = true;
+    }
+    function skyInfoOpen(fig) {
+      $('skyInfoName').textContent = fig.n;
+      $('skyInfoName').style.color = fig.colour || '#fff';
+      const nat = $('skyInfoNat');
+      nat.textContent = fig.nat || '';
+      nat.hidden = !fig.nat;
+      $('skyInfoCul').textContent = (fig.name || fig.cul) + ' sky lore';
+      $('skyInfoCredit').textContent = [fig.credit, fig.licence].filter(Boolean).join(' \u00b7 ');
+      $('skyInfo').hidden = false;
+    }
+    if ($('skyInfoX')) $('skyInfoX').onclick = skyInfoClose;
     renderer.domElement.addEventListener('pointermove', (ev) => {
       if (!P) return;
       const { site, ll } = pick(ev);
@@ -4126,7 +4202,14 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
       const { site, ll } = pick(ev);
       if (ll) readout(ll[0], ll[1]);
       if (site) select(site, true);
-      else if (ll && window.CR_TAP) window.CR_TAP(ll[0], ll[1]);
+      else {
+        const fig = skyPick(ev);
+        if (fig) skyInfoOpen(fig);
+        else {
+          skyInfoClose();
+          if (ll && window.CR_TAP) window.CR_TAP(ll[0], ll[1]);
+        }
+      }
     });
     // ---------- camera flights ----------
     let fly = null;
@@ -7069,6 +7152,7 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
       if (window.CR_TICK) window.CR_TICK(t);
       if (window.ORB_TICK) window.ORB_TICK(t);
       renderer.render(scene, camera);
+      if (window.SKY && SKY.fadeView) SKY.fadeView(GSKY, camera, controls.target);
       if (!P) return;
       const cdir = camera.position.clone().normalize(),
         dist = camera.position.length(),
@@ -8147,6 +8231,12 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
         vis.push(sun);
         const h = mray.intersectObjects(vis);
         if (h.length) focus(h[0].object === sun ? 'sun' : h[0].object.userData.id, true);
+        else if (window.SKY && SKY.pickFrom && MSKY) {
+          mray.params.Line.threshold = 16; // the map sky is radius 900, so a wider line-hit tolerance
+          const fig = SKY.pickFrom(MSKY, mray);
+          if (fig) skyInfoOpen(fig);
+          else skyInfoClose();
+        }
       });
       // scrolling in on a focused world lands on its globe (hand full screen, or right here with the mouse)
       mr.domElement.addEventListener(
@@ -8274,6 +8364,7 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
           MSKY.matrixWorldNeedsUpdate = true;
         }
         mr.render(msc, mcam);
+        if (window.SKY && SKY.fadeView) SKY.fadeView(MSKY, mcam, mco.target);
         const cd = mcam.position.distanceTo(mco.target);
         Object.entries(B).forEach(([id, b]) => {
           let on = true;
