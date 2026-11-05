@@ -2951,10 +2951,7 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
         _v1 = new THREE.Vector3(),
         _v2 = new THREE.Vector3();
       let stars = null,
-        on = {};
-      try {
-        on = JSON.parse(localStorage.getItem('atlasSky') || '{}') || {};
-      } catch (e) {}
+        on = {}; // sky cultures start off on every load (not restored from a previous visit)
       const eqv = (ra, dec) => [Math.cos(dec * D) * Math.cos(ra * D), Math.cos(dec * D) * Math.sin(ra * D), Math.sin(dec * D)];
       const bvCol = (bv) => {
         // B-V colour index to a star colour: hot blue-white through white and yellow to cool orange
