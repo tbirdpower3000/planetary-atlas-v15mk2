@@ -833,6 +833,56 @@
       grid-template-columns: 1fr;
     }
   }
+  /* Big-screen / cast display mode: a clean full-window view for showing the atlas on a TV
+     while screen-mirroring (AirPlay / Roku etc.). It reuses the immersive stage layout but needs
+     no Fullscreen API, so it also works on iPhone, where element full screen is blocked. The globe
+     stays touch-interactive, so you can still spin and zoom with the phone while it mirrors. */
+  body.castmode { overflow: hidden; }
+  body.castmode #mapStage,
+  body.castmode #stage {
+    position: fixed;
+    inset: 0;
+    z-index: 50;
+    width: auto;
+    max-width: none;
+    max-height: none;
+    min-height: 0;
+    aspect-ratio: auto;
+    border: 0;
+    border-radius: 0;
+  }
+  body.castmode[data-hmode='map'] #stage,
+  body.castmode[data-hmode='globe'] #mapStage {
+    opacity: 0;
+    pointer-events: none;
+    visibility: hidden;
+  }
+  body.castmode header,
+  body.castmode .grid > .panel,
+  body.castmode .mapbar,
+  body.castmode #toMap,
+  body.castmode footer {
+    display: none;
+  }
+  body.castmode #labels span {
+    font-size: 1.15rem;
+    text-shadow:
+      0 1px 3px #000,
+      0 0 6px #000;
+  }
+  #castExit {
+    position: fixed;
+    top: max(12px, env(safe-area-inset-top, 0px));
+    right: max(12px, env(safe-area-inset-right, 0px));
+    z-index: 60;
+    background: rgba(0, 0, 0, 0.55);
+    color: #fff;
+    border: 1px solid rgba(255, 255, 255, 0.35);
+    -webkit-backdrop-filter: blur(4px);
+    backdrop-filter: blur(4px);
+    padding: 8px 12px;
+    font-size: 0.9rem;
+  }
   .stage {
     position: relative;
     background: #000;
@@ -2085,7 +2135,7 @@
     <div class="hrow">
       <h1>
         Planetary Modeling Atlas
-        <span class="ver" title="Version v15mk2.38, 5 Nov 2026: clearer, more colour-blind-safe colours for the sky-lore labels, with a thin dark shadow so small label text stays legible; v15mk2.36, 5 Nov 2026: six more sky cultures (Chinese, Arabic, Hawaiian, Inuit, Aztec, Sami) with native names; tap a constellation to see its lore; constellation labels fade toward the centre of the view to cut clutter; v15mk2.35, 4 Nov 2026: the hand cursor keeps up with ordinary reaches (about 100 ms less lag); shared starting settings only once five people have shared; v15mk2.34: button highlights no longer flicker at the edge, and a held pinch keeps up with the hand; v15mk2.33: tidier hand-control code; v15mk2.32: five refinements from the hand research bot: presses resolved by a short vote over where the cursor was, steadier button holds, a steadier two-thirds pinch, a rest line with hysteresis, and only the visible part of the safety box mapped; ⋯ Less in the hand-control bar tidies the screen (on by default on phones)">v15mk2.38</span>
+        <span class="ver" title="Version v15mk2.39, 5 Nov 2026: clearer, more colour-blind-safe colours for the sky-lore labels, with a thin dark shadow so small label text stays legible; v15mk2.36, 5 Nov 2026: six more sky cultures (Chinese, Arabic, Hawaiian, Inuit, Aztec, Sami) with native names; tap a constellation to see its lore; constellation labels fade toward the centre of the view to cut clutter; v15mk2.35, 4 Nov 2026: the hand cursor keeps up with ordinary reaches (about 100 ms less lag); shared starting settings only once five people have shared; v15mk2.34: button highlights no longer flicker at the edge, and a held pinch keeps up with the hand; v15mk2.33: tidier hand-control code; v15mk2.32: five refinements from the hand research bot: presses resolved by a short vote over where the cursor was, steadier button holds, a steadier two-thirds pinch, a rest line with hysteresis, and only the visible part of the safety box mapped; ⋯ Less in the hand-control bar tidies the screen (on by default on phones)">v15mk2.39</span>
       </h1>
       <button type="button" id="voiceBtn" aria-pressed="false" title="Voice commands: say “Hey Atlas”, then what you want, e.g. “Hey Atlas, show Mars” or “Hey Atlas, next map”">🎤 Voice</button>
       <p id="howTo">
@@ -2178,6 +2228,7 @@
     <div class="toolbar">
       <div class="seg" role="group" aria-label="Map layer" id="layerSeg"></div>
       <button type="button" id="mapPng" title="Download this layer as a flat map image (PNG) with its colour bar">⤓ Map image</button>
+      <button type="button" id="castBtn" aria-pressed="false" title="Big-screen display mode — a clean full-window view for showing the atlas on a TV while you screen-mirror (AirPlay / Roku). The globe stays touch-interactive.">📺 Display</button>
       <span id="blendT" class="toolbar" style="gap: 10px 18px" hidden
         ><label class="tgroup" title="How strongly the topography shows through the photo"
           >Mix<input id="blendA" type="range" min="0" max="100" step="5" value="55" /><output id="blendO">55%</output></label
@@ -2292,6 +2343,7 @@
       <div id="handMsg" role="status" hidden></div>
     </div>
     <div id="handCur" hidden><i><b></b></i><span></span></div>
+    <button type="button" id="castExit" hidden>✕ Exit display</button>
     <div id="fsBar" hidden role="toolbar" aria-label="Hand control">
       <button type="button" id="fsMap">↑ Solar System</button><button type="button" id="fsFull" hidden title="Browsers only go full screen after a click or a key press">⛶ Full screen</button><button type="button" id="fsLand" hidden>Land</button
       ><span class="fsTime" id="fsLyr" role="group" aria-label="Map layer" hidden
@@ -5250,6 +5302,20 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
       drawWS();
     };
     // ---------- the map on the globe, flat, as a PNG with its colour bar ----------
+    // Big-screen / cast display mode. On iPhone -> Roku this pairs with AirPlay screen mirroring
+    // (iOS Control Centre -> Screen Mirroring), since iOS has no web casting API: it hides the
+    // panels and fills the window for a clean TV view, and the stage stays touch-interactive.
+    function setCast(on) {
+      document.body.classList.toggle('castmode', on);
+      $('castExit').hidden = !on;
+      $('castBtn').setAttribute('aria-pressed', on ? 'true' : 'false');
+    }
+    $('castBtn').onclick = () => setCast(!document.body.classList.contains('castmode'));
+    $('castExit').onclick = () => setCast(false);
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && document.body.classList.contains('castmode')) setCast(false);
+    });
+    window.SET_CAST = setCast;
     $('mapPng').onclick = () => {
       const t = mat.uniforms.map.value,
         src = t && t.image;
