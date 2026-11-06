@@ -2085,7 +2085,7 @@
     <div class="hrow">
       <h1>
         Planetary Modeling Atlas
-        <span class="ver" title="Version v15mk2.37, 5 Nov 2026: clearer, more colour-blind-safe colours for the sky-lore labels, with a thin dark shadow so small label text stays legible; v15mk2.36, 5 Nov 2026: six more sky cultures (Chinese, Arabic, Hawaiian, Inuit, Aztec, Sami) with native names; tap a constellation to see its lore; constellation labels fade toward the centre of the view to cut clutter; v15mk2.35, 4 Nov 2026: the hand cursor keeps up with ordinary reaches (about 100 ms less lag); shared starting settings only once five people have shared; v15mk2.34: button highlights no longer flicker at the edge, and a held pinch keeps up with the hand; v15mk2.33: tidier hand-control code; v15mk2.32: five refinements from the hand research bot: presses resolved by a short vote over where the cursor was, steadier button holds, a steadier two-thirds pinch, a rest line with hysteresis, and only the visible part of the safety box mapped; ⋯ Less in the hand-control bar tidies the screen (on by default on phones)">v15mk2.37</span>
+        <span class="ver" title="Version v15mk2.38, 5 Nov 2026: clearer, more colour-blind-safe colours for the sky-lore labels, with a thin dark shadow so small label text stays legible; v15mk2.36, 5 Nov 2026: six more sky cultures (Chinese, Arabic, Hawaiian, Inuit, Aztec, Sami) with native names; tap a constellation to see its lore; constellation labels fade toward the centre of the view to cut clutter; v15mk2.35, 4 Nov 2026: the hand cursor keeps up with ordinary reaches (about 100 ms less lag); shared starting settings only once five people have shared; v15mk2.34: button highlights no longer flicker at the edge, and a held pinch keeps up with the hand; v15mk2.33: tidier hand-control code; v15mk2.32: five refinements from the hand research bot: presses resolved by a short vote over where the cursor was, steadier button holds, a steadier two-thirds pinch, a rest line with hysteresis, and only the visible part of the safety box mapped; ⋯ Less in the hand-control bar tidies the screen (on by default on phones)">v15mk2.38</span>
       </h1>
       <button type="button" id="voiceBtn" aria-pressed="false" title="Voice commands: say “Hey Atlas”, then what you want, e.g. “Hey Atlas, show Mars” or “Hey Atlas, next map”">🎤 Voice</button>
       <p id="howTo">
@@ -2274,7 +2274,7 @@
         title="Turn and zoom the globe with your hand, using your computer's camera"
       >✋ Hand control</button
       ><button id="handSnd" type="button" aria-pressed="true" hidden title="Turn hand-control sounds on or off">🔊 Sound</button
-      ><button id="handAssist" type="button" aria-pressed="true" hidden title="Adaptive aim: learns from your movements and makes buttons easier to hit when you're having trouble. Press to switch it off and reset what it learned.">🎯 Adaptive aim</button
+      ><button id="handAssist" type="button" aria-pressed="false" hidden title="Adaptive aim: learns from your movements and makes buttons easier to hit when you're having trouble. Press to switch it off and reset what it learned.">🎯 Adaptive aim: off</button
       ><a id="handTrain" class="srclink" href="https://tbirdpower3000.github.io/hand-control-training/" title="A one-minute exercise that teaches hand control your reach, pinch and steadiness">Train hand control →</a>
       <span id="viewBtns" class="row"></span>
     </div>
@@ -10096,7 +10096,7 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
         const BASE = { snap: 28, minCut: 0.8, beta: 3, pOn: 0.3, pOff: 0.48 },
           BASE_REACH = { x0: 0.22, xs: 0.56, y0: 0.18, ys: 0.52 };
         const mk = () => ({ k: Object.assign({}, BASE), reach: Object.assign({}, BASE_REACH), sizeRef: null, trained: null });
-        let on = true,
+        let on = false, // Adaptive aim is off by default now; the user turns it on from the 🎯 button
           H = { Left: mk(), Right: mk() },
           side = 'Right',
           trained = null;
@@ -10105,7 +10105,7 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
         // the profile: what it learned for each hand, plus what the training page measured (training.html)
         function load(v) {
           if (!v) return;
-          if (v.on === false) on = false;
+          if (v.v >= 3 && typeof v.on === 'boolean') on = v.on; // only the new schema records an explicit choice
           const put = (h, src) => {
             if (!src) return;
             if (src.k) Object.keys(BASE).forEach((n) => isFinite(src.k[n]) && (h.k[n] = +src.k[n]));
@@ -10158,7 +10158,7 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
           clearTimeout(saveT);
           saveT = setTimeout(() => {
             try {
-              localStorage.setItem('atlasHandAssist', JSON.stringify({ v: 2, on, hands: H, k: H.Right.k, reach: H.Right.trained ? H.Right.reach : null, trained }));
+              localStorage.setItem('atlasHandAssist', JSON.stringify({ v: 3, on, hands: H, k: H.Right.k, reach: H.Right.trained ? H.Right.reach : null, trained }));
             } catch (e) {}
           }, 1500);
         };
@@ -10438,6 +10438,10 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
             });
           });
         }
+        function syncBtn() {
+          $('handAssist').setAttribute('aria-pressed', on);
+          $('handAssist').textContent = on ? '🎯 Adaptive aim' : '🎯 Adaptive aim: off';
+        }
         function setOn(v) {
           on = v;
           if (!on) {
@@ -10447,8 +10451,7 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
           }
           apply();
           save();
-          $('handAssist').setAttribute('aria-pressed', on);
-          $('handAssist').textContent = on ? '🎯 Adaptive aim' : '🎯 Adaptive aim: off';
+          syncBtn();
         }
         return {
           frame,
@@ -10471,6 +10474,7 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
           reachNow,
           apply,
           setOn,
+          syncBtn,
           get on() {
             return on;
           },
@@ -10807,7 +10811,7 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
       const R = new HandState(),
         R2 = new HandState();
       ADAPT.apply();
-      ADAPT.setOn(ADAPT.on);
+      ADAPT.syncBtn();
       window.atlasAdapt = ADAPT; // for testing
       $('handAssist').onclick = () => {
         ADAPT.setOn(!ADAPT.on);
