@@ -7,11 +7,12 @@
 "radiusKm": 2439.4,
 "file": "packs/mercury.json",
 "layers": [
+"Topography",
 "Free-air gravity",
 "Geoid",
 "Visible colour"
 ],
-"mb": 4.1
+"mb": 6.9
 },
 {
 "id": "venus",
