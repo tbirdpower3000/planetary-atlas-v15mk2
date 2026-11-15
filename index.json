@@ -21,11 +21,12 @@
 "radiusKm": 6051.8,
 "file": "packs/venus.json",
 "layers": [
+"Topography",
 "Free-air gravity",
 "Geoid",
 "Surface map"
 ],
-"mb": 3.3
+"mb": 6.0
 },
 {
 "id": "earth",
