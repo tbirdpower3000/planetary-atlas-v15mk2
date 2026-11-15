@@ -833,6 +833,35 @@
       grid-template-columns: 1fr;
     }
   }
+  .solarfx {
+    margin-top: 10px;
+    border-top: 1px solid var(--rule);
+    padding-top: 8px;
+  }
+  .solarfx .slbl {
+    font-weight: 600;
+    font-size: 0.85rem;
+    margin: 0 0 4px;
+  }
+  .solarfx .srow {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    font-size: 0.82rem;
+    padding: 1px 0;
+  }
+  .solarfx .srow span {
+    color: var(--muted);
+  }
+  .solarfx .srow b {
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+  }
+  .solarfx .snote {
+    font-size: 0.72rem;
+    color: var(--muted);
+    margin: 6px 0 0;
+  }
   .stage {
     position: relative;
     background: #000;
@@ -2085,7 +2114,7 @@
     <div class="hrow">
       <h1>
         Planetary Modeling Atlas
-        <span class="ver" title="Version v15mk2.38, 5 Nov 2026: clearer, more colour-blind-safe colours for the sky-lore labels, with a thin dark shadow so small label text stays legible; v15mk2.36, 5 Nov 2026: six more sky cultures (Chinese, Arabic, Hawaiian, Inuit, Aztec, Sami) with native names; tap a constellation to see its lore; constellation labels fade toward the centre of the view to cut clutter; v15mk2.35, 4 Nov 2026: the hand cursor keeps up with ordinary reaches (about 100 ms less lag); shared starting settings only once five people have shared; v15mk2.34: button highlights no longer flicker at the edge, and a held pinch keeps up with the hand; v15mk2.33: tidier hand-control code; v15mk2.32: five refinements from the hand research bot: presses resolved by a short vote over where the cursor was, steadier button holds, a steadier two-thirds pinch, a rest line with hysteresis, and only the visible part of the safety box mapped; ⋯ Less in the hand-control bar tidies the screen (on by default on phones)">v15mk2.38</span>
+        <span class="ver" title="Version v15mk2.39, 5 Nov 2026: clearer, more colour-blind-safe colours for the sky-lore labels, with a thin dark shadow so small label text stays legible; v15mk2.36, 5 Nov 2026: six more sky cultures (Chinese, Arabic, Hawaiian, Inuit, Aztec, Sami) with native names; tap a constellation to see its lore; constellation labels fade toward the centre of the view to cut clutter; v15mk2.35, 4 Nov 2026: the hand cursor keeps up with ordinary reaches (about 100 ms less lag); shared starting settings only once five people have shared; v15mk2.34: button highlights no longer flicker at the edge, and a held pinch keeps up with the hand; v15mk2.33: tidier hand-control code; v15mk2.32: five refinements from the hand research bot: presses resolved by a short vote over where the cursor was, steadier button holds, a steadier two-thirds pinch, a rest line with hysteresis, and only the visible part of the safety box mapped; ⋯ Less in the hand-control bar tidies the screen (on by default on phones)">v15mk2.39</span>
       </h1>
       <button type="button" id="voiceBtn" aria-pressed="false" title="Voice commands: say “Hey Atlas”, then what you want, e.g. “Hey Atlas, show Mars” or “Hey Atlas, next map”">🎤 Voice</button>
       <p id="howTo">
@@ -2321,6 +2350,7 @@
         </div>
         <div class="facts" id="bFacts"></div>
         <p class="note" id="bBlurb"></p>
+        <div id="bSolar" class="solarfx" hidden></div>
       </div>
       <div class="box">
         <p class="lbl" id="legT"></p>
@@ -4313,11 +4343,65 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
         });
       }
     };
+    // ---------- the Sun's energy on each world ----------
+    // semi-major axis (AU) and orbital eccentricity. Moons use their planet's heliocentric distance
+    // (a moon gets essentially the same sunlight as the planet it orbits).
+    const SOLAR_AU = {
+      mercury: [0.387, 0.206], venus: [0.723, 0.007], earth: [1.0, 0.017], mars: [1.524, 0.093],
+      jupiter: [5.203, 0.048], saturn: [9.537, 0.054], uranus: [19.189, 0.047], neptune: [30.07, 0.009],
+      ceres: [2.77, 0.076], vesta: [2.36, 0.089], pluto: [39.48, 0.249],
+      moon: [1.0, 0.017], phobos: [1.524, 0.093], deimos: [1.524, 0.093],
+      io: [5.203, 0.048], europa: [5.203, 0.048], ganymede: [5.203, 0.048], callisto: [5.203, 0.048],
+      mimas: [9.537, 0.054], enceladus: [9.537, 0.054], tethys: [9.537, 0.054], dione: [9.537, 0.054],
+      rhea: [9.537, 0.054], titan: [9.537, 0.054], hyperion: [9.537, 0.054], iapetus: [9.537, 0.054],
+      miranda: [19.189, 0.047], ariel: [19.189, 0.047], umbriel: [19.189, 0.047], titania: [19.189, 0.047],
+      oberon: [19.189, 0.047], triton: [30.07, 0.009], charon: [39.48, 0.249],
+    };
+    // Bond albedo, only where it is well established — temperatures are shown just for these bodies
+    const SOLAR_A = {
+      mercury: 0.088, venus: 0.76, earth: 0.306, mars: 0.25, jupiter: 0.503, saturn: 0.342,
+      uranus: 0.3, neptune: 0.29, moon: 0.11, pluto: 0.72, io: 0.62, europa: 0.68, ganymede: 0.43,
+      callisto: 0.22, titan: 0.22, enceladus: 0.81, triton: 0.76,
+    };
+    const SOLAR_CONST = 1361, SB_SIGMA = 5.670374419e-8; // W/m^2 at 1 AU; Stefan-Boltzmann
+    function solarBlock(id) {
+      const d = SOLAR_AU[id];
+      if (!d) return '';
+      const a = d[0], e = d[1] || 0,
+        Sm = SOLAR_CONST / (a * a),
+        pe = 100 / (a * a),
+        lt = a * 8.3167; // minutes for light to cross a AU
+      const f = (x) => (x >= 100 ? x.toFixed(0) : x >= 10 ? x.toFixed(1) : x.toFixed(2));
+      const row = (k, v) => `<div class="srow"><span>${k}</span><b>${v}</b></div>`;
+      let rows = row('Sunlight here', `${f(Sm)} W/m² · ${pe >= 1 ? pe.toFixed(0) : pe.toFixed(1)}% of Earth`);
+      if (e > 0.03) {
+        const Sp = SOLAR_CONST / (a * (1 - e)) ** 2,
+          Sa = SOLAR_CONST / (a * (1 + e)) ** 2;
+        rows += row('Over its orbit', `${f(Sa)} – ${f(Sp)} W/m²`);
+      }
+      const A = SOLAR_A[id];
+      if (A != null) {
+        const Teq = Math.pow((Sm * (1 - A)) / (4 * SB_SIGMA), 0.25),
+          Tsub = Math.pow((Sm * (1 - A)) / SB_SIGMA, 0.25),
+          c = Teq - 273.15;
+        rows += row('Equilibrium temp', `${Teq.toFixed(0)} K (${c >= 0 ? '+' : ''}${c.toFixed(0)} °C)`);
+        rows += row('Overhead-sun temp', `~${Tsub.toFixed(0)} K`);
+      }
+      rows += row('Sunlight delay', lt < 1 ? `${(lt * 60).toFixed(0)} s` : `${lt.toFixed(1)} min`);
+      const note =
+        A != null
+          ? `<p class="snote">Temperatures are blackbody estimates (Bond albedo ${A}); a real surface differs with atmosphere and greenhouse warming.</p>`
+          : `<p class="snote">Sunlight values only — a temperature needs a Bond albedo not set for this body.</p>`;
+      return `<p class="slbl">☀ Solar energy</p>${rows}${note}`;
+    }
     // ---------- body panel ----------
     function bodyPanel() {
       $('bName').textContent = P.name;
       $('bKind').textContent = P.kind || '';
       $('bBlurb').textContent = P.blurb || '';
+      const sb = solarBlock((P.id || '').toLowerCase());
+      $('bSolar').innerHTML = sb;
+      $('bSolar').hidden = !sb;
       document.querySelectorAll('.curName').forEach((e) => (e.textContent = P.name));
       const R = P.radiusKm,
         el = (P.grids || []).find((g) => g.elev);
