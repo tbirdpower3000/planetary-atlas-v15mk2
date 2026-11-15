@@ -58,6 +58,7 @@ The live layers come straight from their providers in your browser, not from thi
 - **v15mk2.39**: a ☀ Solar energy readout in each world’s panel — sunlight in W/m² and as a share of Earth’s, the perihelion–aphelion range, equilibrium and noon-sun (subsolar) temperatures where a Bond albedo is known, and the light-travel delay from the Sun.
 - **v15mk2.40**: data-accuracy fixes. Mean radii corrected to JPL values (Phobos 11.08, Deimos 6.2, Mimas 198.2, Hyperion 135, Ganymede 2631.2 km) and Neptune’s flattening to 0.01708 (polar radius 24,341 km; IAU 2015); solar-energy Bond albedos corrected (Titan 0.265, Callisto 0.13, Io 0.52, Europa 0.62, Ganymede 0.35); Saturn, Uranus and Neptune no longer carry Jupiter’s atmospheric-probe entry-point source (none has had an entry probe); a regression test for the solar readout.
 - **v15mk2.41**: Mercury gains a Topography layer — the USGS global elevation model made from MESSENGER’s camera images, averaged to 0.25° (about 10 km). Its real heights now drive the globe’s relief, replacing the normal-map shading, so the lighting and **Imagery + relief** follow the true terrain. The deepest floors are about 5.3 km down, the highest ground about 4.4 km up.
+- **v15mk2.42**: removed the pre-baked relief-shading normal maps from Mercury and Venus (about 1.1 MB in all). Now that each has a real topography grid, the globe’s relief is built from the true heights, so the old normal maps were unused duplicate data.
 
 ## The bots
 
