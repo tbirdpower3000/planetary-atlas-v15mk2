@@ -22,11 +22,12 @@
 "radiusKm": 6051.8,
 "file": "packs/venus.json",
 "layers": [
+"Topography",
 "Free-air gravity",
 "Geoid",
 "Surface map"
 ],
-"mb": 3.3
+"mb": 6.0
 },
 {
 "id": "earth",
@@ -82,7 +83,7 @@
 "name": "Phobos",
 "kind": "Moon of Mars",
 "group": "inner",
-"radiusKm": 12.9,
+"radiusKm": 11.08,
 "file": "packs/phobos.json",
 "layers": [
 "Colour map"
@@ -94,7 +95,7 @@
 "name": "Deimos",
 "kind": "Moon of Mars",
 "group": "inner",
-"radiusKm": 8.0,
+"radiusKm": 6.2,
 "file": "packs/deimos.json",
 "layers": [
 "Colour map"
@@ -142,7 +143,7 @@
 "name": "Ganymede",
 "kind": "Moon of Jupiter",
 "group": "jupiter",
-"radiusKm": 2634.1,
+"radiusKm": 2631.2,
 "file": "packs/ganymede.json",
 "layers": [
 "Colour map"
@@ -178,7 +179,7 @@
 "name": "Mimas",
 "kind": "Moon of Saturn",
 "group": "saturn",
-"radiusKm": 206.6,
+"radiusKm": 198.2,
 "file": "packs/mimas.json",
 "layers": [
 "Colour map"
@@ -250,7 +251,7 @@
 "name": "Hyperion",
 "kind": "Moon of Saturn",
 "group": "saturn",
-"radiusKm": 180.9,
+"radiusKm": 135,
 "file": "packs/hyperion.json",
 "layers": [
 "Colour map"
