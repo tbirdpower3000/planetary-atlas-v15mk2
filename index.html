@@ -4462,7 +4462,7 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
         ]
           .map(
             ([t, u, use]) =>
-              `<li>${esc(t)}${u ? ` <a href="${esc(u)}" target="_blank" rel="noopener">link</a>` : ''}${use ? `<span class="use">${esc(use)}</span>` : ''}</li>`,
+              `<li>${u ? `<a href="${esc(u)}" target="_blank" rel="noopener">${esc(t)}</a>` : esc(t)}${use ? `<span class="use">${esc(use)}</span>` : ''}</li>`,
           )
           .join('') || '<li>Loaded from your own files.</li>';
     }
