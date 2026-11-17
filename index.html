@@ -4052,7 +4052,9 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
         if (L.ring) {
           items.forEach((it, k) => {
             const dd = it.d || 20,
-              r = dd / 2 / P.radiusKm,
+              rTrue = dd / 2 / P.radiusKm,
+              r = Math.max(rTrue, 0.006),
+              rin = r > 0.014 ? r * 0.8 : Math.max(0.0003, r - 0.0026),
               rdeg = dd / 2 / ((P.radiusKm * Math.PI) / 180);
             let top = -1e9;
             for (let q = 0; q < 16; q++) {
@@ -4067,8 +4069,8 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
             }
             const p = toVec(it.lat, it.lon, top + 0.002),
               m = new THREE.Mesh(
-                new THREE.RingGeometry(r * 0.88, r, 64),
-                new THREE.MeshBasicMaterial({ color: o.colOf(it), side: THREE.DoubleSide, transparent: true, opacity: 0.95 }),
+                new THREE.RingGeometry(rin, r, 48),
+                new THREE.MeshBasicMaterial({ color: o.colOf(it), side: THREE.DoubleSide, transparent: true, opacity: 1 }),
               );
             m.position.copy(p);
             m.lookAt(p.clone().multiplyScalar(2));
