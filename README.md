@@ -63,6 +63,7 @@ The live layers come straight from their providers in your browser, not from thi
 - **v15mk2.44**: cleaner relief shading. The sun-lit terrain no longer streaks at the poles (where the hillshade’s east–west slope term used to blow up as longitude lines converge), and very steep slopes are clamped so relief reads smoothly instead of flashing to black. Affects every world with a topography grid.
 - **v15mk2.45**: a deep-time view for Earth. Toggle “Continents through time” and a slider (with play) drifts Earth’s continents from Rodinia (1000 Ma) through Pangaea to today, drawn from the Merdith et al. (2021) plate reconstruction (GPlates Web Service) on a clean ocean globe, with a geologic timescale bar showing the eon, era and period — Precambrian to now.
 - **v15mk2.46**: the deep-time continent drift now animates with requestAnimationFrame (time-based), so playback is smooth at the display’s framerate instead of stepping ~12 times a second.
+- **v15mk2.47**: the deep-time continent drift now eases — fast near the present (~90 Ma/s) and gradually slower as it winds back in time (~20 Ma/s by 1000 Ma), so the recent breakup plays quickly and the ancient supercontinents assemble slowly enough to watch. Full span ~21 s.
 
 ## The bots
 

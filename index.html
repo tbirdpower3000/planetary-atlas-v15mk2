@@ -2114,7 +2114,7 @@
     <div class="hrow">
       <h1>
         Planetary Modeling Atlas
-        <span class="ver" title="Version v15mk2.46, 16 Nov 2026: the deep-time continent drift now plays at full framerate (smooth instead of stepping); v15mk2.45, 16 Nov 2026: a deep-time view for Earth — reconstructed continents (Merdith et al. 2021) drift from Rodinia to today on a time slider, with the geologic timescale from the Precambrian to now; v15mk2.44, 15 Nov 2026: cleaner relief shading — removed the streaking at the poles and clamped extreme slopes, so the sun-lit terrain reads more smoothly; v15mk2.43, 15 Nov 2026: impact-crater layers for Mercury (451 named craters), Venus (942) and Earth (189 confirmed structures), each drawn as rings at true size with a crater-density and model-age note; v15mk2.42, 15 Nov 2026: dropped the pre-baked relief-shading normal maps from Mercury and Venus (about 1.1 MB) — their topography grids already build the relief from the true heights, so the maps were unused; v15mk2.41, 15 Nov 2026: Mercury topography — the USGS MESSENGER global elevation model (0.25°) added as a Topography layer; its real heights now drive the globe’s relief, replacing the normal-map shading; v15mk2.40, 15 Nov 2026: data-accuracy fix — corrected mean radii (Phobos, Deimos, Mimas, Hyperion, Ganymede) and Neptune’s flattening to JPL/IAU 2015 values, and the solar-energy albedos to Bond values; v15mk2.39, 5 Nov 2026: the ☀ Solar energy readout in each world's panel (sunlight in W/m² and vs Earth, the perihelion–aphelion range, equilibrium and noon-sun temperatures, and light delay); v15mk2.38, 5 Nov 2026: the webcam hand aim-assist (Adaptive aim) now starts off by default; v15mk2.37, 5 Nov 2026: clearer, more colour-blind-safe colours for the sky-lore labels, with a thin dark shadow so small label text stays legible; v15mk2.36, 5 Nov 2026: six more sky cultures (Chinese, Arabic, Hawaiian, Inuit, Aztec, Sami) with native names; tap a constellation to see its lore; constellation labels fade toward the centre of the view to cut clutter; v15mk2.35, 4 Nov 2026: the hand cursor keeps up with ordinary reaches (about 100 ms less lag); shared starting settings only once five people have shared; v15mk2.34: button highlights no longer flicker at the edge, and a held pinch keeps up with the hand; v15mk2.33: tidier hand-control code; v15mk2.32: five refinements from the hand research bot: presses resolved by a short vote over where the cursor was, steadier button holds, a steadier two-thirds pinch, a rest line with hysteresis, and only the visible part of the safety box mapped; ⋯ Less in the hand-control bar tidies the screen (on by default on phones)">v15mk2.46</span>
+        <span class="ver" title="Version v15mk2.48, 16 Nov 2026: the deep-time view now explains each chapter \u2014 supercontinents (Rodinia, Pannotia, Pangaea), the landmasses Laurentia, Gondwana and Laurasia, and milestones from Snowball Earth and the Cambrian Explosion to the great extinctions; v15mk2.47, 16 Nov 2026: the deep-time continent drift now starts fast near the present and eases slower as it winds back in time, so the ancient supercontinents are easier to watch assemble; v15mk2.46, 16 Nov 2026: the deep-time continent drift now plays at full framerate (smooth instead of stepping); v15mk2.45, 16 Nov 2026: a deep-time view for Earth — reconstructed continents (Merdith et al. 2021) drift from Rodinia to today on a time slider, with the geologic timescale from the Precambrian to now; v15mk2.44, 15 Nov 2026: cleaner relief shading — removed the streaking at the poles and clamped extreme slopes, so the sun-lit terrain reads more smoothly; v15mk2.43, 15 Nov 2026: impact-crater layers for Mercury (451 named craters), Venus (942) and Earth (189 confirmed structures), each drawn as rings at true size with a crater-density and model-age note; v15mk2.42, 15 Nov 2026: dropped the pre-baked relief-shading normal maps from Mercury and Venus (about 1.1 MB) — their topography grids already build the relief from the true heights, so the maps were unused; v15mk2.41, 15 Nov 2026: Mercury topography — the USGS MESSENGER global elevation model (0.25°) added as a Topography layer; its real heights now drive the globe’s relief, replacing the normal-map shading; v15mk2.40, 15 Nov 2026: data-accuracy fix — corrected mean radii (Phobos, Deimos, Mimas, Hyperion, Ganymede) and Neptune’s flattening to JPL/IAU 2015 values, and the solar-energy albedos to Bond values; v15mk2.39, 5 Nov 2026: the ☀ Solar energy readout in each world's panel (sunlight in W/m² and vs Earth, the perihelion–aphelion range, equilibrium and noon-sun temperatures, and light delay); v15mk2.38, 5 Nov 2026: the webcam hand aim-assist (Adaptive aim) now starts off by default; v15mk2.37, 5 Nov 2026: clearer, more colour-blind-safe colours for the sky-lore labels, with a thin dark shadow so small label text stays legible; v15mk2.36, 5 Nov 2026: six more sky cultures (Chinese, Arabic, Hawaiian, Inuit, Aztec, Sami) with native names; tap a constellation to see its lore; constellation labels fade toward the centre of the view to cut clutter; v15mk2.35, 4 Nov 2026: the hand cursor keeps up with ordinary reaches (about 100 ms less lag); shared starting settings only once five people have shared; v15mk2.34: button highlights no longer flicker at the edge, and a held pinch keeps up with the hand; v15mk2.33: tidier hand-control code; v15mk2.32: five refinements from the hand research bot: presses resolved by a short vote over where the cursor was, steadier button holds, a steadier two-thirds pinch, a rest line with hysteresis, and only the visible part of the safety box mapped; ⋯ Less in the hand-control bar tidies the screen (on by default on phones)">v15mk2.48</span>
       </h1>
       <button type="button" id="voiceBtn" aria-pressed="false" title="Voice commands: say “Hey Atlas”, then what you want, e.g. “Hey Atlas, show Mars” or “Hey Atlas, next map”">🎤 Voice</button>
       <p id="howTo">
@@ -2263,6 +2263,7 @@
         ><span id="paleoBarWrap" hidden style="flex-basis: 100%; display: flex; flex-direction: column; gap: 3px; margin-top: 2px"
           ><span id="paleoGeo" class="note" style="font-size: 0.82rem"></span
           ><div id="paleoBar" title="Geologic timescale — click to jump to an age" style="position: relative; height: 13px; width: 100%; max-width: 560px; border-radius: 3px; cursor: pointer; border: 1px solid var(--rule)"><div id="paleoMark" style="position: absolute; top: -1px; bottom: -1px; width: 2px; background: #fff; box-shadow: 0 0 3px #000; pointer-events: none"></div></div
+          ><span id="paleoExp" class="note" style="font-size: 0.8rem; max-width: 560px; line-height: 1.35"></span
         ></span
       ></span>
       <span id="orbT" class="toolbar" style="gap: 10px 18px" hidden
@@ -3312,11 +3313,41 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
         cache[i] = ls;
         return ls;
       }
+      // landmasses (land:1) and major events through the last billion years; the explainer shows the narrowest window the age falls in
+      const PHASES = [
+        ['Rodinia', 750, 1000, 'an early supercontinent assembled about 1.1 billion years ago, most of its land near the equator, before it broke up around 750 Ma.', 1],
+        ['Laurentia', 430, 740, 'the ancient core of North America and Greenland, adrift as its own continent through much of the early Paleozoic.', 1],
+        ['Pannotia', 540, 620, 'a brief, debated gathering of the continents near the South Pole in the latest Precambrian (~620\u2013540 Ma).', 1],
+        ['Gondwana', 180, 540, 'the great southern continent \u2014 South America, Africa, Antarctica, Australia and India \u2014 assembled ~550 Ma and a fixture until it broke up from ~180 Ma.', 1],
+        ['Pangaea', 175, 335, 'the most recent supercontinent: nearly all land fused together by ~320 Ma, ringed by the Panthalassa ocean, and rifting apart from ~200 Ma.', 1],
+        ['Laurasia', 60, 175, 'the northern landmass (North America + Eurasia) left when Pangaea split, before it too broke apart.', 1],
+        ['Snowball Earth', 635, 720, 'the global glaciations of the Cryogenian, when ice may have reached the tropics (~720\u2013635 Ma).', 0],
+        ['Ediacaran life', 539, 635, 'Earth\u2019s first large, soft-bodied multicellular organisms (~635\u2013539 Ma).', 0],
+        ['Cambrian Explosion', 485, 539, 'most major animal groups appear in a rapid burst of evolution (~539\u2013485 Ma).', 0],
+        ['Life onto land', 419, 485, 'the first plants and fungi colonize the continents (~485\u2013419 Ma).', 0],
+        ['Age of Fishes', 359, 419, 'fish diversify, the first forests grow, and vertebrates step onto land in the Devonian (~419\u2013359 Ma).', 0],
+        ['Coal forests', 299, 359, 'vast Carboniferous swamp forests and high oxygen; their buried remains became today\u2019s coal (~359\u2013299 Ma).', 0],
+        ['End-Permian extinction', 248, 256, '\u201cthe Great Dying\u201d (~252 Ma), the largest mass extinction in Earth\u2019s history.', 0],
+        ['Age of Dinosaurs', 66, 248, 'dinosaurs rule the land through the Mesozoic (~252\u201366 Ma).', 0],
+        ['End-Cretaceous extinction', 64, 68, 'an asteroid impact (~66 Ma) ends the non-avian dinosaurs.', 0],
+        ['Age of Mammals', 2.6, 66, 'mammals diversify and spread after the dinosaurs (~66 Ma to today).', 0],
+        ['Ice Ages', 0, 2.6, 'the repeated glacial cycles of the Quaternary, as humans evolve and spread (~2.6 Ma to today).', 0],
+      ];
+      function narrowest(age, landOnly) {
+        let best = null, bw = Infinity;
+        for (const p of PHASES)
+          if ((!landOnly || p[4]) && age >= p[1] && age <= p[2] && p[2] - p[1] < bw) {
+            bw = p[2] - p[1];
+            best = p;
+          }
+        return best;
+      }
       function superc(age) {
-        if (age >= 870) return 'Rodinia';
-        if (age >= 500 && age <= 620) return 'Pannotia';
-        if (age >= 250 && age <= 335) return 'Pangaea';
-        return '';
+        const p = narrowest(age, true);
+        return p ? p[0] : '';
+      }
+      function phaseAt(age) {
+        return narrowest(age, false);
       }
       function blend(age) {
         const ages = data.ages;
@@ -3345,6 +3376,7 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
           sc = superc(age),
           lbl = $('paleoLbl'),
           geo = $('paleoGeo'),
+          exp = $('paleoExp'),
           mk = $('paleoMark');
         if (lbl) lbl.textContent = age <= 0 ? 'present day' : Math.round(age) + ' Ma';
         if (geo)
@@ -3353,6 +3385,11 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
               ? '<b>Holocene</b> · Cenozoic · Phanerozoic'
               : `<b>${g[0]}</b> · ${g[2]} · ${g[3] === 'Proterozoic' ? 'Proterozoic (Precambrian)' : g[3]}` + (sc ? ` · <span style="color:#ffce7e">${sc}</span>` : '');
         if (mk) mk.style.left = (age / 1000) * 100 + '%';
+        if (exp) {
+          const ph = phaseAt(age);
+          exp.innerHTML = ph ? `<b style="color: #ffce7e">${ph[0]}</b> \u2014 ${ph[3]}` : '';
+          exp.hidden = !ph;
+        }
       }
       function stop() {
         playing = false;
@@ -3375,7 +3412,7 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
           if (!playing) return;
           const dt = Math.min(100, t - lastT);
           lastT = t;
-          cur += (dt / 1000) * 110;
+          cur += (dt / 1000) * (90 - (cur / 1000) * 70);
           if (cur >= 1000) cur = 0;
           const s = $('paleoAge');
           if (s) s.value = cur;
