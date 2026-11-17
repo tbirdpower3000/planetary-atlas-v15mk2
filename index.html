@@ -2114,7 +2114,7 @@
     <div class="hrow">
       <h1>
         Planetary Modeling Atlas
-        <span class="ver" title="Version v15mk2.45, 16 Nov 2026: a deep-time view for Earth — reconstructed continents (Merdith et al. 2021) drift from Rodinia to today on a time slider, with the geologic timescale from the Precambrian to now; v15mk2.44, 15 Nov 2026: cleaner relief shading — removed the streaking at the poles and clamped extreme slopes, so the sun-lit terrain reads more smoothly; v15mk2.43, 15 Nov 2026: impact-crater layers for Mercury (451 named craters), Venus (942) and Earth (189 confirmed structures), each drawn as rings at true size with a crater-density and model-age note; v15mk2.42, 15 Nov 2026: dropped the pre-baked relief-shading normal maps from Mercury and Venus (about 1.1 MB) — their topography grids already build the relief from the true heights, so the maps were unused; v15mk2.41, 15 Nov 2026: Mercury topography — the USGS MESSENGER global elevation model (0.25°) added as a Topography layer; its real heights now drive the globe’s relief, replacing the normal-map shading; v15mk2.40, 15 Nov 2026: data-accuracy fix — corrected mean radii (Phobos, Deimos, Mimas, Hyperion, Ganymede) and Neptune’s flattening to JPL/IAU 2015 values, and the solar-energy albedos to Bond values; v15mk2.39, 5 Nov 2026: the ☀ Solar energy readout in each world's panel (sunlight in W/m² and vs Earth, the perihelion–aphelion range, equilibrium and noon-sun temperatures, and light delay); v15mk2.38, 5 Nov 2026: the webcam hand aim-assist (Adaptive aim) now starts off by default; v15mk2.37, 5 Nov 2026: clearer, more colour-blind-safe colours for the sky-lore labels, with a thin dark shadow so small label text stays legible; v15mk2.36, 5 Nov 2026: six more sky cultures (Chinese, Arabic, Hawaiian, Inuit, Aztec, Sami) with native names; tap a constellation to see its lore; constellation labels fade toward the centre of the view to cut clutter; v15mk2.35, 4 Nov 2026: the hand cursor keeps up with ordinary reaches (about 100 ms less lag); shared starting settings only once five people have shared; v15mk2.34: button highlights no longer flicker at the edge, and a held pinch keeps up with the hand; v15mk2.33: tidier hand-control code; v15mk2.32: five refinements from the hand research bot: presses resolved by a short vote over where the cursor was, steadier button holds, a steadier two-thirds pinch, a rest line with hysteresis, and only the visible part of the safety box mapped; ⋯ Less in the hand-control bar tidies the screen (on by default on phones)">v15mk2.45</span>
+        <span class="ver" title="Version v15mk2.46, 16 Nov 2026: the deep-time continent drift now plays at full framerate (smooth instead of stepping); v15mk2.45, 16 Nov 2026: a deep-time view for Earth — reconstructed continents (Merdith et al. 2021) drift from Rodinia to today on a time slider, with the geologic timescale from the Precambrian to now; v15mk2.44, 15 Nov 2026: cleaner relief shading — removed the streaking at the poles and clamped extreme slopes, so the sun-lit terrain reads more smoothly; v15mk2.43, 15 Nov 2026: impact-crater layers for Mercury (451 named craters), Venus (942) and Earth (189 confirmed structures), each drawn as rings at true size with a crater-density and model-age note; v15mk2.42, 15 Nov 2026: dropped the pre-baked relief-shading normal maps from Mercury and Venus (about 1.1 MB) — their topography grids already build the relief from the true heights, so the maps were unused; v15mk2.41, 15 Nov 2026: Mercury topography — the USGS MESSENGER global elevation model (0.25°) added as a Topography layer; its real heights now drive the globe’s relief, replacing the normal-map shading; v15mk2.40, 15 Nov 2026: data-accuracy fix — corrected mean radii (Phobos, Deimos, Mimas, Hyperion, Ganymede) and Neptune’s flattening to JPL/IAU 2015 values, and the solar-energy albedos to Bond values; v15mk2.39, 5 Nov 2026: the ☀ Solar energy readout in each world's panel (sunlight in W/m² and vs Earth, the perihelion–aphelion range, equilibrium and noon-sun temperatures, and light delay); v15mk2.38, 5 Nov 2026: the webcam hand aim-assist (Adaptive aim) now starts off by default; v15mk2.37, 5 Nov 2026: clearer, more colour-blind-safe colours for the sky-lore labels, with a thin dark shadow so small label text stays legible; v15mk2.36, 5 Nov 2026: six more sky cultures (Chinese, Arabic, Hawaiian, Inuit, Aztec, Sami) with native names; tap a constellation to see its lore; constellation labels fade toward the centre of the view to cut clutter; v15mk2.35, 4 Nov 2026: the hand cursor keeps up with ordinary reaches (about 100 ms less lag); shared starting settings only once five people have shared; v15mk2.34: button highlights no longer flicker at the edge, and a held pinch keeps up with the hand; v15mk2.33: tidier hand-control code; v15mk2.32: five refinements from the hand research bot: presses resolved by a short vote over where the cursor was, steadier button holds, a steadier two-thirds pinch, a rest line with hysteresis, and only the visible part of the safety box mapped; ⋯ Less in the hand-control bar tidies the screen (on by default on phones)">v15mk2.46</span>
       </h1>
       <button type="button" id="voiceBtn" aria-pressed="false" title="Voice commands: say “Hey Atlas”, then what you want, e.g. “Hey Atlas, show Mars” or “Hey Atlas, next map”">🎤 Voice</button>
       <p id="howTo">
@@ -3283,6 +3283,7 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
         cur = 0,
         playing = false,
         timer = null,
+        lastT = 0,
         hidden = null;
       function frameLines(i) {
         if (cache[i]) return cache[i];
@@ -3355,7 +3356,7 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
       }
       function stop() {
         playing = false;
-        if (timer) clearInterval(timer);
+        if (timer) cancelAnimationFrame(timer);
         timer = null;
         const b = $('paleoPlay');
         if (b) b.textContent = '▶';
@@ -3369,12 +3370,19 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
         playing = true;
         const b = $('paleoPlay');
         if (b) b.textContent = '⏸';
-        timer = setInterval(() => {
-          cur = cur >= 1000 ? 0 : Math.min(1000, cur + 8);
+        lastT = performance.now();
+        const tick = (t) => {
+          if (!playing) return;
+          const dt = Math.min(100, t - lastT);
+          lastT = t;
+          cur += (dt / 1000) * 110;
+          if (cur >= 1000) cur = 0;
           const s = $('paleoAge');
           if (s) s.value = cur;
           blend(cur);
-        }, 80);
+          timer = requestAnimationFrame(tick);
+        };
+        timer = requestAnimationFrame(tick);
       }
       async function enable(on) {
         if (on) {
