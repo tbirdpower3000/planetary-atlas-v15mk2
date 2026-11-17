@@ -66,6 +66,7 @@ The live layers come straight from their providers in your browser, not from thi
 - **v15mk2.47**: the deep-time continent drift now eases — fast near the present (~90 Ma/s) and gradually slower as it winds back in time (~20 Ma/s by 1000 Ma), so the recent breakup plays quickly and the ancient supercontinents assemble slowly enough to watch. Full span ~21 s.
 - **v15mk2.48**: the deep-time view explains each chapter — a one-line note under the timescale names the supercontinents (Rodinia, Pannotia, Pangaea), the landmasses Laurentia, Gondwana and Laurasia, and milestones from Snowball Earth and the Cambrian Explosion to the great extinctions.
 - **v15mk2.49**: the deep-time view is clearer in three ways. The continents are now **filled land** (earcut-triangulated on the sphere) standing out against the ocean, not just coastline outlines. A faint 30° **graticule** with a brighter equator and pole markers shows the globe’s rotation. And the major landmasses carry **drifting name labels** — Rodinia, Laurentia, Gondwana, Pangaea, Laurasia and (debated) Pannotia — anchored to craton reference points reconstructed through the same Merdith et al. (2021) plate model as the coastlines, so each name rides its continent and only shows in the age window it belongs to.
+- **v15mk2.50**: the deep-time playback runs at about half speed — ~45 Ma/s near the present, easing to ~10 Ma/s by 1000 Ma (a ~43 s full span) — so the drift is easier to follow.
 
 ## The bots
 
