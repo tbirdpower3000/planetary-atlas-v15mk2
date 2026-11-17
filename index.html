@@ -3686,10 +3686,12 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
     }
     // imagery + relief: the photo map tinted by height, shaded by the relief, or both, mixed by a slider
     const BL = { cv: document.createElement('canvas'), tex: null, img: {}, tint: null, shade: null, key: '', job: 0 };
-    // the map a world opens on: Earth with its clouds (cloud cover over the colour map, which also dims the night-side city
+    // the map a world opens on: Earth with its live clouds (real-time satellite cloud cover; falls back to the colour map's
+    // baked clouds, then the clear surface, if the satellites don't answer), which also dims the night-side city
     // lights where it's cloudy); every other world with shaded relief (its photo map shaded by its topography) where it has
     // both, else its photo map, else its first data map
     function defaultLayer() {
+      if (P.id === 'earth' && P.images.some((im) => im.id === 'vis')) return 'live';
       if (P.id === 'earth' && P.images.some((im) => im.id === 'visc')) return 'visc';
       if (ELEV && blendPhotos().length) {
         $('blendM').value = 'shade';
