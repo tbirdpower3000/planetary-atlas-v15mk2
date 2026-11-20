@@ -889,6 +889,10 @@
     pointer-events: none;
     overflow: hidden;
   }
+  #stage.surf #labels,
+  #stage.surf #paleoLabels {
+    display: none;
+  }
   #paleoLabels {
     position: absolute;
     inset: 0;
@@ -2135,7 +2139,7 @@
     <div class="hrow">
       <h1>
         Planetary Modeling Atlas
-        <span class="ver" title="Version v15mk2.50, 19 Nov 2026: the deep-time view now lets you go to an exact age — type a number of millions of years into the Ma box, or pick a geologic period from the Jump-to menu — and the slider is finer (1-Myr steps); playback also runs at about half speed (~45 Ma/s near the present easing to ~10 Ma/s by 1000 Ma); v15mk2.49, 16 Nov 2026: the deep-time view is clearer — continents are filled land against the ocean, a faint graticule with a brighter equator and pole markers shows the globe’s rotation, and the major landmasses (Rodinia, Laurentia, Gondwana, Pangaea, Laurasia, Pannotia) carry drifting name labels placed from craton tracks reconstructed through the same plate model; v15mk2.48, 16 Nov 2026: the deep-time view now explains each chapter \u2014 supercontinents (Rodinia, Pannotia, Pangaea), the landmasses Laurentia, Gondwana and Laurasia, and milestones from Snowball Earth and the Cambrian Explosion to the great extinctions; v15mk2.47, 16 Nov 2026: the deep-time continent drift now starts fast near the present and eases slower as it winds back in time, so the ancient supercontinents are easier to watch assemble; v15mk2.46, 16 Nov 2026: the deep-time continent drift now plays at full framerate (smooth instead of stepping); v15mk2.45, 16 Nov 2026: a deep-time view for Earth — reconstructed continents (Merdith et al. 2021) drift from Rodinia to today on a time slider, with the geologic timescale from the Precambrian to now; v15mk2.44, 15 Nov 2026: cleaner relief shading — removed the streaking at the poles and clamped extreme slopes, so the sun-lit terrain reads more smoothly; v15mk2.43, 15 Nov 2026: impact-crater layers for Mercury (451 named craters), Venus (942) and Earth (189 confirmed structures), each drawn as rings at true size with a crater-density and model-age note; v15mk2.42, 15 Nov 2026: dropped the pre-baked relief-shading normal maps from Mercury and Venus (about 1.1 MB) — their topography grids already build the relief from the true heights, so the maps were unused; v15mk2.41, 15 Nov 2026: Mercury topography — the USGS MESSENGER global elevation model (0.25°) added as a Topography layer; its real heights now drive the globe’s relief, replacing the normal-map shading; v15mk2.40, 15 Nov 2026: data-accuracy fix — corrected mean radii (Phobos, Deimos, Mimas, Hyperion, Ganymede) and Neptune’s flattening to JPL/IAU 2015 values, and the solar-energy albedos to Bond values; v15mk2.39, 5 Nov 2026: the ☀ Solar energy readout in each world's panel (sunlight in W/m² and vs Earth, the perihelion–aphelion range, equilibrium and noon-sun temperatures, and light delay); v15mk2.38, 5 Nov 2026: the webcam hand aim-assist (Adaptive aim) now starts off by default; v15mk2.37, 5 Nov 2026: clearer, more colour-blind-safe colours for the sky-lore labels, with a thin dark shadow so small label text stays legible; v15mk2.36, 5 Nov 2026: six more sky cultures (Chinese, Arabic, Hawaiian, Inuit, Aztec, Sami) with native names; tap a constellation to see its lore; constellation labels fade toward the centre of the view to cut clutter; v15mk2.35, 4 Nov 2026: the hand cursor keeps up with ordinary reaches (about 100 ms less lag); shared starting settings only once five people have shared; v15mk2.34: button highlights no longer flicker at the edge, and a held pinch keeps up with the hand; v15mk2.33: tidier hand-control code; v15mk2.32: five refinements from the hand research bot: presses resolved by a short vote over where the cursor was, steadier button holds, a steadier two-thirds pinch, a rest line with hysteresis, and only the visible part of the safety box mapped; ⋯ Less in the hand-control bar tidies the screen (on by default on phones)">v15mk2.50</span>
+        <span class="ver" title="Version v15mk2.51, 20 Nov 2026: 🧭 Sky from here (Earth) — stand on the surface where the globe faces you, or at a latitude and longitude you type, and look up at the real night sky for any date and time, with a horizon, compass points, altitude circles and the celestial poles to find direction by the stars; v15mk2.50, 19 Nov 2026: the deep-time view now lets you go to an exact age — type a number of millions of years into the Ma box, or pick a geologic period from the Jump-to menu — and the slider is finer (1-Myr steps); playback also runs at about half speed (~45 Ma/s near the present easing to ~10 Ma/s by 1000 Ma); v15mk2.49, 16 Nov 2026: the deep-time view is clearer — continents are filled land against the ocean, a faint graticule with a brighter equator and pole markers shows the globe’s rotation, and the major landmasses (Rodinia, Laurentia, Gondwana, Pangaea, Laurasia, Pannotia) carry drifting name labels placed from craton tracks reconstructed through the same plate model; v15mk2.48, 16 Nov 2026: the deep-time view now explains each chapter \u2014 supercontinents (Rodinia, Pannotia, Pangaea), the landmasses Laurentia, Gondwana and Laurasia, and milestones from Snowball Earth and the Cambrian Explosion to the great extinctions; v15mk2.47, 16 Nov 2026: the deep-time continent drift now starts fast near the present and eases slower as it winds back in time, so the ancient supercontinents are easier to watch assemble; v15mk2.46, 16 Nov 2026: the deep-time continent drift now plays at full framerate (smooth instead of stepping); v15mk2.45, 16 Nov 2026: a deep-time view for Earth — reconstructed continents (Merdith et al. 2021) drift from Rodinia to today on a time slider, with the geologic timescale from the Precambrian to now; v15mk2.44, 15 Nov 2026: cleaner relief shading — removed the streaking at the poles and clamped extreme slopes, so the sun-lit terrain reads more smoothly; v15mk2.43, 15 Nov 2026: impact-crater layers for Mercury (451 named craters), Venus (942) and Earth (189 confirmed structures), each drawn as rings at true size with a crater-density and model-age note; v15mk2.42, 15 Nov 2026: dropped the pre-baked relief-shading normal maps from Mercury and Venus (about 1.1 MB) — their topography grids already build the relief from the true heights, so the maps were unused; v15mk2.41, 15 Nov 2026: Mercury topography — the USGS MESSENGER global elevation model (0.25°) added as a Topography layer; its real heights now drive the globe’s relief, replacing the normal-map shading; v15mk2.40, 15 Nov 2026: data-accuracy fix — corrected mean radii (Phobos, Deimos, Mimas, Hyperion, Ganymede) and Neptune’s flattening to JPL/IAU 2015 values, and the solar-energy albedos to Bond values; v15mk2.39, 5 Nov 2026: the ☀ Solar energy readout in each world's panel (sunlight in W/m² and vs Earth, the perihelion–aphelion range, equilibrium and noon-sun temperatures, and light delay); v15mk2.38, 5 Nov 2026: the webcam hand aim-assist (Adaptive aim) now starts off by default; v15mk2.37, 5 Nov 2026: clearer, more colour-blind-safe colours for the sky-lore labels, with a thin dark shadow so small label text stays legible; v15mk2.36, 5 Nov 2026: six more sky cultures (Chinese, Arabic, Hawaiian, Inuit, Aztec, Sami) with native names; tap a constellation to see its lore; constellation labels fade toward the centre of the view to cut clutter; v15mk2.35, 4 Nov 2026: the hand cursor keeps up with ordinary reaches (about 100 ms less lag); shared starting settings only once five people have shared; v15mk2.34: button highlights no longer flicker at the edge, and a held pinch keeps up with the hand; v15mk2.33: tidier hand-control code; v15mk2.32: five refinements from the hand research bot: presses resolved by a short vote over where the cursor was, steadier button holds, a steadier two-thirds pinch, a rest line with hysteresis, and only the visible part of the safety box mapped; ⋯ Less in the hand-control bar tidies the screen (on by default on phones)">v15mk2.51</span>
       </h1>
       <button type="button" id="voiceBtn" aria-pressed="false" title="Voice commands: say “Hey Atlas”, then what you want, e.g. “Hey Atlas, show Mars” or “Hey Atlas, next map”">🎤 Voice</button>
       <p id="howTo">
@@ -2286,6 +2290,15 @@
           ><div id="paleoBar" title="Geologic timescale — click to jump to an age" style="position: relative; height: 13px; width: 100%; max-width: 560px; border-radius: 3px; cursor: pointer; border: 1px solid var(--rule)"><div id="paleoMark" style="position: absolute; top: -1px; bottom: -1px; width: 2px; background: #fff; box-shadow: 0 0 3px #000; pointer-events: none"></div></div
           ><span id="paleoExp" class="note" style="font-size: 0.8rem; max-width: 560px; line-height: 1.35"></span
         ></span
+      ></span>
+      <span id="surfT" class="toolbar" style="gap: 8px 12px" hidden
+        ><button type="button" id="surfBtn" title="Stand on the surface where the globe is facing you and look up at the real night sky, to find your way by the stars">🧭 Sky from here</button
+        ><span id="surfCtl" class="tgroup" hidden
+          >Lat <input id="surfLat" type="number" min="-90" max="90" step="any" style="width: 5em" aria-label="Latitude in degrees, north positive" /> Lon
+          <input id="surfLon" type="number" min="-180" max="360" step="any" style="width: 5.4em" aria-label="Longitude in degrees, east positive" /><input id="surfTime" type="datetime-local" aria-label="Date and time of the sky" /><button type="button" id="surfNow" title="Use the current date and time">Now</button
+          ><input id="surfHr" type="range" min="-12" max="12" step="0.25" value="0" style="width: 120px" title="Wind the sky up to 12 hours back or forward" aria-label="Hours back or forward" /><output id="surfOff"></output
+        ></span
+        ><span id="surfInfo" class="note" style="flex-basis: 100%; font-size: 0.82rem" aria-live="off" hidden></span
       ></span>
       <span id="orbT" class="toolbar" style="gap: 10px 18px" hidden
         ><label class="tgroup" title="Spacecraft in orbit around this world, drawn from their published orbits (the orientation and the position along the orbit are illustrative, not tracked)"
@@ -3698,6 +3711,283 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
     }
     window.PALEO = PALEO;
 
+    // ---------- the sky from the ground (Earth) ----------
+    // Stand at a latitude and longitude and look up: the same star catalogue and sky-culture figures as the globe's sky,
+    // turned into the local horizon frame (east, up, north) from the latitude and the local sidereal time. A horizon with
+    // compass points, altitude circles and the celestial poles are drawn so the stars can be used to find direction.
+    const SURF = (function () {
+      const D = Math.PI / 180,
+        RS = 110,
+        RH = 99;
+      let sky = null,
+        hz = null,
+        active = false,
+        saved = null,
+        lat = 0,
+        lon = 0,
+        tBase = Date.now(),
+        off = 0,
+        lst = 0;
+      const sprite = (text, colour, h) => {
+        const c = document.createElement('canvas'),
+          x = c.getContext('2d'),
+          f = 44;
+        x.font = `600 ${f}px system-ui, sans-serif`;
+        c.width = Math.ceil(x.measureText(text).width) + 16;
+        c.height = f + 16;
+        x.font = `600 ${f}px system-ui, sans-serif`;
+        x.textAlign = 'center';
+        x.textBaseline = 'middle';
+        x.shadowColor = 'rgba(0,0,0,0.9)';
+        x.shadowBlur = 4;
+        x.fillStyle = colour;
+        x.fillText(text, c.width / 2, c.height / 2);
+        const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(c), transparent: true, depthWrite: false }));
+        sp.scale.set((c.width / c.height) * h, h, 1);
+        return sp;
+      };
+      const circle = (pts, colour, op) => {
+        const g = new THREE.BufferGeometry();
+        g.setAttribute('position', new THREE.Float32BufferAttribute(pts, 3));
+        return new THREE.LineLoop(g, new THREE.LineBasicMaterial({ color: colour, transparent: true, opacity: op, depthWrite: false }));
+      };
+      function build() {
+        if (sky) return;
+        sky = window.SKY.add(scene, RS, 1.9, null);
+        sky.visible = false;
+        // in the sky's own (equatorial) frame: the celestial equator and the two poles
+        const eq = [];
+        for (let a = 0; a < 360; a += 3) eq.push(RS * 0.98 * Math.cos(a * D), RS * 0.98 * Math.sin(a * D), 0);
+        sky.add(circle(eq, 0x6f8fb8, 0.3));
+        [
+          [1, 'North celestial pole'],
+          [-1, 'South celestial pole'],
+        ].forEach(([sgn, name]) => {
+          const ring = [];
+          for (let a = 0; a < 360; a += 15) ring.push(RS * 0.98 * Math.sin(1.2 * D) * Math.cos(a * D), RS * 0.98 * Math.sin(1.2 * D) * Math.sin(a * D), sgn * RS * 0.98 * Math.cos(1.2 * D));
+          sky.add(circle(ring, 0xffd27a, 0.9));
+          const sp = sprite(name, '#ffd27a', 2.6);
+          sp.position.set(0, 0, sgn * RS * 0.97);
+          sp.center.set(0.5, -0.9);
+          sky.add(sp);
+        });
+        // in the ground's frame: x east, y up, z south (so north is -z)
+        hz = new THREE.Group();
+        hz.visible = false;
+        scene.add(hz);
+        const ground = new THREE.Mesh(new THREE.SphereGeometry(100, 64, 16, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0x0a121c, side: THREE.BackSide }));
+        ground.renderOrder = 5;
+        hz.add(ground);
+        const ring = (alt, col, op) => {
+          const p = [];
+          for (let a = 0; a < 360; a += 2) p.push(RH * Math.cos(alt * D) * Math.sin(a * D), RH * Math.sin(alt * D), -RH * Math.cos(alt * D) * Math.cos(a * D));
+          const l = circle(p, col, op);
+          l.renderOrder = 6;
+          hz.add(l);
+        };
+        ring(0.05, 0x9cc4f0, 0.9);
+        ring(30, 0x5a7a9a, 0.3);
+        ring(60, 0x5a7a9a, 0.3);
+        [
+          ['N', 0, 5.2, '#ff9a8a'],
+          ['E', 90, 5.2, '#cfe4ff'],
+          ['S', 180, 5.2, '#cfe4ff'],
+          ['W', 270, 5.2, '#cfe4ff'],
+          ['NE', 45, 2.8, '#9db4cc'],
+          ['SE', 135, 2.8, '#9db4cc'],
+          ['SW', 225, 2.8, '#9db4cc'],
+          ['NW', 315, 2.8, '#9db4cc'],
+        ].forEach(([t, az, h, col]) => {
+          const sp = sprite(t, col, h);
+          sp.position.set(RH * 0.98 * Math.sin(az * D), 2.2 + h / 2, -RH * 0.98 * Math.cos(az * D));
+          sp.renderOrder = 7;
+          hz.add(sp);
+        });
+        [30, 60].forEach((alt) => {
+          const sp = sprite(alt + '\u00b0', '#7f9bb8', 2.2);
+          sp.position.set(0, RH * Math.sin(alt * D) + 1.6, -RH * Math.cos(alt * D));
+          sp.renderOrder = 7;
+          hz.add(sp);
+        });
+      }
+      const when = () => tBase + off * 3600000;
+      // local sidereal time (degrees) from the date and the east longitude
+      function sidereal() {
+        const d = when() / 86400000 + 2440587.5 - 2451545.0;
+        return (((280.46061837 + 360.98564736629 * d + lon) % 360) + 360) % 360;
+      }
+      // east, north and up at the observer, as directions in the sky's equatorial frame
+      function axes() {
+        const p = lat * D,
+          l = lst * D;
+        return {
+          E: [-Math.sin(l), Math.cos(l), 0],
+          N: [-Math.sin(p) * Math.cos(l), -Math.sin(p) * Math.sin(l), Math.cos(p)],
+          U: [Math.cos(p) * Math.cos(l), Math.cos(p) * Math.sin(l), Math.sin(p)],
+        };
+      }
+      const fmtLL = () => `${Math.abs(lat).toFixed(1)}\u00b0${lat >= 0 ? 'N' : 'S'} ${Math.abs(lon).toFixed(1)}\u00b0${lon >= 0 ? 'E' : 'W'}`;
+      const WIND = ['N', 'NNE', 'NE', 'ENE', 'E', 'ESE', 'SE', 'SSE', 'S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW'];
+      let lastInfo = '';
+      function info() {
+        const e = $('surfInfo');
+        if (!e) return;
+        const d = camera.position.clone().normalize().negate(),
+          az = (Math.atan2(d.x, -d.z) / D + 360) % 360,
+          alt = Math.asin(Math.max(-1, Math.min(1, d.y))) / D,
+          h = lst / 15,
+          pole = lat >= 0 ? 'north' : 'south',
+          t = new Date(when()),
+          txt =
+            `Standing at ${fmtLL()} \u00b7 ${t.toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })} \u00b7 sidereal time ${String(Math.floor(h)).padStart(2, '0')}h ${String(Math.floor((h % 1) * 60)).padStart(2, '0')}m` +
+            ` \u00b7 looking ${WIND[Math.round(az / 22.5) % 16]} (${az.toFixed(0)}\u00b0), ${alt >= 0 ? alt.toFixed(0) + '\u00b0 up' : (-alt).toFixed(0) + '\u00b0 down'}` +
+            ` \u00b7 the ${pole} celestial pole stands ${Math.abs(lat).toFixed(0)}\u00b0 above the ${pole} horizon (your latitude). Drag to look around, scroll to zoom.`;
+        if (txt !== lastInfo) e.textContent = lastInfo = txt;
+      }
+      function orientSky() {
+        lst = sidereal();
+        const a = axes();
+        sky.matrix.makeBasis(new THREE.Vector3(a.E[0], a.U[0], -a.N[0]), new THREE.Vector3(a.E[1], a.U[1], -a.N[1]), new THREE.Vector3(a.E[2], a.U[2], -a.N[2]));
+        sky.matrixWorldNeedsUpdate = true;
+        gPoke();
+      }
+      function syncInputs() {
+        $('surfLat').value = +lat.toFixed(2);
+        $('surfLon').value = +lon.toFixed(2);
+        const t = new Date(tBase);
+        $('surfTime').value = new Date(tBase - t.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+        $('surfHr').value = off;
+        $('surfOff').textContent = off ? (off > 0 ? '+' : '\u2212') + Math.abs(off).toFixed(2).replace(/\.?0+$/, '') + ' h' : '';
+      }
+      function wheel(e) {
+        if (!active) return;
+        e.preventDefault();
+        camera.fov = Math.max(15, Math.min(100, camera.fov * (e.deltaY > 0 ? 1.08 : 0.926)));
+        camera.updateProjectionMatrix();
+        gPoke();
+      }
+      function enter() {
+        if (active || !window.SKY) return;
+        build();
+        if (window.PALEO) PALEO.reset();
+        // where the globe is facing the viewer, in the body's own frame
+        const v = camera.position.clone().normalize().applyQuaternion(world.quaternion.clone().invert());
+        lat = Math.asin(Math.max(-1, Math.min(1, v.y))) / D;
+        lon = ((Math.atan2(-v.z, v.x) / D + 540) % 360) - 180;
+        tBase = Date.now();
+        off = 0;
+        saved = {
+          vis: scene.children.map((c) => [c, c.visible]),
+          pos: camera.position.clone(),
+          fov: camera.fov,
+          tgt: controls.target.clone(),
+          min: controls.minDistance,
+          max: controls.maxDistance,
+          rs: controls.rotateSpeed,
+          zoom: controls.enableZoom,
+        };
+        scene.children.forEach((c) => (c.visible = c === sky || c === hz));
+        active = true;
+        stage.classList.add('surf');
+        controls.target.set(0, 0, 0);
+        controls.minDistance = controls.maxDistance = 0.05;
+        controls.rotateSpeed = -0.35; // drag the sky, not the camera
+        controls.enableZoom = false;
+        camera.fov = 70;
+        camera.updateProjectionMatrix();
+        camera.position.set(0, -0.05 * Math.sin(22 * D), 0.05 * Math.cos(22 * D)); // facing north, a little above the horizon
+        renderer.domElement.addEventListener('wheel', wheel, { passive: false });
+        $('surfBtn').textContent = '\u2190 Back to the globe';
+        $('surfCtl').hidden = $('surfInfo').hidden = false;
+        syncInputs();
+        orientSky();
+      }
+      function exit() {
+        if (!active) return;
+        active = false;
+        stage.classList.remove('surf');
+        saved.vis.forEach(([c, v]) => (c.visible = v));
+        sky.visible = hz.visible = false;
+        controls.minDistance = saved.min;
+        controls.maxDistance = saved.max;
+        controls.rotateSpeed = saved.rs;
+        controls.enableZoom = saved.zoom;
+        controls.target.copy(saved.tgt);
+        camera.position.copy(saved.pos);
+        camera.fov = saved.fov;
+        camera.updateProjectionMatrix();
+        renderer.domElement.removeEventListener('wheel', wheel);
+        $('surfBtn').textContent = '\ud83e\udded Sky from here';
+        $('surfCtl').hidden = $('surfInfo').hidden = true;
+        saved = null;
+        gPoke();
+      }
+      if ($('surfBtn')) {
+        $('surfBtn').onclick = () => (active ? exit() : enter());
+        const ll = () => {
+          if (!active) return;
+          lat = Math.max(-90, Math.min(90, +$('surfLat').value || 0));
+          lon = ((((+$('surfLon').value || 0) + 540) % 360) + 360) % 360 - 180;
+          syncInputs();
+          orientSky();
+        };
+        $('surfLat').onchange = $('surfLon').onchange = ll;
+        $('surfTime').onchange = (e) => {
+          const t = new Date(e.target.value).getTime();
+          if (!isFinite(t)) return;
+          tBase = t;
+          off = 0;
+          syncInputs();
+          orientSky();
+        };
+        $('surfNow').onclick = () => {
+          tBase = Date.now();
+          off = 0;
+          syncInputs();
+          orientSky();
+        };
+        $('surfHr').oninput = (e) => {
+          off = +e.target.value;
+          syncInputs();
+          orientSky();
+        };
+        $('paleoOn') && $('paleoOn').addEventListener('change', () => exit());
+      }
+      window.SURF_TICK = () => {
+        if (!active) return;
+        window.SKY.fadeView(sky, camera, controls.target);
+        info();
+      };
+      return {
+        enter,
+        exit,
+        active: () => active,
+        forEarth(isE) {
+          const t = $('surfT');
+          if (t) t.hidden = !isE;
+          if (!isE) exit();
+        },
+        // for checks: a star's azimuth (from north through east) and altitude, in degrees, where the observer now stands
+        altaz(ra, dec) {
+          const a = axes(),
+            s = [Math.cos(dec * D) * Math.cos(ra * D), Math.cos(dec * D) * Math.sin(ra * D), Math.sin(dec * D)],
+            dot = (u) => u[0] * s[0] + u[1] * s[1] + u[2] * s[2];
+          return { az: (Math.atan2(dot(a.E), dot(a.N)) / D + 360) % 360, alt: Math.asin(dot(a.U)) / D };
+        },
+        set(la, lo, ms) {
+          lat = la;
+          lon = lo;
+          tBase = ms;
+          off = 0;
+          if (active) {
+            syncInputs();
+            orientSky();
+          } else lst = sidereal();
+        },
+      };
+    })();
+    window.SURF = SURF;
+
     async function buildRings() {
       clearGrp(ringGrp);
       if (!P.rings) return;
@@ -4880,6 +5170,7 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
       $('bSolar').hidden = !sb;
       document.querySelectorAll('.curName').forEach((e) => (e.textContent = P.name));
       PALEO.forEarth((P.id || '') === 'earth');
+      SURF.forEarth((P.id || '') === 'earth');
       const R = P.radiusKm,
         el = (P.grids || []).find((g) => g.elev);
       let h = `<span>Mean radius <b>${R.toLocaleString('en-US')} km</b></span>`;
@@ -7728,6 +8019,7 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
       PTS.forEach((o) => o.labels.forEach((el, i) => project(o.items[i].pos, el, o.grp.visible && dist < 2.6)));
       if (window.ML_TICK) window.ML_TICK();
       if (window.PALEO_LBL) window.PALEO_LBL();
+      if (window.SURF_TICK) window.SURF_TICK();
       declutter();
     }
     const LBOX = [],
@@ -7781,6 +8073,7 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
     function setMode(m) {
       if (MODE === m) return;
       MODE = m;
+      if (window.SURF && m !== 'globe') window.SURF.exit();
       document.body.dataset.hmode = m;
       RENDER_BOTH_UNTIL = performance.now() + 900; // both scenes draw during the cross-fade
       if (window.HAND_MODE) window.HAND_MODE(m);
