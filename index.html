@@ -1054,6 +1054,59 @@
   body.handfs #handMsg {
     top: 124px;
   }
+  /* VR: the split view for a phone in a Cardboard viewer. Everything drawn by the page on top of the 3D view is hidden
+     (it cannot be shown once per eye); the gaze mark and signs are part of the 3D scene instead. */
+  body.vr #labels,
+  body.vr #paleoLabels,
+  body.vr #mapLabels,
+  body.vr #mapCard,
+  body.vr #mapCursor,
+  body.vr #fsBar,
+  body.vr #fsMap,
+  body.vr #fsLand,
+  body.vr #fsFull,
+  body.vr #cap,
+  body.vr #satCard,
+  body.vr #unfocusBtn,
+  body.vr #handMsg,
+  body.vr #voicePill,
+  body.vr #busy {
+    display: none !important;
+  }
+  #vrHud {
+    position: fixed;
+    inset: 0;
+    z-index: 60;
+    pointer-events: none;
+  }
+  #vrMid {
+    position: absolute;
+    background: rgba(255, 255, 255, 0.35);
+  }
+  #vrExit {
+    position: absolute;
+    left: 50%;
+    bottom: 6px;
+    transform: translateX(-50%);
+    pointer-events: auto;
+    font-size: 0.75rem;
+    padding: 4px 10px;
+    opacity: 0.6;
+  }
+  #vrTurn {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 24px;
+    background: rgba(7, 11, 20, 0.94);
+    color: #e9eef5;
+    font-size: 1.1rem;
+  }
   /* ◐ Less: a tidy screen for hand control, with only the buttons that steer; on by default on phones, remembered */
   body.handmin #fsBri,
   body.handmin #fsTurn,
@@ -2139,7 +2192,7 @@
     <div class="hrow">
       <h1>
         Planetary Modeling Atlas
-        <span class="ver" title="Version v15mk2.52, 20 Nov 2026: faster — the page no longer downloads a world until its globe is about to come into view or you pick one, and moving the pointer over a globe is much lighter; v15mk2.51, 20 Nov 2026: 🧭 Sky from here (Earth) — stand on the surface where the globe faces you, or at a latitude and longitude you type, and look up at the real night sky for any date and time, with a horizon, compass points, altitude circles and the celestial poles to find direction by the stars; v15mk2.50, 19 Nov 2026: the deep-time view now lets you go to an exact age — type a number of millions of years into the Ma box, or pick a geologic period from the Jump-to menu — and the slider is finer (1-Myr steps); playback also runs at about half speed (~45 Ma/s near the present easing to ~10 Ma/s by 1000 Ma); v15mk2.49, 16 Nov 2026: the deep-time view is clearer — continents are filled land against the ocean, a faint graticule with a brighter equator and pole markers shows the globe’s rotation, and the major landmasses (Rodinia, Laurentia, Gondwana, Pangaea, Laurasia, Pannotia) carry drifting name labels placed from craton tracks reconstructed through the same plate model; v15mk2.48, 16 Nov 2026: the deep-time view now explains each chapter \u2014 supercontinents (Rodinia, Pannotia, Pangaea), the landmasses Laurentia, Gondwana and Laurasia, and milestones from Snowball Earth and the Cambrian Explosion to the great extinctions; v15mk2.47, 16 Nov 2026: the deep-time continent drift now starts fast near the present and eases slower as it winds back in time, so the ancient supercontinents are easier to watch assemble; v15mk2.46, 16 Nov 2026: the deep-time continent drift now plays at full framerate (smooth instead of stepping); v15mk2.45, 16 Nov 2026: a deep-time view for Earth — reconstructed continents (Merdith et al. 2021) drift from Rodinia to today on a time slider, with the geologic timescale from the Precambrian to now; v15mk2.44, 15 Nov 2026: cleaner relief shading — removed the streaking at the poles and clamped extreme slopes, so the sun-lit terrain reads more smoothly; v15mk2.43, 15 Nov 2026: impact-crater layers for Mercury (451 named craters), Venus (942) and Earth (189 confirmed structures), each drawn as rings at true size with a crater-density and model-age note; v15mk2.42, 15 Nov 2026: dropped the pre-baked relief-shading normal maps from Mercury and Venus (about 1.1 MB) — their topography grids already build the relief from the true heights, so the maps were unused; v15mk2.41, 15 Nov 2026: Mercury topography — the USGS MESSENGER global elevation model (0.25°) added as a Topography layer; its real heights now drive the globe’s relief, replacing the normal-map shading; v15mk2.40, 15 Nov 2026: data-accuracy fix — corrected mean radii (Phobos, Deimos, Mimas, Hyperion, Ganymede) and Neptune’s flattening to JPL/IAU 2015 values, and the solar-energy albedos to Bond values; v15mk2.39, 5 Nov 2026: the ☀ Solar energy readout in each world's panel (sunlight in W/m² and vs Earth, the perihelion–aphelion range, equilibrium and noon-sun temperatures, and light delay); v15mk2.38, 5 Nov 2026: the webcam hand aim-assist (Adaptive aim) now starts off by default; v15mk2.37, 5 Nov 2026: clearer, more colour-blind-safe colours for the sky-lore labels, with a thin dark shadow so small label text stays legible; v15mk2.36, 5 Nov 2026: six more sky cultures (Chinese, Arabic, Hawaiian, Inuit, Aztec, Sami) with native names; tap a constellation to see its lore; constellation labels fade toward the centre of the view to cut clutter; v15mk2.35, 4 Nov 2026: the hand cursor keeps up with ordinary reaches (about 100 ms less lag); shared starting settings only once five people have shared; v15mk2.34: button highlights no longer flicker at the edge, and a held pinch keeps up with the hand; v15mk2.33: tidier hand-control code; v15mk2.32: five refinements from the hand research bot: presses resolved by a short vote over where the cursor was, steadier button holds, a steadier two-thirds pinch, a rest line with hysteresis, and only the visible part of the safety box mapped; ⋯ Less in the hand-control bar tidies the screen (on by default on phones)">v15mk2.52</span>
+        <span class="ver" title="Version v15mk2.53, 23 Nov 2026: 🥽 VR — a split left and right view for a phone in a Google Cardboard viewer, on the Solar System map and on the globes. Turn your head to look around; stare at a world for two seconds to land on it, and at the signs under a globe to change its map or go back; v15mk2.52, 20 Nov 2026: faster — the page no longer downloads a world until its globe is about to come into view or you pick one, and moving the pointer over a globe is much lighter; v15mk2.51, 20 Nov 2026: 🧭 Sky from here (Earth) — stand on the surface where the globe faces you, or at a latitude and longitude you type, and look up at the real night sky for any date and time, with a horizon, compass points, altitude circles and the celestial poles to find direction by the stars; v15mk2.50, 19 Nov 2026: the deep-time view now lets you go to an exact age — type a number of millions of years into the Ma box, or pick a geologic period from the Jump-to menu — and the slider is finer (1-Myr steps); playback also runs at about half speed (~45 Ma/s near the present easing to ~10 Ma/s by 1000 Ma); v15mk2.49, 16 Nov 2026: the deep-time view is clearer — continents are filled land against the ocean, a faint graticule with a brighter equator and pole markers shows the globe’s rotation, and the major landmasses (Rodinia, Laurentia, Gondwana, Pangaea, Laurasia, Pannotia) carry drifting name labels placed from craton tracks reconstructed through the same plate model; v15mk2.48, 16 Nov 2026: the deep-time view now explains each chapter \u2014 supercontinents (Rodinia, Pannotia, Pangaea), the landmasses Laurentia, Gondwana and Laurasia, and milestones from Snowball Earth and the Cambrian Explosion to the great extinctions; v15mk2.47, 16 Nov 2026: the deep-time continent drift now starts fast near the present and eases slower as it winds back in time, so the ancient supercontinents are easier to watch assemble; v15mk2.46, 16 Nov 2026: the deep-time continent drift now plays at full framerate (smooth instead of stepping); v15mk2.45, 16 Nov 2026: a deep-time view for Earth — reconstructed continents (Merdith et al. 2021) drift from Rodinia to today on a time slider, with the geologic timescale from the Precambrian to now; v15mk2.44, 15 Nov 2026: cleaner relief shading — removed the streaking at the poles and clamped extreme slopes, so the sun-lit terrain reads more smoothly; v15mk2.43, 15 Nov 2026: impact-crater layers for Mercury (451 named craters), Venus (942) and Earth (189 confirmed structures), each drawn as rings at true size with a crater-density and model-age note; v15mk2.42, 15 Nov 2026: dropped the pre-baked relief-shading normal maps from Mercury and Venus (about 1.1 MB) — their topography grids already build the relief from the true heights, so the maps were unused; v15mk2.41, 15 Nov 2026: Mercury topography — the USGS MESSENGER global elevation model (0.25°) added as a Topography layer; its real heights now drive the globe’s relief, replacing the normal-map shading; v15mk2.40, 15 Nov 2026: data-accuracy fix — corrected mean radii (Phobos, Deimos, Mimas, Hyperion, Ganymede) and Neptune’s flattening to JPL/IAU 2015 values, and the solar-energy albedos to Bond values; v15mk2.39, 5 Nov 2026: the ☀ Solar energy readout in each world's panel (sunlight in W/m² and vs Earth, the perihelion–aphelion range, equilibrium and noon-sun temperatures, and light delay); v15mk2.38, 5 Nov 2026: the webcam hand aim-assist (Adaptive aim) now starts off by default; v15mk2.37, 5 Nov 2026: clearer, more colour-blind-safe colours for the sky-lore labels, with a thin dark shadow so small label text stays legible; v15mk2.36, 5 Nov 2026: six more sky cultures (Chinese, Arabic, Hawaiian, Inuit, Aztec, Sami) with native names; tap a constellation to see its lore; constellation labels fade toward the centre of the view to cut clutter; v15mk2.35, 4 Nov 2026: the hand cursor keeps up with ordinary reaches (about 100 ms less lag); shared starting settings only once five people have shared; v15mk2.34: button highlights no longer flicker at the edge, and a held pinch keeps up with the hand; v15mk2.33: tidier hand-control code; v15mk2.32: five refinements from the hand research bot: presses resolved by a short vote over where the cursor was, steadier button holds, a steadier two-thirds pinch, a rest line with hysteresis, and only the visible part of the safety box mapped; ⋯ Less in the hand-control bar tidies the screen (on by default on phones)">v15mk2.53</span>
       </h1>
       <button type="button" id="voiceBtn" aria-pressed="false" title="Voice commands: say “Hey Atlas”, then what you want, e.g. “Hey Atlas, show Mars” or “Hey Atlas, next map”">🎤 Voice</button>
       <p id="howTo">
@@ -2205,6 +2258,9 @@
             title="Steer the view with your hand, using your computer's camera"
           >
             ✋ Hand control
+          </button>
+          <button type="button" id="mapVr" aria-pressed="false" title="A split left and right view for a phone in a Google Cardboard viewer: turn your head to look around, and stare at a world for two seconds to land on it">
+            🥽 VR
           </button>
         </div>
       </div>
@@ -2348,6 +2404,7 @@
         aria-pressed="false"
         title="Turn and zoom the globe with your hand, using your computer's camera"
       >✋ Hand control</button
+      ><button id="vrBtn" type="button" aria-pressed="false" title="A split left and right view for a phone in a Google Cardboard viewer: turn your head to look around, and stare at a sign for two seconds to pick it">🥽 VR</button
       ><button id="handSnd" type="button" aria-pressed="true" hidden title="Turn hand-control sounds on or off">🔊 Sound</button
       ><button id="handAssist" type="button" aria-pressed="false" hidden title="Adaptive aim: learns from your movements and makes buttons easier to hit when you're having trouble. Press to switch it off and reset what it learned.">🎯 Adaptive aim: off</button
       ><a id="handTrain" class="srclink" href="https://tbirdpower3000.github.io/hand-control-training/" title="A one-minute exercise that teaches hand control your reach, pinch and steadiness">Train hand control →</a>
@@ -8038,7 +8095,8 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
       if (window.LIVE_TICK) window.LIVE_TICK(t);
       if (window.CR_TICK) window.CR_TICK(t);
       if (window.ORB_TICK) window.ORB_TICK(t);
-      renderer.render(scene, camera);
+      if (window.VRM && VRM.on()) VRM.globe(t);
+      else renderer.render(scene, camera);
       if (window.SKY && SKY.fadeView) SKY.fadeView(GSKY, camera, controls.target);
       if (!P) return;
       const cdir = camera.position.clone().normalize(),
@@ -8220,6 +8278,326 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
       if (!document.fullscreenElement && FS && window.HAND_STOP) window.HAND_STOP();
     }); // Esc leaves hand control too
     $('fsMap').onclick = () => exitToMap();
+
+    // ---------- VR: a split left and right view for a phone in a Cardboard viewer ----------
+    // Turning your head looks around; the world floats in front and the view drifts slowly round it. Staring at a world
+    // on the map, or at one of the signs under the globe, for two seconds picks it. iPhone browsers have no WebXR, so
+    // the two eye views and the head tracking are done here from the motion sensors.
+    const VRM = (window.VRM = (function () {
+      const D = Math.PI / 180,
+        TOUCH = 'ontouchstart' in window || navigator.maxTouchPoints > 0,
+        DWELL = 2;
+      const st = { on: false, rot: 0, motion: false, recentre: true, look: null, wasReady: false, upright: 0, mode: '' };
+      const devQ = new THREE.Quaternion(),
+        yawQ = new THREE.Quaternion(),
+        headQ = new THREE.Quaternion(),
+        baseQ = new THREE.Quaternion(),
+        q0 = new THREE.Quaternion(),
+        q1 = new THREE.Quaternion(-Math.SQRT1_2, 0, 0, Math.SQRT1_2),
+        zee = new THREE.Vector3(0, 0, 1),
+        upY = new THREE.Vector3(0, 1, 0),
+        eul = new THREE.Euler(),
+        va = new THREE.Vector3(),
+        gz = new THREE.Vector3(),
+        sz = new THREE.Vector2(),
+        m4 = new THREE.Matrix4();
+      const stereo = new THREE.StereoCamera();
+      stereo.aspect = 0.5;
+      const ui = {};
+      let saved = null,
+        hud = null,
+        lastT = 0;
+
+      // a line of text on a flat sign in the scene
+      function sign(w, h) {
+        const c = document.createElement('canvas');
+        c.width = 640;
+        c.height = Math.round((640 * h) / w);
+        const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(c), transparent: true, depthTest: false, depthWrite: false }));
+        m.renderOrder = 999;
+        m.frustumCulled = false;
+        m.userData = { c, last: null };
+        return m;
+      }
+      function write(m, text, hot) {
+        const key = text + (hot ? '*' : '');
+        if (m.userData.last === key) return;
+        m.userData.last = key;
+        const c = m.userData.c,
+          x = c.getContext('2d');
+        x.clearRect(0, 0, c.width, c.height);
+        if (text) {
+          x.fillStyle = hot ? 'rgba(60,44,10,0.85)' : 'rgba(7,11,20,0.75)';
+          x.fillRect(0, 0, c.width, c.height);
+          x.font = `600 ${Math.round(c.height * 0.5)}px system-ui, sans-serif`;
+          x.textAlign = 'center';
+          x.textBaseline = 'middle';
+          x.fillStyle = hot ? '#ffd88a' : '#e9eef5';
+          x.fillText(text, c.width / 2, c.height / 2, c.width - 24);
+        }
+        m.material.map.needsUpdate = true;
+      }
+      // the gaze mark (fixed in the view) and the signs (fixed around the world), made once for each of the two views
+      function attach(key, cam, sc) {
+        if (ui[key]) return ui[key];
+        sc.add(cam);
+        const g = new THREE.Group();
+        cam.add(g);
+        const flat = (geo, col, op) => {
+          const m = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color: col, depthTest: false, depthWrite: false, transparent: true, opacity: op }));
+          m.position.z = -1;
+          m.renderOrder = 1000;
+          m.frustumCulled = false;
+          return m;
+        };
+        const ring = flat(new THREE.RingGeometry(0.011, 0.016, 28), 0xffffff, 0.9),
+          dot = flat(new THREE.CircleGeometry(0.011, 24), 0xffd88a, 1),
+          label = sign(0.42, 0.06);
+        dot.scale.setScalar(0.001);
+        label.position.set(0, -0.075, -1);
+        g.add(ring, dot, label);
+        const rig = new THREE.Group();
+        sc.add(rig);
+        return (ui[key] = { g, dot, label, rig, signs: [], aimId: null, aimT: 0, cool: 0, note: '', noteT: 0 });
+      }
+      function addSign(key, az, el, action) {
+        const u = ui[key],
+          pivot = new THREE.Group(),
+          m = sign(0.46, 0.085);
+        pivot.rotation.set(el * D, -az * D, 0, 'YXZ');
+        m.position.z = -1;
+        pivot.add(m);
+        u.rig.add(pivot);
+        const s = { m, dir: new THREE.Vector3(0, 0, -1).applyEuler(pivot.rotation), action, text: '' };
+        u.signs.push(s);
+        return s;
+      }
+      function head() {
+        if (st.look) {
+          eul.set(st.look[1] * D, st.look[0] * D, 0, 'YXZ');
+          headQ.setFromEuler(eul);
+          return;
+        }
+        if (!st.motion) return void headQ.identity();
+        if (st.recentre) {
+          va.set(0, 0, -1).applyQuaternion(devQ);
+          yawQ.setFromAxisAngle(upY, -Math.atan2(-va.x, -va.z));
+          st.recentre = false;
+        }
+        headQ.copy(yawQ).multiply(devQ);
+      }
+      // point the camera: straight at the world, then turned by the head
+      function pose(key, cam, target) {
+        const u = ui[key],
+          dist = Math.max(1e-9, cam.position.distanceTo(target));
+        if (st.mode !== MODE) {
+          st.mode = MODE;
+          st.recentre = true; // a new view opens straight ahead of wherever you are facing
+        }
+        m4.lookAt(cam.position, target, cam.up);
+        baseQ.setFromRotationMatrix(m4);
+        head();
+        cam.quaternion.copy(baseQ).multiply(headQ);
+        cam.updateMatrixWorld(true);
+        u.g.scale.setScalar(dist * 0.6);
+        u.rig.position.copy(cam.position);
+        u.rig.quaternion.copy(baseQ);
+        u.rig.scale.setScalar(dist);
+        gz.set(0, 0, -1).applyQuaternion(headQ); // where you are looking, relative to the world view
+        return dist;
+      }
+      // keep looking at the same thing for two seconds to pick it; the gold dot fills as you do
+      function aim(key, id, text, dt, now) {
+        const u = ui[key];
+        if (now < u.cool) id = null;
+        if (id !== u.aimId) {
+          u.aimId = id;
+          u.aimT = 0;
+        } else if (id) u.aimT += dt;
+        const p = id ? Math.min(1, u.aimT / DWELL) : 0;
+        u.dot.scale.setScalar(Math.max(0.001, p));
+        const shown = now < u.noteT ? u.note : text;
+        write(u.label, shown || '', false);
+        u.label.visible = !!shown;
+        if (p >= 1) {
+          u.aimId = null;
+          u.aimT = 0;
+          u.cool = now + 1500;
+          return true;
+        }
+        return false;
+      }
+      function say(key, text) {
+        const u = ui[key];
+        if (!u) return;
+        u.note = text;
+        u.noteT = performance.now() + 4000;
+      }
+      function render(r, sc, cam, target) {
+        r.getSize(sz);
+        stereo.eyeSep = 0.021 * Math.max(1e-9, cam.position.distanceTo(target));
+        stereo.update(cam);
+        r.setScissorTest(true);
+        r.setScissor(0, 0, sz.x / 2, sz.y);
+        r.setViewport(0, 0, sz.x / 2, sz.y);
+        r.render(sc, stereo.cameraL);
+        r.setScissor(sz.x / 2, 0, sz.x / 2, sz.y);
+        r.setViewport(sz.x / 2, 0, sz.x / 2, sz.y);
+        r.render(sc, stereo.cameraR);
+        r.setScissorTest(false);
+        r.setViewport(0, 0, sz.x, sz.y);
+      }
+      // the globe's view, each frame
+      function globe(t) {
+        const dt = Math.min(0.1, (t - lastT) / 1000 || 0.016);
+        lastT = t;
+        watch(t);
+        if (!st.on) return void renderer.render(scene, camera);
+        if (!ui.globe) {
+          attach('globe', camera, scene);
+          addSign('globe', -24, -30, () => exitToMap()).text = '\u2191 Solar System';
+          addSign('globe', 24, -30, () => stepLayer(1)).layer = true;
+          addSign('globe', 0, 27, null).name = true;
+        }
+        const u = ui.globe;
+        pose('globe', camera, controls.target);
+        let hit = null;
+        u.signs.forEach((s) => {
+          if (s.layer) {
+            const b = layerBtns(),
+              cur = b.find((x) => x.getAttribute('aria-pressed') === 'true');
+            s.text = b.length > 1 ? '\ud83d\uddfa ' + (cur ? cur.textContent.trim() : 'Map') + ' \u25b8' : '';
+          }
+          if (s.name) s.text = P ? P.name : '';
+          const near = s.action && s.text && gz.angleTo(s.dir) < 8 * D;
+          if (near) hit = s;
+          write(s.m, s.text, near);
+          s.m.visible = !!s.text;
+        });
+        if (aim('globe', hit, hit ? 'Keep looking\u2026' : '', dt, t)) hit.action();
+        render(renderer, scene, camera, controls.target);
+      }
+      // the phone itself: which way it is turned, and where the head is pointing
+      function onOrient(e) {
+        if (e.alpha == null) return;
+        st.motion = true;
+        eul.set(e.beta * D, e.alpha * D, -e.gamma * D, 'YXZ');
+        devQ.setFromEuler(eul).multiply(q1);
+        let o = (screen.orientation && screen.orientation.angle) != null ? screen.orientation.angle : window.orientation || 0;
+        if (TOUCH && innerHeight > innerWidth) {
+          // rotation lock keeps the page upright: the phone's right-hand edge points up or down when it is on its side
+          const ry = va.set(1, 0, 0).applyQuaternion(devQ).y,
+            nr = ry > 0.6 ? 90 : ry < -0.6 ? -90 : Math.abs(ry) < 0.3 ? 0 : st.rot;
+          if (nr !== st.rot) {
+            st.rot = nr;
+            layout();
+          }
+          o = st.rot;
+        }
+        devQ.multiply(q0.setFromAxisAngle(zee, -o * D));
+      }
+      const ready = () => !TOUCH || innerWidth > innerHeight || st.rot !== 0;
+      // with rotation lock on, both views are drawn a quarter turn round so they sit upright in the viewer
+      function layout() {
+        const pageLand = innerWidth > innerHeight;
+        if (pageLand) st.rot = 0;
+        const turned = st.on && !pageLand && st.rot !== 0;
+        [stage, $('mapStage')].forEach((el) => {
+          const y = el.style;
+          if (turned) {
+            y.inset = 'auto';
+            y.left = '50%';
+            y.top = '50%';
+            y.width = innerHeight + 'px';
+            y.height = innerWidth + 'px';
+            y.maxWidth = 'none'; // the panels are normally held to the page's width
+            y.transform = `translate(-50%, -50%) rotate(${st.rot}deg)`;
+          } else y.inset = y.left = y.top = y.width = y.height = y.maxWidth = y.transform = '';
+        });
+        if (hud) {
+          const m = $('vrMid').style;
+          if (turned) {
+            m.left = '0'; m.right = '0'; m.top = '50%'; m.bottom = 'auto'; m.height = '2px'; m.width = 'auto';
+          } else {
+            m.top = '0'; m.bottom = '0'; m.left = '50%'; m.right = 'auto'; m.width = '2px'; m.height = 'auto';
+          }
+          $('vrTurn').hidden = !st.on || ready();
+        }
+        gPoke();
+        if (window.mPoke) window.mPoke();
+      }
+      // leaving: hand control or Esc closed the full-screen view, or the phone was stood upright again
+      function watch(t) {
+        if (!st.on) return;
+        if (!FS) return exit();
+        if (ready()) {
+          st.wasReady = true;
+          st.upright = 0;
+        } else if (st.wasReady && st.motion) {
+          if (!st.upright) st.upright = t;
+          else if (t - st.upright > 1500) exit();
+        }
+      }
+      async function enter(where) {
+        if (st.on) return;
+        try {
+          if (window.DeviceOrientationEvent && typeof DeviceOrientationEvent.requestPermission === 'function') await DeviceOrientationEvent.requestPermission();
+        } catch (e) {}
+        window.addEventListener('deviceorientation', onOrient);
+        if (window.HAND_STOP) window.HAND_STOP();
+        if (window.SURF) SURF.exit();
+        if (!hud) {
+          hud = document.createElement('div');
+          hud.id = 'vrHud';
+          hud.innerHTML =
+            '<div id="vrMid"></div><div id="vrTurn" hidden><div style="font-size:3rem">\ud83d\udcf1\u21bb</div><div>Turn the phone sideways and put it in the viewer.</div><div style="font-size:0.9rem;opacity:0.75">Stand it upright again to leave VR.</div></div><button type="button" id="vrExit">Exit VR</button>';
+          document.body.appendChild(hud);
+          $('vrExit').onclick = exit;
+        }
+        hud.hidden = false;
+        saved = { fov: camera.fov, ar: controls.autoRotate, ars: controls.autoRotateSpeed };
+        Object.assign(st, { on: true, recentre: true, wasReady: false, upright: 0, mode: '' });
+        Object.values(ui).forEach((u) => (u.g.visible = u.rig.visible = true));
+        document.body.classList.add('vr');
+        camera.fov = 75;
+        camera.updateProjectionMatrix();
+        controls.autoRotate = true; // the view drifts slowly round the world, so every side comes past
+        controls.autoRotateSpeed = 0.5;
+        if (window.VR_MAP) window.VR_MAP(true);
+        enterFS(where === 'globe' && P ? 'globe' : 'map');
+        ['vrBtn', 'mapVr'].forEach((id) => $(id) && $(id).setAttribute('aria-pressed', 'true'));
+        layout();
+      }
+      function exit() {
+        if (!st.on) return;
+        st.on = false;
+        Object.values(ui).forEach((u) => (u.g.visible = u.rig.visible = false));
+        window.removeEventListener('deviceorientation', onOrient);
+        document.body.classList.remove('vr');
+        if (hud) hud.hidden = true;
+        camera.fov = saved.fov;
+        camera.updateProjectionMatrix();
+        controls.autoRotate = saved.ar;
+        controls.autoRotateSpeed = saved.ars;
+        if (window.VR_MAP) window.VR_MAP(false);
+        st.rot = 0;
+        layout();
+        exitFS();
+        ['vrBtn', 'mapVr'].forEach((id) => $(id) && $(id).setAttribute('aria-pressed', 'false'));
+        gPoke();
+      }
+      if ($('vrBtn')) $('vrBtn').onclick = () => (st.on ? exit() : enter('globe'));
+      if ($('mapVr')) $('mapVr').onclick = () => (st.on ? exit() : enter('map'));
+      addEventListener('resize', () => st.on && layout());
+      document.addEventListener('keydown', (e) => e.key === 'Escape' && st.on && exit());
+      return {
+        on: () => st.on,
+        attach, pose, aim, say, render, globe, enter, exit, watch,
+        // for checks: point the head (degrees right, degrees up), or pass null to use the sensors again
+        look(yaw, pitch) { st.look = yaw == null ? null : [-yaw, pitch]; },
+        state: () => ({ on: st.on, rot: st.rot, mode: MODE, ready: ready(), globe: ui.globe ? { label: ui.globe.label.userData.last, signs: ui.globe.signs.map((x) => x.text) } : null, map: ui.map ? { label: ui.map.label.userData.last } : null }),
+      };
+    })());
     // ◐ Less / ◑ More: on phones it starts tidy; the choice is remembered in this browser
     let HANDMIN = null;
     try {
@@ -9190,6 +9568,42 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
       ['pointerdown', 'pointermove', 'wheel'].forEach((ev) => mr.domElement.addEventListener(ev, mPoke, { passive: true }));
       new ResizeObserver(mPoke).observe(ms);
       window.SIM_FAST = () => Math.abs(warp) >= 0.01; // faster than about 15 minutes a second: things visibly move
+      // VR on the map: the head looks around, and the world nearest the middle of the view is named; keep looking at one
+      // that has a globe and you land on it
+      let vrFov = 0;
+      const vrF = new THREE.Vector3(),
+        vrT = new THREE.Vector3();
+      window.VR_MAP = (on) => {
+        if (on) {
+          vrFov = mcam.fov;
+          mcam.fov = 75;
+        } else if (vrFov) mcam.fov = vrFov;
+        mcam.updateProjectionMatrix();
+        mPoke();
+      };
+      function vrMap(t, dt) {
+        VRM.watch(t);
+        if (!VRM.on() || MODE !== 'map') return void mr.render(msc, mcam); // behind the globe the map is not on show
+        VRM.attach('map', mcam, msc);
+        VRM.pose('map', mcam, mco.target);
+        mcam.getWorldDirection(vrF);
+        let id = null,
+          best = 6 * (Math.PI / 180);
+        for (const [k, b] of Object.entries(B)) {
+          if (!b.sprite.visible) continue;
+          const a = vrF.angleTo(vrT.copy(b.sprite.position).sub(mcam.position));
+          if (a < best) {
+            best = a;
+            id = k;
+          }
+        }
+        const can = id && INDEX.some((x) => x.id === id);
+        if (VRM.aim('map', can ? id : null, id ? B[id].name + (can ? '' : ' (no globe yet)') : '', dt, t)) {
+          VRM.say('map', 'Loading ' + B[id].name + '\u2026');
+          enterGlobe(id);
+        }
+        VRM.render(mr, msc, mcam, mco.target);
+      }
       function mframe(t) {
         requestAnimationFrame(mframe);
         const dt = Math.min(0.1, (t - lastT) / 1000);
@@ -9253,7 +9667,8 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
           MSKY.matrix.copy(MSKYM).setPosition(mcam.position);
           MSKY.matrixWorldNeedsUpdate = true;
         }
-        mr.render(msc, mcam);
+        if (window.VRM && VRM.on()) vrMap(t, dt);
+        else mr.render(msc, mcam);
         if (window.SKY && SKY.fadeView) SKY.fadeView(MSKY, mcam, mco.target);
         const cd = mcam.position.distanceTo(mco.target);
         Object.entries(B).forEach(([id, b]) => {
