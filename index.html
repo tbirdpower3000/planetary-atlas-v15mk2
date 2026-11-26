@@ -8488,7 +8488,8 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
         if (hand.state === 'on' || hand.state === 'loading') return;
         hand.state = 'loading';
         try {
-          const strm = await navigator.mediaDevices.getUserMedia({ audio: false, video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } } });
+          // 60 pictures a second where the camera can give them (a wish, so a 30-a-second camera still opens): the hand is seen twice as often
+          const strm = await navigator.mediaDevices.getUserMedia({ audio: false, video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 }, frameRate: { ideal: 60 } } });
           hand.stream = strm;
           const v = (hand.vid = document.createElement('video'));
           v.playsInline = true;
