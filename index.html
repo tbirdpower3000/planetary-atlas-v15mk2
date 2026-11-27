@@ -8784,7 +8784,7 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
         HGAIN = 1.3,
         P_ON = 0.3,
         P_OFF = 0.48;
-      const hand = { state: 'off', stream: null, vid: null, lm: null, ok: false, u: 0.5, v: 0.5, vu: 0, vv: 0, t: 0, seen: 0, ratio: 1, size: 0, pinch: false, lastVT: -1, skip: false, test: false, b: { ok: false, u: 0, v: 0, pinch: false, pts: null, seen: 0 } };
+      const hand = { state: 'off', stream: null, vid: null, lm: null, ok: false, u: 0.5, v: 0.5, vu: 0, vv: 0, t: 0, seen: 0, size: 0, pinch: false, lastVT: -1, skip: false, test: false, b: { ok: false, u: 0, v: 0, pinch: false, pts: null, seen: 0 } };
       const hdir = new THREE.Vector3(),
         hw = new THREE.Vector3(),
         hInv = new THREE.Matrix4(),
@@ -9036,7 +9036,7 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
           const q = hand.pts;
           pts = pts.map((p, i) => ({ x: q[i].x + (p.x + (u - ru) - q[i].x) * 0.6, y: q[i].y + (p.y + (v - hand.rv) - q[i].y) * 0.6, z: p.z }));
         }
-        Object.assign(hand, { ok: true, u, v, t: now, seen: now, ratio, pts: pts || null, size: hand.ok && hand.size && !again ? hand.size + (size - hand.size) * 0.4 : size });
+        Object.assign(hand, { ok: true, u, v, t: now, seen: now, pts: pts || null, size: hand.ok && hand.size && !again ? hand.size + (size - hand.size) * 0.4 : size });
         // a pinch, or its release, has to be seen twice running before it counts: one odd sighting neither grabs nor drops
         const says = !hand.pinch ? ratio < P_ON : !(ratio > P_OFF);
         if (says === hand.pinch) hand.pinchN = 0;
@@ -9061,8 +9061,6 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
           glide(hand.fu, tu, 0.03, dt);
           glide(hand.fv, tv, 0.03, dt);
         }
-        hand.cu = hand.fu.x - hand.u;
-        hand.cv = hand.fv.x - hand.v;
         return uvDir(hand.fu.x, hand.fv.x, out);
       }
       function uvDir(u, v, out) {
@@ -9131,7 +9129,6 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
         pin.label.scale.setScalar(dist);
         pin.label.position.copy(w).addScaledVector(hr.set(0, 1, 0).applyQuaternion(camera.quaternion), dist * 0.06);
       }
-      // the hand on the globe, each frame
       // the hand in a VR view, each frame. pick(origin, direction) says what the fingertip is on (with t, how far away);
       // tap(what) is a quick pinch; busy holds gestures off while the view is being moved for you
       function handView(key, cam, ctl, t, pick, tap, busy) {
@@ -9256,7 +9253,7 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
           if (grab) { grab.lx = ax; grab.ly = ay; }
           zoom = null;
         }
-        if (hand.pinch && !grab) grab = { t0: t, ax, ay, lx: ax, ly: ay, size0: hand.size, dist0: cam.position.distanceTo(ctl.target), moved: false, hit };
+        if (hand.pinch && !grab) grab = { t0: t, ax, ay, lx: ax, ly: ay, moved: false };
         else if (hand.pinch && grab) {
           if (two || Math.abs(ax - grab.ax) + Math.abs(ay - grab.ay) > 4 * D || t - grab.t0 > 600) grab.moved = true;
           if (two) {
@@ -9473,7 +9470,7 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
           if (u2 != null) handSetB(now, u2, v2, ratio2 == null ? 1 : ratio2, tpl(u2, v2, 1, ratio2 != null && ratio2 < P_ON, true));
           else hand.b.ok = hand.b.pinch = false;
         },
-        state: () => ({ az: Math.atan2(camera.position.x - controls.target.x, camera.position.z - controls.target.z) / D, cur: hand.ok ? hand.fu.x : null, lens: [...lensOf.values()].map((L) => ({ q: L.q, ms: +L.ema.toFixed(1), w: L.ew, h: L.eh })), on: st.on, rot: st.rot, mode: MODE, walk: st.walk, hand: { falseSightings: hand.falseN || 0, restarts: hand.restarts || 0, remakes: hand.remakes || 0, errs: hand.errs || 0, cam: hand.stream ? hand.stream.id : '', state: hand.state, ok: hand.ok, pinch: hand.pinch, grab: !!grab, two: hand.b.ok, zoom: !!zoom }, pin: pin && pin.text ? { lat: pin.lat, lon: pin.lon, text: pin.text } : null, elev: Math.asin(camera.position.y / camera.position.length()) / D, az: (Math.atan2(camera.position.x, camera.position.z) / D + 360) % 360, dist: camera.position.length(), off: va.set(0, 0, -1).applyQuaternion(camera.quaternion).angleTo(gz.copy(controls.target).sub(camera.position)) / D, ready: ready(), globe: ui.globe ? { label: ui.globe.label.userData.last, signs: ui.globe.signs.map((x) => x.text) } : null, map: ui.map ? { label: ui.map.label.userData.last } : null }),
+        state: () => ({ cur: hand.ok ? hand.fu.x : null, lens: [...lensOf.values()].map((L) => ({ q: L.q, ms: +L.ema.toFixed(1), w: L.ew, h: L.eh })), on: st.on, rot: st.rot, mode: MODE, walk: st.walk, hand: { falseSightings: hand.falseN || 0, restarts: hand.restarts || 0, remakes: hand.remakes || 0, errs: hand.errs || 0, cam: hand.stream ? hand.stream.id : '', state: hand.state, ok: hand.ok, pinch: hand.pinch, grab: !!grab, two: hand.b.ok, zoom: !!zoom }, pin: pin && pin.text ? { lat: pin.lat, lon: pin.lon, text: pin.text } : null, elev: Math.asin(camera.position.y / camera.position.length()) / D, az: (Math.atan2(camera.position.x, camera.position.z) / D + 360) % 360, dist: camera.position.length(), off: va.set(0, 0, -1).applyQuaternion(camera.quaternion).angleTo(gz.copy(controls.target).sub(camera.position)) / D, ready: ready(), globe: ui.globe ? { label: ui.globe.label.userData.last, signs: ui.globe.signs.map((x) => x.text) } : null, map: ui.map ? { label: ui.map.label.userData.last } : null }),
       };
     })());
     // ◐ Less / ◑ More: on phones it starts tidy; the choice is remembered in this browser
