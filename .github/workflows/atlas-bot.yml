@@ -48,6 +48,8 @@ jobs:
         run: |
           npm install --no-save playwright@1.48.0
           npx playwright install --with-deps chromium
+      - name: Run the hand smoothing test
+        run: node tests/hand_smooth.test.cjs
       - name: Run the VR hands test
         run: node tests/vr_hands.test.cjs
 
