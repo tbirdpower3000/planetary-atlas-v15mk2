@@ -11,13 +11,14 @@ world it writes
     worlds/<id>/<grid>.bin    a grid's numbers as they are (16-bit, little-endian, rows x cols), no longer as text
     worlds/<id>/<image>.jpg   a picture layer as a picture file
 
-Each grid in world.json also carries "pv": a small preview (every 4th or 8th sample, about 91 x 180) so a value can
+Each site in world.json carries "gv": its value in each of the first four grids, worked out from the full grids, so
+the page can list them without fetching those grids. Each grid in world.json also carries "pv": a small preview (every 4th or 8th sample, about 91 x 180) so a value can
 be read from a layer before its full grid has arrived. The page opens a world from its folder when index.json gives
 one ("dir"), and falls back to the single pack file when it does not, so other data folders keep working.
 
 Pure standard library.
 """
-import base64, hashlib, io, json, struct, sys
+import base64, hashlib, json, math, struct, sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -39,6 +40,20 @@ def preview(b64, rows, cols):
     return {"rows": (rows - 1) // k + 1, "cols": cols // k, "b64": base64.b64encode(bytes(out)).decode()}
 
 
+def samp(a, rows, cols, k, lat, lon):
+    """The page's own samp(), step for step, so a value worked out here is the value the page would show."""
+    st = 180 / (rows - 1)
+    y = (90 - lat) / st
+    x = math.fmod(math.fmod(lon, 360) + 360, 360) / st
+    i = min(max(math.floor(y), 0), rows - 2)
+    fy = min(1, max(0, y - i))
+    j = math.floor(x) % cols
+    j1 = (j + 1) % cols
+    fx = x - math.floor(x)
+    return ((a[i * cols + j] * (1 - fx) + a[i * cols + j1] * fx) * (1 - fy)
+            + (a[(i + 1) * cols + j] * (1 - fx) + a[(i + 1) * cols + j1] * fx) * fy) * k
+
+
 def split(pack):
     """-> ({relative file name: bytes}, world dict)"""
     files, w = {}, dict(pack)
@@ -55,6 +70,16 @@ def split(pack):
             d["pv"] = pv
         files[d["file"]] = raw
         w["grids"].append(d)
+    # each site's value in each of the first four grids (the ones the page lists), worked out here from the full
+    # grids, so the page can show them exactly without fetching a grid it is not otherwise using
+    first = [(g, struct.unpack(f"<{g['rows'] * g['cols']}h", base64.b64decode(g["b64"]))) for g in pack.get("grids", [])[:4]]
+    if first and pack.get("sites"):
+        w["sites"] = []
+        for s in pack["sites"]:
+            s = dict(s)
+            if isinstance(s.get("lat"), (int, float)) and isinstance(s.get("lon"), (int, float)):
+                s["gv"] = {g["id"]: samp(a, g["rows"], g["cols"], g.get("scale") or 1, s["lat"], s["lon"]) for g, a in first}
+            w["sites"].append(s)
     w["images"] = []
     for im in pack.get("images", []):
         d = {k: v for k, v in im.items() if k != "src"}

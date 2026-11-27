@@ -4975,7 +4975,7 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
       PTS.forEach((o, i) => (h += `<dt>Nearest: ${esc(o.L.label.split(' (')[0])}</dt><dd id="r_pt${i}">–</dd>`));
       $('readout').innerHTML = h;
     }
-    function readout(lat, lon) {
+    function readout(lat, lon, site) {
       $('r_pos').textContent = `${fmtLat(lat)} ${fmtLon(lon)}`;
       const rs = $('r_sun');
       if (rs && SUNB) {
@@ -4986,7 +4986,8 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
       (P.grids || []).forEach((d) => {
         const e = $('r_' + d.id);
         if (e) {
-          const x = samp(G[d.id], lat, lon);
+          // at a listed site the stored value is shown while the grid is still its preview (see siteVals)
+          const x = site && G[d.id].preview && site.gv && typeof site.gv[d.id] === 'number' ? site.gv[d.id] : samp(G[d.id], lat, lon);
           e.textContent = isNaN(x) ? 'no data' : fmt(x, d.unit);
         }
       });
@@ -5116,7 +5117,9 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
     }
     // ---------- selection + table ----------
     function siteVals(s) {
-      return (P.grids || []).slice(0, 4).map((d) => samp(G[d.id], s.lat, s.lon));
+      // a world from a folder lists each site's values (worked out from the full grids when the folder was made); they
+      // are used while a grid is still its preview, so showing a site does not fetch a grid for one number
+      return (P.grids || []).slice(0, 4).map((d) => (G[d.id].preview && s.gv && typeof s.gv[d.id] === 'number' ? s.gv[d.id] : samp(G[d.id], s.lat, s.lon)));
     }
     function select(s, go) {
       selected = s;
@@ -5132,7 +5135,7 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
                 .join(' · ')}</span>`
             : ''
         }`;
-      readout(s.lat, s.lon);
+      readout(s.lat, s.lon, s);
       if (go) focusOn(s.lat, s.lon);
     }
     let sortK = 'date',
