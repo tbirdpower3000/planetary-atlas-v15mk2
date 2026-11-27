@@ -2843,10 +2843,18 @@
       return btoa(s);
     }
     function mkGrid(d) {
-      const a = d.data || decB64(d.b64);
+      // a grid from a world's folder: its own file once that has arrived (d.raw), and until then its small preview
+      if (!d.data && !d.raw && d.pv && !Object.getOwnPropertyDescriptor(d, 'b64'))
+        return { def: d, a: d.pvA || (d.pvA = decB64(d.pv.b64)), r: d.pv.rows, c: d.pv.cols, st: 180 / (d.pv.rows - 1), k: d.scale || 1, preview: true };
+      const a = d.data || d.raw || decB64(d.b64);
       return { def: d, a, r: d.rows, c: d.cols, st: 180 / (d.rows - 1), k: d.data ? 1 : d.scale || 1 };
     }
+    let SAMP_QUIET = false; // set while values are read for something not on screen: a preview is then not sent for
     function samp(g, lat, lon) {
+      if (g.preview && !g.asked && !SAMP_QUIET) {
+        g.asked = true; // a preview is being read: its full grid is sent for, and takes over when it arrives
+        if (window.WANT_GRID) window.WANT_GRID(g.def);
+      }
       let y = (90 - lat) / g.st,
         x = (((lon % 360) + 360) % 360) / g.st;
       let i = Math.floor(y);
@@ -5129,6 +5137,15 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
     }
     let sortK = 'date',
       sortD = 1;
+    const tableSeen = () => {
+      const r = $('siteTb').getBoundingClientRect();
+      return r.height > 0 && r.bottom > 0 && r.top < innerHeight && !document.body.classList.contains('vr');
+    };
+    if (window.IntersectionObserver)
+      new IntersectionObserver((en) => {
+        // on screen now: its values are read properly, which sends for any grid still a preview
+        if (en.some((x) => x.isIntersecting) && P && P.later && P.later.length && tableSeen()) drawTable();
+      }).observe($('siteTb'));
     function drawTable() {
       const gs = (P.grids || []).slice(0, 4);
       const cols = [
@@ -5142,9 +5159,13 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
       $('siteTb').querySelector('thead tr').innerHTML = cols
         .map((c) => `<th class="${c[2]}" data-k="${c[0]}">${esc(c[1])}</th>`)
         .join('');
+      // the table of sites lists every grid's value at each site; while it is off screen it makes do with previews,
+      // so that opening a world does not fetch every grid just to fill a table nobody is looking at
+      SAMP_QUIET = !tableSeen();
       SITES.forEach((s) => {
         siteVals(s).forEach((v, i) => (s['v' + i] = v));
       });
+      SAMP_QUIET = false;
       const rows = SITES.slice().sort((a, b) => {
         let x = a[sortK],
           y = b[sortK];
@@ -5445,6 +5466,20 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
         camera.position.add(fv);
       }
     }
+    // for the test bot: which world is on show and what each of its grids is made of right now
+    window.atlasWorld = () =>
+      P && {
+        id: P.id,
+        folder: !!P.layout,
+        painted: PCACHE.size,
+        grids: P.grids.map((d) => {
+          const g = G[d.id];
+          let sum = 0;
+          for (let i = 0; i < g.a.length; i += 97) sum = (sum + g.a[i] * (1 + (i % 13))) | 0;
+          return { id: d.id, preview: !!g.preview, n: g.a.length, sum };
+        }),
+        images: P.images.map((im) => ({ id: im.id, embedded: /^data:/.test(im.src || '') })),
+      };
     async function usePack(pack, keepView) {
       unfocus(true);
       gPoke();
@@ -5615,6 +5650,10 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
       recentPacks.unshift(id);
       recentPacks.length = Math.min(recentPacks.length, KEEP_PACKS);
       Object.keys(cache).forEach((k) => recentPacks.includes(k) || delete cache[k]);
+      // the same goes for what was made from those worlds: each painted layer is a 4 MB picture, each opened photo more
+      const kept = (k) => recentPacks.includes(k.split('|')[0]);
+      [...PCACHE.keys()].forEach((k) => kept(k) || PCACHE.delete(k));
+      Object.keys(BL.img).forEach((k) => kept(k) || delete BL.img[k]);
     }
     const wait = (ms) => new Promise((r) => setTimeout(r, ms)),
       nextFrame = () => new Promise((r) => requestAnimationFrame(() => r()));
@@ -5738,9 +5777,65 @@ float hgt(vec2 uv){vec2 q=uv*uHsz-.5;vec2 f=fract(q);vec2 b=(floor(q)+.5)/uHsz;v
         return null;
       }
     }
+    // A world kept as a folder (index.json gives "dir"; made by scripts/split_packs.py): world.json holds the names,
+    // sites and the list of layers, and each layer is its own file. A picture layer is fetched by the browser when
+    // it is first shown. Of the grids, the ones needed to draw the world at all (the heights, the layer it opens on)
+    // are fetched before it appears; each of the others is fetched the first time a value is read from it, and until it
+    // arrives its small preview answers for it. So a world appears after a fraction of its data, nothing is held as
+    // text, and a layer nobody looks at is never downloaded.
+    async function fetchStored(url) {
+      const r = (await packStore(url)) || (await fetch(url));
+      if (!r.ok) throw new Error(r.status);
+      return r;
+    }
+    async function gridFile(pk, d) {
+      if (d.raw || !d.file) return;
+      const buf = await (await fetchStored(pk.base + d.file)).arrayBuffer();
+      if (buf.byteLength !== d.rows * d.cols * 2) throw new Error('grid size');
+      // not listed among the grid's own fields, so copying or saving the world does not drag megabytes along...
+      Object.defineProperty(d, 'raw', { value: new Int16Array(buf), enumerable: false, configurable: true });
+      // ...but anything that asks for the old text form (saving your own copy of the world) is given it, made on the spot
+      Object.defineProperty(d, 'b64', { get: () => encB64(d.raw), enumerable: true, configurable: true });
+    }
+    async function readWorld(e) {
+      const base = packUrl(e.dir),
+        pk = await (await fetchStored(base + 'world.json')).json();
+      Object.defineProperty(pk, 'base', { value: base, enumerable: false });
+      (pk.images || []).forEach((im) => im.file && (im.src = new URL(base + im.file, location.href).href));
+      const gs = pk.grids || [],
+        first = gs.filter((d, i) => d.elev || d.id === 'topo' || i === 0 || !d.pv);
+      await Promise.all(first.map((d) => gridFile(pk, d)));
+      Object.defineProperty(pk, 'later', { value: gs.filter((d) => !first.includes(d)), enumerable: false, writable: true });
+      return pk;
+    }
+    // A grid that is still its preview is sent for the first time anything reads a value from it (its layer is
+    // shown, or the readout asks what is under the pointer), and replaces the preview when it arrives. A grid nobody
+    // looks at is never downloaded.
+    window.WANT_GRID = async (d) => {
+      const pk = P;
+      if (!pk || !pk.later || !pk.later.includes(d)) return;
+      pk.later = pk.later.filter((x) => x !== d);
+      try {
+        await gridFile(pk, d);
+      } catch (err) {
+        pk.later.push(d); // its preview goes on answering; the next reading after the world is reopened tries again
+        return;
+      }
+      if (P !== pk) return; // another world is on show now: the grid is ready for when this one comes back
+      G[d.id] = mkGrid(d);
+      [...PCACHE.keys()].forEach((k) => k.startsWith(pk.id + '|' + d.id + '|') && PCACHE.delete(k)); // painted from the preview: painted again
+      if (layer === d.id) setLayer(layer);
+      else if ($('readout')) buildReadout();
+      drawTable();
+    };
     async function readPack(e) {
       const el = embedded('pack-' + e.id);
       if (el) return JSON.parse(el.textContent);
+      if (e.dir) {
+        try {
+          return await readWorld(e);
+        } catch (err) {} // no folder here (an older data source): the single file is read instead
+      }
       const url = packUrl(e.file),
         r = (await packStore(url)) || (await fetch(url));
       if (!r.ok) throw new Error(r.status);
