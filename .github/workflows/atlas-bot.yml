@@ -35,6 +35,22 @@ jobs:
           name: atlas-bot-output
           path: bot-output/
 
+  # VR hands: do they keep working from a globe to the Solar System map and back, and recover by themselves?
+  vr-hands:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install the browser
+        run: |
+          npm install --no-save playwright@1.48.0
+          npx playwright install --with-deps chromium
+      - name: Run the VR hands test
+        run: node tests/vr_hands.test.cjs
+
   # did the picture get worse? photographs each world in this version and the one before, same clock and camera, and compares
   quality:
     runs-on: ubuntu-latest
