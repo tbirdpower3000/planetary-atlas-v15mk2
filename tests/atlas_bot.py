@@ -71,7 +71,17 @@ async def page_bot():
                 return None
             t0 = time.time()
             await pg.goto(f'http://127.0.0.1:{PORT}/index.html')
-            await pg.wait_for_function('document.getElementById("busy").hidden', timeout=90000)
+            # The first world loads only once its globe has been scrolled into view (until then the sign reads "... loads
+            # when you scroll down to it"), so the bot scrolls to it. The wait looks every half second by the clock, not
+            # once a drawn frame: under software graphics frames can be seconds apart. If it still times out, the report
+            # says what the sign read and which downloads failed, in place of a bare "timeout".
+            failed = []; pg.on('requestfailed', lambda r: failed.append(r.url[:90]))
+            await pg.evaluate('document.getElementById("stage").scrollIntoView({block: "center"})')
+            try:
+                await pg.wait_for_function('document.getElementById("busy").hidden', timeout=180000, polling=500)
+            except Exception:
+                sign = await pg.evaluate('document.getElementById("busy").textContent')
+                raise RuntimeError(f'the first world never finished loading in 180 s; the sign read "{sign}"; failed downloads: {failed[:5] or "none"}; script errors: {errs[:3] or "none"}')
             notes.append(f'Page ready in {time.time() - t0:.1f} s (software graphics, so slower than a real computer).')
             step('Starts in real time', await pg.evaluate('(document.querySelector("#warp button[aria-pressed=true]")||{}).textContent==="▶ Real time"'))
             step('Clock shows the time of day', 'UTC' in await pg.inner_text('#mapDate'))
