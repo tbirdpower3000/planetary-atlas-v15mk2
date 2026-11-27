@@ -26,6 +26,8 @@ jobs:
         run: |
           pip install playwright==1.48.0
           python -m playwright install --with-deps chromium
+      - name: Check the world folders match the pack files
+        run: python scripts/split_packs.py --check
       - name: Run the bot
         run: python tests/atlas_bot.py
       - name: Keep the screenshots and report
@@ -48,6 +50,8 @@ jobs:
         run: |
           npm install --no-save playwright@1.48.0
           npx playwright install --with-deps chromium
+      - name: Run the hand smoothing test
+        run: node tests/hand_smooth.test.cjs
       - name: Run the VR hands test
         run: node tests/vr_hands.test.cjs
 
