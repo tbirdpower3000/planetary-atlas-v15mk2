@@ -45,7 +45,7 @@ const ok = (name, pass, detail) => { if (!pass) failed++; console.log((pass ? ' 
   // looks up and down a little until the sign there is picked and the view changes
   const lookFor = async (mode, pitches) => {
     await p.evaluate(() => (window.__fake.on = false)); // hands down, so the hand does not pick anything by accident
-    for (const q of pitches) { await p.evaluate((q) => VRM.look(0, q), q); if (await until(`VRM.state().mode === '${mode}'`, 2800)) break; }
+    for (const q of pitches) { await p.evaluate((q) => (Array.isArray(q) ? VRM.look(q[0], q[1]) : VRM.look(0, q)), q); if (await until(`VRM.state().mode === '${mode}'`, 2800)) break; } // a number is a look up or down; a pair is [turn left, look up]
     await p.evaluate(() => { VRM.look(20, 5); window.__fake.on = true; });
     return (await S()).mode === mode;
   };
@@ -55,7 +55,7 @@ const ok = (name, pass, detail) => { if (!pass) failed++; console.log((pass ? ' 
   ok('VR starts on the globe and the hands come on', await until(() => VRM.state().on && VRM.state().mode === 'globe' && VRM.state().hand.state === 'on', 30000));
   ok('1. a held-up hand is seen on the globe', await seen());
 
-  ok('the Solar System sign takes you to the map', await lookFor('map', [35, 31, 33, 37, 39, -35]));
+  ok('the Solar System sign takes you to the map', await lookFor('map', [[-32, 10], [-32, 8], [-32, 12], [-29, 10], [-35, 10]]));
   await p.waitForTimeout(2500); // past the fade from one view to the other
   let s = await S();
   ok('2. the hand is still seen on the map', await seen());
@@ -64,7 +64,7 @@ const ok = (name, pass, detail) => { if (!pass) failed++; console.log((pass ? ' 
 
   // back onto a world and out again: VRM.enter is the page's own way in, used by its VR buttons
   await p.evaluate(() => VRM.enter('globe')); await until(() => VRM.state().mode === 'globe', 15000); await p.waitForTimeout(2000);
-  const again = await lookFor('map', [35, 31, 33, 37, 39, -35]); await p.waitForTimeout(2500); s = await S();
+  const again = await lookFor('map', [[-32, 10], [-32, 8], [-32, 12], [-29, 10], [-35, 10]]); await p.waitForTimeout(2500); s = await S();
   ok('3. globe, map, globe, map: the hand is still seen', again && (await seen()) && s.mp.throws === 0, `mode ${s.mode}, throws ${s.mp.throws}`);
 
   const cam = s.cam;
@@ -76,6 +76,21 @@ const ok = (name, pass, detail) => { if (!pass) failed++; console.log((pass ? ' 
   await p.evaluate(() => document.querySelectorAll('video').forEach((v) => v.srcObject && v.srcObject.getTracks().forEach((t) => t.stop())));
   const back = await until(() => VRM.state().hand.restarts >= 1 && VRM.state().hand.ok, 15000); s = await S();
   ok('5. a camera that ends is opened again and the hand is seen', back && s.cam !== cam, `restarts ${s.restarts}`);
+  // 6. the signs at the sides of a world, and picking one with the hand (v15mk2.69)
+  await p.evaluate(() => VRM.enter('globe')); await until(() => VRM.state().mode === 'globe', 15000);
+  await p.evaluate(() => { VRM.look(0, 0); VRM.hand(0.5, 0.5, 0.9, 0.12); }); await p.waitForTimeout(600);
+  const sides = await p.evaluate(() => VRM.state().signsAt);
+  ok('6. with hands on, the action signs stand to the sides of the world (three each side), not stacked over it', (sides.match(/-32,/g) || []).length === 3 && (sides.match(/(^| )32,/g) || []).length === 3, sides);
+  // sweep the stand-in hand to the right until it points at "+ Closer", then pinch
+  let on = '';
+  for (let u = 0.55; u <= 0.98 && !/Closer/.test(on); u += 0.01) for (const v of [0.5, 0.52, 0.48, 0.54, 0.46]) { await p.evaluate(([u, v]) => VRM.hand(u, v, 0.9, 0.12), [u, v]); await p.waitForTimeout(90); on = await p.evaluate(() => VRM.state().handOnSign); if (/Closer/.test(on)) { await p.evaluate(([u, v]) => (window.__uv = [u, v]), [u, v]); break; } }
+  const d0 = await p.evaluate(() => VRM.state().dist);
+  // (a pinch, and its release, must each be seen twice running before they count)
+  for (const r of [0.2, 0.2, 0.2, 0.9, 0.9, 0.9]) { await p.evaluate((r) => VRM.hand(window.__uv[0], window.__uv[1], r, 0.12), r); await p.waitForTimeout(70); }
+  await p.waitForTimeout(700);
+  const d1 = await p.evaluate(() => VRM.state().dist);
+  ok('6. pointing the hand at a sign lights it, and a pinch picks it (Closer brings the world nearer)', /Closer/.test(on) && d1 < d0 * 0.9, on + ' ' + d0 + ' -> ' + d1);
+  await p.evaluate(() => VRM.hand(null));
   ok('no errors on the page', errs.length === 0, errs.slice(0, 3).join(' | ') || undefined);
   await b.close(); server.close();
   console.log(failed ? `${failed} check(s) failed.` : 'All VR hand checks passed.');
